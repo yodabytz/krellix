@@ -91,13 +91,15 @@ void Chart::paintEvent(QPaintEvent *)
     const QColor line = m_theme->color(m_colorKey,
                           m_theme->color(QStringLiteral("text_primary")));
 
+    // Same GKrellM convention as Panel: scale chart_bg vertically to chart
+    // height, then tile horizontally. Preserves the 3D shading without
+    // distortion at any chart width.
     const QPixmap bgPix = m_theme->pixmap(QStringLiteral("chart_bg"));
-    if (!bgPix.isNull()) {
-        const QString mode = m_theme->imageMode(QStringLiteral("chart_bg"));
-        if (mode == QStringLiteral("stretch"))
-            p.drawPixmap(r, bgPix);
-        else
-            p.drawTiledPixmap(r, bgPix);
+    if (!bgPix.isNull() && r.height() > 0) {
+        const QPixmap scaled = (bgPix.height() == r.height())
+            ? bgPix
+            : bgPix.scaledToHeight(r.height(), Qt::SmoothTransformation);
+        p.drawTiledPixmap(r, scaled);
     } else {
         p.fillRect(r, bg);
     }
@@ -126,47 +128,30 @@ void Chart::paintEvent(QPaintEvent *)
         poly << QPointF(x, y);
     }
 
-    p.setRenderHint(QPainter::Antialiasing, true);
-
-    // Filled area chart: closed polygon with a vertical gradient that
-    // fades from the line color (top, mostly opaque) down to almost
-    // transparent at the floor — much richer than a hairline polyline.
+    // Filled area beneath the curve, closed at the chart floor. Single
+    // semi-transparent fill (no gradient, no glow) — matches the look of
+    // the original GKrellM filled charts.
     QPolygonF area = poly;
     area << QPointF(static_cast<double>(r.right()), static_cast<double>(r.bottom()))
          << QPointF(static_cast<double>(r.left()),  static_cast<double>(r.bottom()));
 
-    // Multi-stop vertical gradient: a bright highlight right under the
-    // curve, then a quick falloff to a soft mid-tone, fading to nearly
-    // transparent at the floor. Reads as a glassy filled area.
-    QLinearGradient gradient(0, r.top(), 0, r.bottom());
-    QColor highlight    = line; highlight.setAlpha(235);
-    QColor topColor     = line; topColor.setAlpha(180);
-    QColor midColor     = line; midColor.setAlpha(80);
-    QColor bottomColor  = line; bottomColor.setAlpha(12);
-    gradient.setColorAt(0.00, highlight);
-    gradient.setColorAt(0.08, topColor);
-    gradient.setColorAt(0.55, midColor);
-    gradient.setColorAt(1.00, bottomColor);
-
+    QColor fill = line;
+    fill.setAlpha(110);  // visible but the chart_bg still reads through
+    p.setRenderHint(QPainter::Antialiasing, false);
     p.setPen(Qt::NoPen);
-    p.setBrush(gradient);
+    p.setBrush(fill);
     p.drawPolygon(area);
 
-    // A subtle wider glow behind the crisp top line — pushes the curve
-    // forward visually without smudging it.
-    QColor glow = line;
-    glow.setAlpha(80);
-    QPen glowPen(glow);
-    glowPen.setWidthF(3.0);
-    glowPen.setCosmetic(true);
-    p.setBrush(Qt::NoBrush);
-    p.setPen(glowPen);
-    p.drawPolyline(poly);
+    // Crisp pixel-aligned 1px line on top — no anti-aliasing, integer
+    // coordinates. Same hairline crispness as gkrellm's classic graphs.
+    QPolygon intPoly;
+    intPoly.reserve(static_cast<int>(poly.size()));
+    for (const QPointF &pt : poly) intPoly << pt.toPoint();
 
-    // Crisp top line.
     QPen linePen(line);
-    linePen.setWidthF(1.5);
+    linePen.setWidth(1);
     linePen.setCosmetic(true);
     p.setPen(linePen);
-    p.drawPolyline(poly);
+    p.setBrush(Qt::NoBrush);
+    p.drawPolyline(intPoly);
 }

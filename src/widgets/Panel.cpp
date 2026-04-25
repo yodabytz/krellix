@@ -129,16 +129,17 @@ void Panel::paintEvent(QPaintEvent *)
     QPainter p(this);
     const QRect r = rect();
 
-    // Image-themed background tiles across the panel. Falls back to a
-    // flat color fill if no panel_bg pixmap is configured or the file
-    // failed to load.
+    // Background image rendering follows the GKrellM convention: scale
+    // vertically so the image's gradient/3D shading exactly matches the
+    // panel height, then tile horizontally across the panel width. This
+    // preserves the artist's intended top-to-bottom shading while letting
+    // the panel be any width without distortion.
     const QPixmap bgPix = m_theme->pixmap(QStringLiteral("panel_bg"));
-    if (!bgPix.isNull()) {
-        const QString mode = m_theme->imageMode(QStringLiteral("panel_bg"));
-        if (mode == QStringLiteral("stretch"))
-            p.drawPixmap(r, bgPix);
-        else
-            p.drawTiledPixmap(r, bgPix);
+    if (!bgPix.isNull() && r.height() > 0) {
+        const QPixmap scaled = (bgPix.height() == r.height())
+            ? bgPix
+            : bgPix.scaledToHeight(r.height(), Qt::SmoothTransformation);
+        p.drawTiledPixmap(r, scaled);
     } else {
         p.fillRect(r, m_theme->color(QStringLiteral("panel_bg")));
     }

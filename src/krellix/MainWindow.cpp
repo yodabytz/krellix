@@ -317,16 +317,29 @@ void MainWindow::paintEvent(QPaintEvent *)
     if (!bottomPix.isNull())
         p.drawPixmap(QRect(0, height() - bottomH, width(), bottomH), bottomPix);
 
+    // Side frames: scale the strip to match its native aspect ratio at
+    // the requested width, then tile vertically. This avoids the
+    // alien-creature stretching pixelation and the repeating-creature
+    // artifact at the same time — the small gradient pattern repeats
+    // smoothly down the column at intended scale.
     const int sideTop    = topH;
     const int sideBottom = height() - bottomH;
     if (sideBottom > sideTop) {
-        if (!leftPix.isNull())
+        if (!leftPix.isNull()) {
+            const QPixmap scaled = (leftPix.width() == leftW)
+                ? leftPix
+                : leftPix.scaledToWidth(leftW, Qt::SmoothTransformation);
             p.drawTiledPixmap(QRect(0, sideTop, leftW, sideBottom - sideTop),
-                              leftPix);
-        if (!rightPix.isNull())
+                              scaled);
+        }
+        if (!rightPix.isNull()) {
+            const QPixmap scaled = (rightPix.width() == rightW)
+                ? rightPix
+                : rightPix.scaledToWidth(rightW, Qt::SmoothTransformation);
             p.drawTiledPixmap(QRect(width() - rightW, sideTop, rightW,
                                     sideBottom - sideTop),
-                              rightPix);
+                              scaled);
+        }
     }
 }
 
