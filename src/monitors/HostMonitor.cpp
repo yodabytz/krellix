@@ -14,32 +14,31 @@
 
 namespace {
 
-// Cached FQDN — getaddrinfo() can block on DNS, so we resolve once per
-// process and reuse. Empty until first computed; falls back to the short
-// hostname if resolution fails.
-QString cachedFqdn()
+// Resolve the canonical/fully-qualified hostname fresh each call. We
+// previously cached this for the process lifetime, but that meant any
+// runtime hostname change (or /etc/hosts edit) wasn't visible until the
+// app was restarted — and the user explicitly hit that gotcha. The call
+// resolves locally (gethostname + /etc/hosts) so the cost is negligible
+// at the host monitor's 5-second tick rate.
+QString resolveFqdn()
 {
-    static QString cache;
-    static bool    computed = false;
-    if (computed) return cache;
-    computed = true;
-
     char buf[256];
-    if (gethostname(buf, sizeof(buf)) != 0) return cache;
+    if (gethostname(buf, sizeof(buf)) != 0) return QString();
     buf[sizeof(buf) - 1] = '\0';
 
     struct addrinfo hints{};
     hints.ai_flags  = AI_CANONNAME;
     hints.ai_family = AF_UNSPEC;
     struct addrinfo *result = nullptr;
+    QString out;
     if (getaddrinfo(buf, nullptr, &hints, &result) == 0
         && result && result->ai_canonname) {
-        cache = QString::fromUtf8(result->ai_canonname);
+        out = QString::fromUtf8(result->ai_canonname);
     } else {
-        cache = QString::fromLatin1(buf);
+        out = QString::fromLatin1(buf);
     }
     if (result) freeaddrinfo(result);
-    return cache;
+    return out;
 }
 
 } // namespace
@@ -85,7 +84,7 @@ void HostMonitor::tick()
     const bool fqdn =
         QSettings().value(QStringLiteral("host/show_fqdn"), false).toBool();
 
-    const QString name = fqdn ? cachedFqdn() : QSysInfo::machineHostName();
+    const QString name = fqdn ? resolveFqdn() : QSysInfo::machineHostName();
     m_hostnameDecal->setText(name);
     m_sysDecal->setText(QSysInfo::kernelType()
                         + QStringLiteral(" ")
