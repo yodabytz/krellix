@@ -65,6 +65,12 @@ set(KRELLIX_SOURCES
     src/sysdep/CpuStat.h
     src/sysdep/MemStat.cpp
     src/sysdep/MemStat.h
+    src/sysdep/UptimeStat.cpp
+    src/sysdep/UptimeStat.h
+    src/sysdep/NetStat.cpp
+    src/sysdep/NetStat.h
+    src/sysdep/DiskStat.cpp
+    src/sysdep/DiskStat.h
     src/monitors/MonitorBase.cpp
     src/monitors/MonitorBase.h
     src/monitors/HostMonitor.cpp
@@ -75,6 +81,12 @@ set(KRELLIX_SOURCES
     src/monitors/CpuMonitor.h
     src/monitors/MemMonitor.cpp
     src/monitors/MemMonitor.h
+    src/monitors/UptimeMonitor.cpp
+    src/monitors/UptimeMonitor.h
+    src/monitors/NetMonitor.cpp
+    src/monitors/NetMonitor.h
+    src/monitors/DiskMonitor.cpp
+    src/monitors/DiskMonitor.h
 )
 
 qt_add_executable(krellix ${KRELLIX_SOURCES})

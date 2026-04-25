@@ -4,9 +4,12 @@
 #include "krellix/SettingsDialog.h"
 #include "monitors/ClockMonitor.h"
 #include "monitors/CpuMonitor.h"
+#include "monitors/DiskMonitor.h"
 #include "monitors/HostMonitor.h"
 #include "monitors/MemMonitor.h"
 #include "monitors/MonitorBase.h"
+#include "monitors/NetMonitor.h"
+#include "monitors/UptimeMonitor.h"
 #include "theme/Theme.h"
 #include "widgets/Panel.h"
 
@@ -86,7 +89,12 @@ void MainWindow::addMonitor(MonitorBase *m)
 
     auto *timer = new QTimer(m);
     timer->setTimerType(Qt::CoarseTimer);
-    timer->setInterval(m->tickIntervalMs());
+    // Settings 'update/interval_ms' acts as a global lower bound (slowest
+    // tick floor). Monitors that prefer slower (e.g. host wants 5000ms)
+    // keep their preference; faster preferences are clamped to the floor.
+    const int settingsMs = QSettings().value(
+        QStringLiteral("update/interval_ms"), 1000).toInt();
+    timer->setInterval(qMax(m->tickIntervalMs(), qMax(100, settingsMs)));
     connect(timer, &QTimer::timeout, m, &MonitorBase::tick);
     timer->start();
 
@@ -112,6 +120,12 @@ void MainWindow::buildBuiltins(const QStringList &enabledIds, bool clockOnly)
         addMonitor(new CpuMonitor(m_theme, this));
     if (enabled(QStringLiteral("mem")))
         addMonitor(new MemMonitor(m_theme, this));
+    if (enabled(QStringLiteral("uptime")))
+        addMonitor(new UptimeMonitor(m_theme, this));
+    if (enabled(QStringLiteral("net")))
+        addMonitor(new NetMonitor(m_theme, this));
+    if (enabled(QStringLiteral("disk")))
+        addMonitor(new DiskMonitor(m_theme, this));
 }
 
 void MainWindow::buildPanelStack(const QStringList &enabledIds)
@@ -135,6 +149,12 @@ void MainWindow::buildPanelStack(const QStringList &enabledIds)
             addMonitor(new CpuMonitor(m_theme, this));
         if (enabled(QStringLiteral("mem")))
             addMonitor(new MemMonitor(m_theme, this));
+        if (enabled(QStringLiteral("uptime")))
+            addMonitor(new UptimeMonitor(m_theme, this));
+        if (enabled(QStringLiteral("net")))
+            addMonitor(new NetMonitor(m_theme, this));
+        if (enabled(QStringLiteral("disk")))
+            addMonitor(new DiskMonitor(m_theme, this));
     } else {
         // Clock at the bottom (legacy ordering).
         buildBuiltins(enabledIds, /*clockOnly=*/false);

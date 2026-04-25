@@ -56,6 +56,9 @@ private:
     QCheckBox   *m_cpuEnabled    = nullptr;
     QCheckBox   *m_memEnabled    = nullptr;
     QCheckBox   *m_clockEnabled  = nullptr;
+    QCheckBox   *m_uptimeEnabled = nullptr;
+    QCheckBox   *m_netEnabled    = nullptr;
+    QCheckBox   *m_diskEnabled   = nullptr;
     QListWidget *m_pluginList    = nullptr;
 
     Q_DISABLE_COPY_MOVE(SettingsDialog)
