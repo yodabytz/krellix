@@ -206,7 +206,7 @@ void Theme::loadDefaults()
     QFont value = label;
     value.setBold(true);
     QFont time = label;
-    time.setPointSize(12);   // larger but not bold — for the clock display
+    time.setPointSize(10);   // a touch larger than label; not bold — clock display
 
     m_fonts.clear();
     m_fonts.insert(QStringLiteral("label"), label);

@@ -51,6 +51,13 @@ void Decal::setText(const QString &text)
     update();
 }
 
+void Decal::setAlignment(Qt::Alignment alignment)
+{
+    if (m_alignment == alignment) return;
+    m_alignment = alignment;
+    update();
+}
+
 void Decal::onThemeChanged()
 {
     updateGeometry();
@@ -146,7 +153,7 @@ void Decal::paintEvent(QPaintEvent *)
 
     const QRect r = rect();
     if (!m_scrolling) {
-        p.drawText(r, Qt::AlignVCenter | Qt::AlignLeft, m_text);
+        p.drawText(r, Qt::AlignVCenter | m_alignment, m_text);
         return;
     }
 

@@ -4,6 +4,7 @@
 #include "widgets/Panel.h"
 
 #include <QDateTime>
+#include <QPointer>
 #include <QSettings>
 
 ClockMonitor::ClockMonitor(Theme *theme, QObject *parent)
@@ -17,11 +18,13 @@ QWidget *ClockMonitor::createWidget(QWidget *parent)
 {
     auto *p = new Panel(theme(), parent);
     // Larger but not bold — the "time" font key is tuned for the clock
-    // display (defaults to Monospace 12 / not bold; themes may override).
+    // display (defaults to Monospace 10 / not bold; themes may override).
     m_timeDecal = p->addDecal(QStringLiteral("time"),
                               QStringLiteral("text_primary"));
     m_dateDecal = p->addDecal(QStringLiteral("label"),
                               QStringLiteral("text_secondary"));
+    if (m_timeDecal) m_timeDecal->setAlignment(Qt::AlignHCenter);
+    if (m_dateDecal) m_dateDecal->setAlignment(Qt::AlignHCenter);
     tick();
     return p;
 }
