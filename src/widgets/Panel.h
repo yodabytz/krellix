@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QPoint>
 #include <QString>
 #include <QWidget>
 
@@ -8,6 +9,7 @@ class Decal;
 class Krell;
 class Chart;
 class QVBoxLayout;
+class QMouseEvent;
 
 // Container for one monitor's UI: optional title, optional krell, optional
 // chart, and any number of decals. Paints its themed border and background.
@@ -29,6 +31,9 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
 
 private slots:
     void onThemeChanged();
@@ -37,6 +42,8 @@ private:
     Theme       *m_theme;
     QVBoxLayout *m_layout       = nullptr;
     Decal       *m_titleDecal   = nullptr;
+    bool         m_dragging     = false;
+    QPoint       m_dragOffset;
 
     Q_DISABLE_COPY_MOVE(Panel)
 };

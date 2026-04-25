@@ -5,9 +5,11 @@
 #include "widgets/Decal.h"
 #include "widgets/Krell.h"
 
+#include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
 #include <QVBoxLayout>
+#include <QWindow>
 
 Panel::Panel(Theme *theme, QWidget *parent)
     : QWidget(parent)
@@ -72,6 +74,54 @@ void Panel::onThemeChanged()
     m_layout->setContentsMargins(pad, pad, pad, pad);
     m_layout->setSpacing(m_theme->metric(QStringLiteral("panel_spacing"), 2));
     update();
+}
+
+void Panel::mousePressEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        // Initiate window move from any panel surface — the hostname,
+        // monitor titles, and inert decals all become drag handles. Charts
+        // and krells inside the panel inherit QWidget's "ignore" default
+        // for mouse events, so clicks on them propagate up to here.
+        if (QWidget *top = window()) {
+            if (QWindow *wh = top->windowHandle()) {
+                if (wh->startSystemMove()) {
+                    event->accept();
+                    return;
+                }
+            }
+            // Manual fallback when the compositor doesn't honor
+            // startSystemMove (some X11 setups).
+            m_dragging = true;
+            m_dragOffset = event->globalPosition().toPoint()
+                         - top->frameGeometry().topLeft();
+        }
+        event->accept();
+        return;
+    }
+    QWidget::mousePressEvent(event);
+}
+
+void Panel::mouseMoveEvent(QMouseEvent *event)
+{
+    if (m_dragging && (event->buttons() & Qt::LeftButton)) {
+        if (QWidget *top = window()) {
+            top->move(event->globalPosition().toPoint() - m_dragOffset);
+        }
+        event->accept();
+        return;
+    }
+    QWidget::mouseMoveEvent(event);
+}
+
+void Panel::mouseReleaseEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        m_dragging = false;
+        event->accept();
+        return;
+    }
+    QWidget::mouseReleaseEvent(event);
 }
 
 void Panel::paintEvent(QPaintEvent *)
