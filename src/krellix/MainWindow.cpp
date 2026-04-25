@@ -2,6 +2,7 @@
 
 #include "krellix/PluginLoader.h"
 #include "krellix/SettingsDialog.h"
+#include "monitors/BatteryMonitor.h"
 #include "monitors/ClockMonitor.h"
 #include "monitors/CpuMonitor.h"
 #include "monitors/DiskMonitor.h"
@@ -9,6 +10,7 @@
 #include "monitors/MemMonitor.h"
 #include "monitors/MonitorBase.h"
 #include "monitors/NetMonitor.h"
+#include "monitors/SensorsMonitor.h"
 #include "monitors/UptimeMonitor.h"
 #include "theme/Theme.h"
 #include "widgets/Panel.h"
@@ -137,6 +139,10 @@ void MainWindow::buildBuiltins(const QStringList &enabledIds, bool clockOnly)
         addMonitor(new NetMonitor(m_theme, this));
     if (enabled(QStringLiteral("disk")))
         addMonitor(new DiskMonitor(m_theme, this));
+    if (enabled(QStringLiteral("sensors")))
+        addMonitor(new SensorsMonitor(m_theme, this));
+    if (enabled(QStringLiteral("battery")))
+        addMonitor(new BatteryMonitor(m_theme, this));
 }
 
 void MainWindow::buildPanelStack(const QStringList &enabledIds)
@@ -166,6 +172,10 @@ void MainWindow::buildPanelStack(const QStringList &enabledIds)
             addMonitor(new NetMonitor(m_theme, this));
         if (enabled(QStringLiteral("disk")))
             addMonitor(new DiskMonitor(m_theme, this));
+        if (enabled(QStringLiteral("sensors")))
+            addMonitor(new SensorsMonitor(m_theme, this));
+        if (enabled(QStringLiteral("battery")))
+            addMonitor(new BatteryMonitor(m_theme, this));
     } else {
         // Clock at the bottom (legacy ordering).
         buildBuiltins(enabledIds, /*clockOnly=*/false);

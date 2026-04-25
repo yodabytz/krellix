@@ -109,9 +109,11 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
     m_clockEnabled  = new QCheckBox(QStringLiteral("Clock + date"),                   monitorsBox);
     m_cpuEnabled    = new QCheckBox(QStringLiteral("CPU (per-core krell + chart)"),   monitorsBox);
     m_memEnabled    = new QCheckBox(QStringLiteral("Memory + Swap"),                  monitorsBox);
-    m_uptimeEnabled = new QCheckBox(QStringLiteral("Uptime"),                         monitorsBox);
-    m_netEnabled    = new QCheckBox(QStringLiteral("Net (per-interface RX/TX)"),      monitorsBox);
-    m_diskEnabled   = new QCheckBox(QStringLiteral("Disk I/O (per-disk read/write)"), monitorsBox);
+    m_uptimeEnabled  = new QCheckBox(QStringLiteral("Uptime"),                         monitorsBox);
+    m_netEnabled     = new QCheckBox(QStringLiteral("Net (per-interface RX/TX)"),      monitorsBox);
+    m_diskEnabled    = new QCheckBox(QStringLiteral("Disk I/O (per-disk read/write)"), monitorsBox);
+    m_sensorsEnabled = new QCheckBox(QStringLiteral("Sensors (CPU temps via /sys/class/hwmon)"), monitorsBox);
+    m_batteryEnabled = new QCheckBox(QStringLiteral("Battery (laptops with /sys/class/power_supply/BAT*)"), monitorsBox);
     monitorsForm->addWidget(m_hostEnabled);
     monitorsForm->addWidget(m_clockEnabled);
     monitorsForm->addWidget(m_cpuEnabled);
@@ -119,6 +121,8 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
     monitorsForm->addWidget(m_uptimeEnabled);
     monitorsForm->addWidget(m_netEnabled);
     monitorsForm->addWidget(m_diskEnabled);
+    monitorsForm->addWidget(m_sensorsEnabled);
+    monitorsForm->addWidget(m_batteryEnabled);
 
     // ---------- CPU display (mode + per-core enable) ----------
     auto *cpuBox    = new QGroupBox(QStringLiteral("CPU display"), this);
@@ -316,13 +320,15 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
             emit settingsApplied();
         });
     };
-    wireMonitorToggle(m_hostEnabled,   "host");
-    wireMonitorToggle(m_clockEnabled,  "clock");
-    wireMonitorToggle(m_cpuEnabled,    "cpu");
-    wireMonitorToggle(m_memEnabled,    "mem");
-    wireMonitorToggle(m_uptimeEnabled, "uptime");
-    wireMonitorToggle(m_netEnabled,    "net");
-    wireMonitorToggle(m_diskEnabled,   "disk");
+    wireMonitorToggle(m_hostEnabled,    "host");
+    wireMonitorToggle(m_clockEnabled,   "clock");
+    wireMonitorToggle(m_cpuEnabled,     "cpu");
+    wireMonitorToggle(m_memEnabled,     "mem");
+    wireMonitorToggle(m_uptimeEnabled,  "uptime");
+    wireMonitorToggle(m_netEnabled,     "net");
+    wireMonitorToggle(m_diskEnabled,    "disk");
+    wireMonitorToggle(m_sensorsEnabled, "sensors");
+    wireMonitorToggle(m_batteryEnabled, "battery");
 
     populatePlugins();
 }

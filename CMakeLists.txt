@@ -73,6 +73,10 @@ set(KRELLIX_SOURCES
     src/sysdep/NetStat.h
     src/sysdep/DiskStat.cpp
     src/sysdep/DiskStat.h
+    src/sysdep/SensorStat.cpp
+    src/sysdep/SensorStat.h
+    src/sysdep/BatteryStat.cpp
+    src/sysdep/BatteryStat.h
     src/monitors/MonitorBase.cpp
     src/monitors/MonitorBase.h
     src/monitors/HostMonitor.cpp
@@ -89,6 +93,10 @@ set(KRELLIX_SOURCES
     src/monitors/NetMonitor.h
     src/monitors/DiskMonitor.cpp
     src/monitors/DiskMonitor.h
+    src/monitors/SensorsMonitor.cpp
+    src/monitors/SensorsMonitor.h
+    src/monitors/BatteryMonitor.cpp
+    src/monitors/BatteryMonitor.h
 )
 
 qt_add_executable(krellix ${KRELLIX_SOURCES})
@@ -140,6 +148,10 @@ qt_add_executable(krellixd
     src/sysdep/DiskStat.h
     src/sysdep/UptimeStat.cpp
     src/sysdep/UptimeStat.h
+    src/sysdep/SensorStat.cpp
+    src/sysdep/SensorStat.h
+    src/sysdep/BatteryStat.cpp
+    src/sysdep/BatteryStat.h
 )
 target_include_directories(krellixd PRIVATE src)
 target_link_libraries(krellixd PRIVATE Qt6::Core Qt6::Network)
