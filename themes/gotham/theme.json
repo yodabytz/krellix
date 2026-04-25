@@ -1,0 +1,44 @@
+{
+  "name": "gotham",
+  "version": "1.0",
+  "author": "krellix",
+  "description": "Gotham — moody dark blue/teal with warm gold/red accents, mapped from the vim-gotham palette by whatyouhide.",
+
+  "colors": {
+    "panel_bg":           "#0c1014",
+    "panel_border":       "#195466",
+    "panel_highlight":    "#245361",
+    "chart_bg":           "#091f2e",
+    "chart_grid":         "#245361",
+    "text_primary":       "#99d1ce",
+    "text_secondary":     "#599cab",
+    "text_accent":        "#edb443",
+    "krell_track":        "#11151c",
+    "krell_indicator":    "#99d1ce",
+    "chart_line_default": "#99d1ce",
+    "chart_line_cpu":     "#c23127",
+    "chart_line_mem":     "#2aa889",
+    "chart_line_swap":    "#edb443",
+    "chart_line_net_rx":  "#599cab",
+    "chart_line_net_tx":  "#d26937",
+    "chart_line_disk":    "#888ca6",
+    "accent_warning":     "#d26937",
+    "accent_critical":    "#c23127"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  },
+    "time":  { "family": "Monospace", "size": 11, "bold": false }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    1,
+    "panel_border":     1,
+    "panel_min_width":  100,
+    "krell_height":     8,
+    "chart_height":     32,
+    "chart_grid_lines": 4
+  }
+}
