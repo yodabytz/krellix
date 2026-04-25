@@ -12,14 +12,13 @@ ClockMonitor::ClockMonitor(Theme *theme, QObject *parent)
 
 ClockMonitor::~ClockMonitor() = default;
 
-Panel *ClockMonitor::createPanel(QWidget *panelParent)
+QWidget *ClockMonitor::createWidget(QWidget *parent)
 {
-    auto *p = new Panel(theme(), panelParent);
+    auto *p = new Panel(theme(), parent);
     m_timeDecal = p->addDecal(QStringLiteral("value"),
                               QStringLiteral("text_primary"));
     m_dateDecal = p->addDecal(QStringLiteral("label"),
                               QStringLiteral("text_secondary"));
-    setPanel(p);
     tick();
     return p;
 }
@@ -27,7 +26,6 @@ Panel *ClockMonitor::createPanel(QWidget *panelParent)
 void ClockMonitor::tick()
 {
     if (!m_timeDecal || !m_dateDecal) return;
-
     const QDateTime now = QDateTime::currentDateTime();
     m_timeDecal->setText(now.toString(QStringLiteral("HH:mm:ss")));
     m_dateDecal->setText(now.toString(QStringLiteral("ddd MMM d yyyy")));

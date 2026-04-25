@@ -2,6 +2,8 @@
 
 #include "MonitorBase.h"
 
+#include <QPointer>
+
 class Decal;
 
 class HostMonitor : public MonitorBase
@@ -14,10 +16,10 @@ public:
 
     QString id() const override          { return QStringLiteral("host"); }
     QString displayName() const override { return QStringLiteral("Host"); }
-    int     tickIntervalMs() const override { return 5000; }  // hostname rarely changes
+    int     tickIntervalMs() const override { return 5000; }
 
-    Panel *createPanel(QWidget *panelParent) override;
-    void   tick() override;
+    QWidget *createWidget(QWidget *parent) override;
+    void     tick() override;
 
 private:
     QPointer<Decal> m_hostnameDecal;

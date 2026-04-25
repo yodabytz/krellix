@@ -12,15 +12,14 @@ HostMonitor::HostMonitor(Theme *theme, QObject *parent)
 
 HostMonitor::~HostMonitor() = default;
 
-Panel *HostMonitor::createPanel(QWidget *panelParent)
+QWidget *HostMonitor::createWidget(QWidget *parent)
 {
-    auto *p = new Panel(theme(), panelParent);
+    auto *p = new Panel(theme(), parent);
     p->setTitle(QStringLiteral("krellix"));
     m_hostnameDecal = p->addDecal(QStringLiteral("value"),
                                   QStringLiteral("text_primary"));
     m_sysDecal      = p->addDecal(QStringLiteral("label"),
                                   QStringLiteral("text_secondary"));
-    setPanel(p);
     tick();
     return p;
 }
@@ -28,7 +27,6 @@ Panel *HostMonitor::createPanel(QWidget *panelParent)
 void HostMonitor::tick()
 {
     if (!m_hostnameDecal || !m_sysDecal) return;
-
     m_hostnameDecal->setText(QSysInfo::machineHostName());
     m_sysDecal->setText(QSysInfo::kernelType()
                         + QStringLiteral(" ")

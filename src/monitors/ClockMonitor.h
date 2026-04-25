@@ -2,6 +2,8 @@
 
 #include "MonitorBase.h"
 
+#include <QPointer>
+
 class Decal;
 
 class ClockMonitor : public MonitorBase
@@ -16,8 +18,8 @@ public:
     QString displayName() const override { return QStringLiteral("Clock"); }
     int     tickIntervalMs() const override { return 1000; }
 
-    Panel *createPanel(QWidget *panelParent) override;
-    void   tick() override;
+    QWidget *createWidget(QWidget *parent) override;
+    void     tick() override;
 
 private:
     QPointer<Decal> m_timeDecal;

@@ -46,12 +46,20 @@ set(KRELLIX_SOURCES
     src/widgets/Krell.h
     src/widgets/Chart.cpp
     src/widgets/Chart.h
+    src/sysdep/CpuStat.cpp
+    src/sysdep/CpuStat.h
+    src/sysdep/MemStat.cpp
+    src/sysdep/MemStat.h
     src/monitors/MonitorBase.cpp
     src/monitors/MonitorBase.h
     src/monitors/HostMonitor.cpp
     src/monitors/HostMonitor.h
     src/monitors/ClockMonitor.cpp
     src/monitors/ClockMonitor.h
+    src/monitors/CpuMonitor.cpp
+    src/monitors/CpuMonitor.h
+    src/monitors/MemMonitor.cpp
+    src/monitors/MemMonitor.h
 )
 
 qt_add_executable(krellix ${KRELLIX_SOURCES})

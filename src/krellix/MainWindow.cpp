@@ -1,7 +1,9 @@
 #include "MainWindow.h"
 
 #include "monitors/ClockMonitor.h"
+#include "monitors/CpuMonitor.h"
 #include "monitors/HostMonitor.h"
+#include "monitors/MemMonitor.h"
 #include "monitors/MonitorBase.h"
 #include "theme/Theme.h"
 #include "widgets/Panel.h"
@@ -50,8 +52,8 @@ void MainWindow::buildMonitors(const QStringList &enabledIds)
     auto build = [this](MonitorBase *m) {
         Q_ASSERT(m);
         m_monitors.append(m);
-        Panel *p = m->createPanel(this);
-        if (p) m_layout->addWidget(p);
+        QWidget *w = m->createWidget(this);
+        if (w) m_layout->addWidget(w);
 
         auto *timer = new QTimer(m);
         timer->setTimerType(Qt::CoarseTimer);
@@ -66,6 +68,10 @@ void MainWindow::buildMonitors(const QStringList &enabledIds)
 
     if (enabled(QStringLiteral("host")))
         build(new HostMonitor(m_theme, this));
+    if (enabled(QStringLiteral("cpu")))
+        build(new CpuMonitor(m_theme, this));
+    if (enabled(QStringLiteral("mem")))
+        build(new MemMonitor(m_theme, this));
     if (enabled(QStringLiteral("clock")))
         build(new ClockMonitor(m_theme, this));
 }
