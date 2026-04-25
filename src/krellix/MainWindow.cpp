@@ -48,7 +48,13 @@ MainWindow::MainWindow(Theme *theme,
     }
     setWindowFlags(flags);
     setWindowTitle(QStringLiteral("krellix"));
-    setAttribute(Qt::WA_OpaquePaintEvent, true);
+
+    // Translucent main window: panels paint their own backgrounds, gaps are
+    // see-through, and themes whose panel_bg PNG carries alpha can shape
+    // the visible silhouette (gkrellm 'Aliens'-style). Requires a
+    // compositing window manager — gracefully falls back to opaque if not.
+    setAttribute(Qt::WA_TranslucentBackground, true);
+    setAttribute(Qt::WA_NoSystemBackground,    true);
 
     // aboutToQuit fires for both window-close and Quit-via-menu paths,
     // so geometry persists either way.

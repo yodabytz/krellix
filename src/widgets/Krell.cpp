@@ -33,11 +33,16 @@ void Krell::onThemeChanged()
 
 QSize Krell::sizeHint() const
 {
-    // If a krell sprite is themed, its frame height drives the row height;
-    // otherwise fall back to the krell_height metric.
+    // If a krell sprite is themed, its (single-)frame height drives the
+    // row height; otherwise fall back to the krell_height metric.
     const QPixmap krellPix = m_theme->pixmap(QStringLiteral("krell"));
-    if (!krellPix.isNull())
-        return QSize(0, krellPix.height());
+    if (!krellPix.isNull()) {
+        const int  frames   = qMax(1, m_theme->imageInt(QStringLiteral("krell.frames"), 1));
+        const bool vertical = m_theme->imageInt(QStringLiteral("krell.vertical"), 0) != 0;
+        const int  frameH   = vertical ? krellPix.height() / frames
+                                       : krellPix.height();
+        return QSize(0, frameH);
+    }
     return QSize(0, m_theme->metric(QStringLiteral("krell_height"), 8));
 }
 
@@ -61,15 +66,23 @@ void Krell::paintEvent(QPaintEvent *)
     }
 
     // Indicator: prefer sprite-sheet frame, else flat colored notch.
+    // Sprite layout defaults to horizontal frames (frames laid left→right).
+    // If "krell.vertical" is non-zero the frames are stacked top→bottom
+    // (gkrellm legacy convention).
     const QPixmap krellPix = m_theme->pixmap(QStringLiteral("krell"));
-    if (!krellPix.isNull() && krellPix.width() > 0) {
-        const int frames = qMax(1, m_theme->imageInt(QStringLiteral("krell.frames"), 1));
-        const int frameW = krellPix.width() / frames;
-        const int frameH = krellPix.height();
+    if (!krellPix.isNull() && krellPix.width() > 0 && krellPix.height() > 0) {
+        const int  frames   = qMax(1, m_theme->imageInt(QStringLiteral("krell.frames"), 1));
+        const bool vertical = m_theme->imageInt(QStringLiteral("krell.vertical"), 0) != 0;
+        const int  frameW   = vertical ? krellPix.width()
+                                       : krellPix.width() / frames;
+        const int  frameH   = vertical ? krellPix.height() / frames
+                                       : krellPix.height();
         if (frameW > 0 && frameH > 0) {
             const int idx = qBound(0, static_cast<int>(m_value * frames),
                                    frames - 1);
-            const QRect src(idx * frameW, 0, frameW, frameH);
+            const QRect src = vertical
+                ? QRect(0, idx * frameH, frameW, frameH)
+                : QRect(idx * frameW, 0, frameW, frameH);
             const int xMax = qMax(0, r.width() - frameW);
             const int x    = static_cast<int>(m_value * xMax);
             const int y    = r.y() + (r.height() - frameH) / 2;

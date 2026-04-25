@@ -1,0 +1,14 @@
+Aliens — krellix theme
+======================
+
+The image assets in this directory (bg_panel.png, bg_meter.png,
+bg_chart.png, krell_panel.png, krell_meter.png, data_in.png,
+data_out.png) are taken from the original GKrellM "Aliens" theme by:
+
+    Alan Swanson <swanson@uklinux.net>
+
+Originally distributed under the GPL alongside GKrellM, ca. 2001.
+Source bundle: http://muhri.net/gkrellm/aliens.tgz
+
+The theme.json mapping these assets into krellix's theme format is part
+of the krellix project (GPL-3.0-or-later).

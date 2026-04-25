@@ -89,7 +89,12 @@ void Chart::paintEvent(QPaintEvent *)
     const QColor line = m_theme->color(m_colorKey,
                           m_theme->color(QStringLiteral("text_primary")));
 
-    p.fillRect(r, bg);
+    const QPixmap bgPix = m_theme->pixmap(QStringLiteral("chart_bg"));
+    if (!bgPix.isNull()) {
+        p.drawTiledPixmap(r, bgPix);
+    } else {
+        p.fillRect(r, bg);
+    }
 
     const int gridLines = qMax(0, m_theme->metric(QStringLiteral("chart_grid_lines"), 4));
     if (gridLines > 0 && r.height() > 1) {
