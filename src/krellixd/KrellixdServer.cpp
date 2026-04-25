@@ -26,42 +26,36 @@ KrellixdServer::~KrellixdServer() = default;
 
 void KrellixdServer::incomingConnection(qintptr socketDescriptor)
 {
-    // Quick, transparent allow-list check using a throwaway QTcpSocket so
-    // we know the peer's address before committing to a session.
-    QTcpSocket probe;
-    if (!probe.setSocketDescriptor(socketDescriptor,
-                                   QTcpSocket::ConnectedState,
-                                   QTcpSocket::ReadOnly)) {
-        // Couldn't even bind the descriptor; just close it.
+    // Build the real socket up front and inspect the peer on it. If the
+    // peer isn't allowed (or we're over cap) we abort and delete it; the
+    // descriptor is closed cleanly via the QTcpSocket destructor.
+    auto *socket = new QTcpSocket(this);
+    if (!socket->setSocketDescriptor(socketDescriptor)) {
+        qCWarning(lcServer) << "setSocketDescriptor failed:" << socket->errorString();
+        delete socket;
         ::close(static_cast<int>(socketDescriptor));
         return;
     }
-    const QHostAddress peer = probe.peerAddress();
+    const QHostAddress peer = socket->peerAddress();
     const QString peerStr   = peer.toString();
 
     if (!isAllowed(peer)) {
-        qCWarning(lcServer) << "rejecting connection from" << peerStr
-                            << "(not in allow-list)";
-        probe.abort();    // RST instead of FIN — leak no banner
+        qCWarning(lcServer) << "rejecting" << peerStr << "(not in allow-list)";
+        socket->abort();      // RST: leak no banner
+        socket->deleteLater();
         return;
     }
 
     if (m_sessions.size() >= m_maxClients) {
         qCWarning(lcServer) << "rejecting" << peerStr
                             << "(client cap" << m_maxClients << "reached)";
-        probe.abort();
+        socket->abort();
+        socket->deleteLater();
         return;
     }
 
-    // Allow-listed and within cap. Re-arm the descriptor on a real
-    // ClientSession by detaching from the probe (so the FD doesn't get
-    // closed when probe goes out of scope) and re-using it.
-    probe.setSocketDescriptor(-1);
-
-    auto *session = new ClientSession(socketDescriptor,
-                                      m_intervalMs,
-                                      m_idleTimeoutMs,
-                                      this);
+    // Hand the live socket to a ClientSession (which takes ownership).
+    auto *session = new ClientSession(socket, m_intervalMs, m_idleTimeoutMs, this);
     connect(session, &QObject::destroyed,
             this, &KrellixdServer::onSessionDestroyed);
     m_sessions.insert(session);

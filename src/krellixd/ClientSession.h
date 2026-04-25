@@ -15,7 +15,9 @@ class ClientSession : public QObject
     Q_OBJECT
 
 public:
-    ClientSession(qintptr socketDescriptor,
+    // Takes ownership of an already-constructed (and connected) socket.
+    // The socket should already be peerAddress-validated by the caller.
+    ClientSession(QTcpSocket *socket,
                   int intervalMs,
                   int idleTimeoutMs,
                   QObject *parent = nullptr);

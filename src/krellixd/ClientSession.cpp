@@ -118,23 +118,19 @@ void writeJsonLine(QTcpSocket *s, const QJsonObject &obj)
 
 } // namespace
 
-ClientSession::ClientSession(qintptr socketDescriptor,
+ClientSession::ClientSession(QTcpSocket *socket,
                              int intervalMs,
                              int idleTimeoutMs,
                              QObject *parent)
     : QObject(parent)
-    , m_socket(new QTcpSocket(this))
+    , m_socket(socket)
     , m_sendTimer(new QTimer(this))
     , m_idleTimer(new QTimer(this))
     , m_intervalMs(intervalMs)
     , m_idleTimeoutMs(idleTimeoutMs)
 {
-    if (!m_socket->setSocketDescriptor(socketDescriptor)) {
-        qCWarning(lcSession) << "setSocketDescriptor failed:"
-                             << m_socket->errorString();
-        deleteLater();
-        return;
-    }
+    Q_ASSERT(m_socket);
+    m_socket->setParent(this);
     m_socket->setSocketOption(QAbstractSocket::KeepAliveOption, 1);
 
     connect(m_socket, &QTcpSocket::readyRead,
