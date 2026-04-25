@@ -46,6 +46,9 @@ set(KRELLIX_SOURCES
     src/krellix/main.cpp
     src/krellix/MainWindow.cpp
     src/krellix/MainWindow.h
+    src/krellix/PluginLoader.cpp
+    src/krellix/PluginLoader.h
+    src/sdk/KrellixPlugin.h
     src/theme/Theme.cpp
     src/theme/Theme.h
     src/widgets/Panel.cpp
@@ -89,6 +92,7 @@ target_compile_definitions(krellix PRIVATE
     QT_DEPRECATED_WARNINGS
     KRELLIX_VERSION="${KRELLIX_VERSION_FULL}"
     KRELLIX_THEMES_SYSTEM_DIR="${CMAKE_INSTALL_PREFIX}/share/krellix/themes"
+    KRELLIX_PLUGIN_SYSTEM_DIR="${CMAKE_INSTALL_PREFIX}/lib/krellix/plugins"
 )
 
 set_target_properties(krellix PROPERTIES

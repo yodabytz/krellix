@@ -6,14 +6,24 @@
 #include <QWidget>
 
 class MonitorBase;
+class PluginLoader;
 class Theme;
 class QVBoxLayout;
 class QMouseEvent;
 class QContextMenuEvent;
+class QCloseEvent;
 
 // Top-level frameless window. Owns the Theme passed in (parented), constructs
-// the requested monitors, lays them out vertically, and drives them with
-// per-monitor QTimers. Provides drag-to-move and a right-click context menu.
+// the requested built-in monitors, loads plugin monitors, lays them out
+// vertically, and drives them with per-monitor QTimers.
+//
+// User interaction:
+//   - left-button drag on background: move (compositor-driven via
+//     QWindow::startSystemMove with a manual fallback)
+//   - QSizeGrip in the bottom-right corner: resize
+//   - right-click: context menu (always-on-top, About, Quit)
+//
+// Window size and position persist across restarts via QSettings.
 class MainWindow : public QWidget
 {
     Q_OBJECT
@@ -29,6 +39,7 @@ protected:
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
+    void closeEvent(QCloseEvent *event) override;
 
 private slots:
     void onThemeChanged();
@@ -36,11 +47,15 @@ private slots:
     void toggleAlwaysOnTop();
 
 private:
-    void buildMonitors(const QStringList &enabledIds);
+    void addMonitor(MonitorBase *m);
+    void buildBuiltins(const QStringList &enabledIds, bool clockOnly);
     void applyMinimumWidth();
+    void restoreGeometry();
+    void persistGeometry();
 
-    Theme       *m_theme;
-    QVBoxLayout *m_layout    = nullptr;
+    Theme         *m_theme;
+    PluginLoader  *m_pluginLoader = nullptr;
+    QVBoxLayout   *m_layout       = nullptr;
     QList<MonitorBase *> m_monitors;
 
     bool   m_dragging   = false;
