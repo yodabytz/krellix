@@ -69,8 +69,11 @@ int main(int argc, char *argv[])
         QStringLiteral("name"));
     parser.addOption(instanceOpt);
 
+    // Note: cannot use "h" as a short alias — it collides with Qt's
+    // built-in --help short option that QCommandLineParser::addHelpOption
+    // registers above. Long form only ("--host").
     const QCommandLineOption hostOpt(
-        QStringList{QStringLiteral("h"), QStringLiteral("host")},
+        QStringLiteral("host"),
         QStringLiteral("Connect to a remote krellixd instance at HOST[:PORT] "
                        "and display its readings instead of the local system. "
                        "Implies a per-host instance namespace."),
