@@ -7,13 +7,15 @@
 #include <QPaintEvent>
 #include <QPainter>
 #include <QResizeEvent>
+#include <QSettings>
 #include <QShowEvent>
 #include <QTimer>
 
 namespace {
-constexpr int kScrollIntervalMs = 33;   // ~30 fps
-constexpr int kScrollPxPerTick  = 1;
-constexpr int kScrollGapPx      = 24;
+constexpr int kScrollGapPx        = 24;
+constexpr int kDefaultScrollPps   = 30;     // pixels/sec
+constexpr int kMinIntervalMs      = 10;
+constexpr int kMaxIntervalMs      = 200;
 }
 
 Decal::Decal(Theme *theme,
@@ -30,7 +32,7 @@ Decal::Decal(Theme *theme,
     setAttribute(Qt::WA_OpaquePaintEvent, false);
 
     m_scrollTimer = new QTimer(this);
-    m_scrollTimer->setInterval(kScrollIntervalMs);
+    m_scrollTimer->setInterval(33);   // ~30 fps; updated by onScrollTick from settings
     m_scrollTimer->setTimerType(Qt::CoarseTimer);
     connect(m_scrollTimer, &QTimer::timeout, this, &Decal::onScrollTick);
 
@@ -58,9 +60,19 @@ void Decal::onThemeChanged()
 
 void Decal::onScrollTick()
 {
+    // Re-read scroll speed each tick so SettingsDialog changes apply live.
+    // QSettings caches its file, so this is a hash lookup, not disk I/O.
+    const int pps = qBound(1,
+        QSettings().value(QStringLiteral("appearance/scroll_pps"),
+                          kDefaultScrollPps).toInt(),
+        1000);
+    const int interval = qBound(kMinIntervalMs, 1000 / pps, kMaxIntervalMs);
+    if (m_scrollTimer->interval() != interval)
+        m_scrollTimer->setInterval(interval);
+
     const int tw = textPixelWidth();
     if (tw <= 0) return;
-    m_scrollOffset = (m_scrollOffset + kScrollPxPerTick) % (tw + kScrollGapPx);
+    m_scrollOffset = (m_scrollOffset + 1) % (tw + kScrollGapPx);
     update();
 }
 
