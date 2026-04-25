@@ -76,7 +76,15 @@ void Panel::paintEvent(QPaintEvent *)
     QPainter p(this);
     const QRect r = rect();
 
-    p.fillRect(r, m_theme->color(QStringLiteral("panel_bg")));
+    // Image-themed background tiles across the panel. Falls back to a
+    // flat color fill if no panel_bg pixmap is configured or the file
+    // failed to load.
+    const QPixmap bgPix = m_theme->pixmap(QStringLiteral("panel_bg"));
+    if (!bgPix.isNull()) {
+        p.drawTiledPixmap(r, bgPix);
+    } else {
+        p.fillRect(r, m_theme->color(QStringLiteral("panel_bg")));
+    }
 
     const int bw = m_theme->metric(QStringLiteral("panel_border"), 1);
     if (bw <= 0) return;

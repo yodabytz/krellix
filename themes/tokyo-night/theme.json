@@ -1,0 +1,33 @@
+{
+  "name": "tokyo-night",
+  "version": "1.0",
+  "author": "krellix",
+  "description": "Tokyo Night — the classic dark variant by enkia & Folke (vim).",
+
+  "colors": {
+    "panel_bg":        "#1a1b26",
+    "panel_border":    "#414868",
+    "panel_highlight": "#292e42",
+    "chart_bg":        "#16161e",
+    "chart_grid":      "#292e42",
+    "text_primary":    "#c0caf5",
+    "text_secondary":  "#565f89",
+    "krell_track":     "#292e42",
+    "krell_indicator": "#7aa2f7"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  200,
+    "krell_height":     8,
+    "chart_height":     32,
+    "chart_grid_lines": 4
+  }
+}

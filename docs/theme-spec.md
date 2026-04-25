@@ -15,9 +15,10 @@ directory and may not escape it.
 
 ## `theme.json`
 
-A single JSON object with up to four keys: `colors`, `fonts`, `metrics`,
-plus optional `name` / `version` / `author` / `description` metadata. Every
-key is optional — missing values fall back to built-in defaults.
+A single JSON object with up to five sections: `colors`, `fonts`, `metrics`,
+`images`, plus optional `name` / `version` / `author` / `description`
+metadata. Every key is optional — missing values fall back to built-in
+defaults (or a flat-color render if no image is supplied).
 
 ```json
 {
@@ -28,7 +29,8 @@ key is optional — missing values fall back to built-in defaults.
 
   "colors":  { ... },
   "fonts":   { ... },
-  "metrics": { ... }
+  "metrics": { ... },
+  "images":  { ... }
 }
 ```
 
@@ -87,6 +89,32 @@ Map of name → integer (clamped to `0..4096`).
 | `krell_height`     | 8       | Krell strip height                      |
 | `chart_height`     | 32      | Chart strip height                      |
 | `chart_grid_lines` | 4       | Number of horizontal grid divisions     |
+
+### `images`
+
+Map of semantic key → either a bare string filename (relative to the theme
+directory) or an object with `image` plus integer sub-fields like `frames`.
+Image paths must canonicalize inside the theme directory; symlinks pointing
+outside are rejected.
+
+```json
+"images": {
+  "panel_bg":    "panel.png",
+  "krell_track": "track.png",
+  "krell":       { "image": "krell.png", "frames": 32 }
+}
+```
+
+Recognized keys:
+
+| Key            | Used by                                                       |
+| -------------- | ------------------------------------------------------------- |
+| `panel_bg`     | Tiled across each Panel as the background; falls back to color |
+| `krell_track`  | Tiled across the Krell strip as the unfilled track; falls back |
+| `krell`        | Indicator sprite. With `frames > 1` the image is treated as a horizontal strip of N equal-width frames; the frame painted is `frame = value * frames` |
+
+Image-themed widgets gracefully fall back to color-only rendering for any
+key that isn't supplied — so a theme can mix images and colors freely.
 
 ## Limits
 

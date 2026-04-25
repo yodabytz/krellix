@@ -1,0 +1,33 @@
+{
+  "name": "nord",
+  "version": "1.0",
+  "author": "krellix",
+  "description": "Nord — arctic, north-bluish by Sven Greb (arcticicestudio).",
+
+  "colors": {
+    "panel_bg":        "#2e3440",
+    "panel_border":    "#434c5e",
+    "panel_highlight": "#3b4252",
+    "chart_bg":        "#2e3440",
+    "chart_grid":      "#3b4252",
+    "text_primary":    "#d8dee9",
+    "text_secondary":  "#81a1c1",
+    "krell_track":     "#3b4252",
+    "krell_indicator": "#88c0d0"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  200,
+    "krell_height":     8,
+    "chart_height":     32,
+    "chart_grid_lines": 4
+  }
+}

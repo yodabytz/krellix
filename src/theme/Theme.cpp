@@ -9,7 +9,10 @@
 #include <QJsonValue>
 #include <QLoggingCategory>
 #include <QRegularExpression>
+#include <QSet>
 #include <QStandardPaths>
+
+#include <algorithm>
 
 #ifndef KRELLIX_THEMES_SYSTEM_DIR
 #  define KRELLIX_THEMES_SYSTEM_DIR "/usr/share/krellix/themes"
@@ -88,6 +91,33 @@ bool Theme::isSafeThemeName(const QString &name)
     return true;
 }
 
+QStringList Theme::availableThemes()
+{
+    QStringList result;
+    QSet<QString> seen;
+    for (const QString &root : searchPaths()) {
+        QDir d(root);
+        if (!d.exists()) continue;
+        const QFileInfoList subs =
+            d.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot | QDir::Readable);
+        for (const QFileInfo &sub : subs) {
+            const QString name = sub.fileName();
+            if (!isSafeThemeName(name))             continue;
+            if (seen.contains(name))                continue;
+            const QString jsonPath =
+                sub.absoluteFilePath() + QStringLiteral("/theme.json");
+            if (!QFileInfo::exists(jsonPath))       continue;
+            seen.insert(name);
+            result.append(name);
+        }
+    }
+    std::sort(result.begin(), result.end(),
+              [](const QString &a, const QString &b) {
+                  return a.compare(b, Qt::CaseInsensitive) < 0;
+              });
+    return result;
+}
+
 QString Theme::canonicalize(const QString &path)
 {
     return QFileInfo(path).canonicalFilePath();
@@ -155,6 +185,10 @@ void Theme::onFileChanged(const QString &path)
 
 void Theme::loadDefaults()
 {
+    m_imagePaths.clear();
+    m_imageInts.clear();
+    m_pixmapCache.clear();
+
     m_colors.clear();
     m_colors.insert(QStringLiteral("panel_bg"),        QColor( 10,  14,  10));
     m_colors.insert(QStringLiteral("panel_border"),    QColor( 26,  42,  26));
@@ -234,6 +268,32 @@ bool Theme::parseJsonFile(const QString &path)
             m_metrics.insert(it.key(), qBound(0, v, 4096));
         }
     }
+
+    // Image assets. Each entry is either a bare string filename or an
+    // object with at least { "image": "...", ... } and optional integer
+    // sub-fields like "frames".
+    const QJsonValue imagesVal = root.value(QStringLiteral("images"));
+    if (imagesVal.isObject()) {
+        const QJsonObject imgs = imagesVal.toObject();
+        for (auto it = imgs.constBegin(); it != imgs.constEnd(); ++it) {
+            const QString key = it.key();
+            if (it.value().isString()) {
+                m_imagePaths.insert(key, it.value().toString());
+            } else if (it.value().isObject()) {
+                const QJsonObject obj = it.value().toObject();
+                const QJsonValue imgVal = obj.value(QStringLiteral("image"));
+                if (imgVal.isString())
+                    m_imagePaths.insert(key, imgVal.toString());
+                for (auto io = obj.constBegin(); io != obj.constEnd(); ++io) {
+                    if (io.key() == QStringLiteral("image")) continue;
+                    if (!io.value().isDouble())              continue;
+                    const int v = static_cast<int>(io.value().toDouble());
+                    m_imageInts.insert(key + QLatin1Char('.') + io.key(),
+                                       qBound(0, v, 4096));
+                }
+            }
+        }
+    }
     return true;
 }
 
@@ -263,4 +323,36 @@ QString Theme::assetPath(const QString &relativePath) const
     if (canon.isEmpty()) return {};
     if (!canon.startsWith(m_rootDir + QLatin1Char('/'))) return {};
     return canon;
+}
+
+QPixmap Theme::pixmap(const QString &key) const
+{
+    const auto cached = m_pixmapCache.constFind(key);
+    if (cached != m_pixmapCache.constEnd()) return cached.value();
+
+    const QString rel = m_imagePaths.value(key);
+    if (rel.isEmpty()) {
+        m_pixmapCache.insert(key, QPixmap());  // negative cache
+        return {};
+    }
+    const QString full = assetPath(rel);
+    if (full.isEmpty()) {
+        qCWarning(lcTheme) << "image" << key << "rel" << rel
+                           << "rejected (escapes theme dir or missing)";
+        m_pixmapCache.insert(key, QPixmap());
+        return {};
+    }
+    QPixmap pm;
+    if (!pm.load(full)) {
+        qCWarning(lcTheme) << "failed to load image" << full;
+        m_pixmapCache.insert(key, QPixmap());
+        return {};
+    }
+    m_pixmapCache.insert(key, pm);
+    return pm;
+}
+
+int Theme::imageInt(const QString &key, int fallback) const
+{
+    return m_imageInts.value(key, fallback);
 }

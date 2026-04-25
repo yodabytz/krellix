@@ -36,9 +36,23 @@ MainWindow::MainWindow(Theme *theme,
 {
     Q_ASSERT(m_theme);
 
-    setWindowFlags(Qt::FramelessWindowHint | Qt::Tool);
+    // Restore always-on-top from settings before the first setWindowFlags
+    // call — avoids a flash where the window pops up without the flag and
+    // is then re-shown with it.
+    Qt::WindowFlags flags = Qt::FramelessWindowHint | Qt::Tool;
+    {
+        QSettings s;
+        if (s.value(QStringLiteral("window/always_on_top"), false).toBool())
+            flags |= Qt::WindowStaysOnTopHint;
+    }
+    setWindowFlags(flags);
     setWindowTitle(QStringLiteral("krellix"));
     setAttribute(Qt::WA_OpaquePaintEvent, true);
+
+    // aboutToQuit fires for both window-close and Quit-via-menu paths,
+    // so geometry persists either way.
+    connect(qApp, &QCoreApplication::aboutToQuit,
+            this, &MainWindow::persistGeometry);
 
     m_layout = new QVBoxLayout(this);
     m_layout->setContentsMargins(0, 0, 0, 0);
@@ -198,6 +212,26 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
     aotA->setChecked(windowFlags().testFlag(Qt::WindowStaysOnTopHint));
     connect(aotA, &QAction::triggered, this, &MainWindow::toggleAlwaysOnTop);
 
+    QMenu *themeMenu = menu.addMenu(QStringLiteral("Theme"));
+    const QStringList themes = Theme::availableThemes();
+    const QString currentName = m_theme->name();
+    if (themes.isEmpty()) {
+        QAction *none = themeMenu->addAction(QStringLiteral("(no themes found)"));
+        none->setEnabled(false);
+    } else {
+        for (const QString &name : themes) {
+            QAction *a = themeMenu->addAction(name);
+            a->setCheckable(true);
+            a->setChecked(name == currentName);
+            connect(a, &QAction::triggered, this, [this, name]() {
+                if (m_theme->load(name)) {
+                    QSettings s;
+                    s.setValue(QStringLiteral("theme/name"), name);
+                }
+            });
+        }
+    }
+
     menu.addSeparator();
 
     QAction *aboutA = menu.addAction(QStringLiteral("About krellix"));
@@ -214,10 +248,14 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
 
 void MainWindow::toggleAlwaysOnTop()
 {
+    const bool now = !windowFlags().testFlag(Qt::WindowStaysOnTopHint);
     Qt::WindowFlags f = windowFlags();
-    f.setFlag(Qt::WindowStaysOnTopHint, !f.testFlag(Qt::WindowStaysOnTopHint));
+    f.setFlag(Qt::WindowStaysOnTopHint, now);
     setWindowFlags(f);
-    show();
+    show();  // setWindowFlags hides the window on X11
+
+    QSettings s;
+    s.setValue(QStringLiteral("window/always_on_top"), now);
 }
 
 void MainWindow::showAbout()

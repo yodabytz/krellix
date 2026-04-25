@@ -1,0 +1,33 @@
+{
+  "name": "tokyo-night-moon",
+  "version": "1.0",
+  "author": "krellix",
+  "description": "Tokyo Night Moon — soft purple/blue palette by enkia & Folke (vim).",
+
+  "colors": {
+    "panel_bg":        "#222436",
+    "panel_border":    "#3b4261",
+    "panel_highlight": "#2f334d",
+    "chart_bg":        "#1e2030",
+    "chart_grid":      "#3b4261",
+    "text_primary":    "#c8d3f5",
+    "text_secondary":  "#828bb8",
+    "krell_track":     "#2f334d",
+    "krell_indicator": "#82aaff"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  200,
+    "krell_height":     8,
+    "chart_height":     32,
+    "chart_grid_lines": 4
+  }
+}

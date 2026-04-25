@@ -1,0 +1,33 @@
+{
+  "name": "dracula",
+  "version": "1.0",
+  "author": "krellix",
+  "description": "Dracula — dark theme by Zeno Rocha & contributors.",
+
+  "colors": {
+    "panel_bg":        "#282a36",
+    "panel_border":    "#44475a",
+    "panel_highlight": "#44475a",
+    "chart_bg":        "#21222c",
+    "chart_grid":      "#44475a",
+    "text_primary":    "#f8f8f2",
+    "text_secondary":  "#6272a4",
+    "krell_track":     "#44475a",
+    "krell_indicator": "#bd93f7"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  200,
+    "krell_height":     8,
+    "chart_height":     32,
+    "chart_grid_lines": 4
+  }
+}

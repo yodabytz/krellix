@@ -4,6 +4,7 @@
 #include <QFont>
 #include <QHash>
 #include <QObject>
+#include <QPixmap>
 #include <QString>
 #include <QStringList>
 
@@ -27,6 +28,15 @@ public:
     // User-first list of directories searched for a theme by name.
     static QStringList searchPaths();
 
+    // Names of themes discoverable on this system (deduped, sorted).
+    // A theme is "discoverable" if its directory contains a theme.json
+    // and its name passes isSafeThemeName().
+    static QStringList availableThemes();
+
+    // Public so callers (e.g. the theme picker) can validate user input
+    // before passing it to load().
+    static bool isSafeThemeName(const QString &name);
+
     QString name() const { return m_name; }
     QString rootDir() const { return m_rootDir; }
 
@@ -37,6 +47,14 @@ public:
     QColor color(const QString &key, const QColor &fallback = QColor()) const;
     QFont  font (const QString &key, const QFont  &fallback = QFont())  const;
     int    metric(const QString &key, int fallback = 0) const;
+
+    // Image assets declared under "images" in theme.json. pixmap() returns
+    // an empty QPixmap if the key isn't set, the file is missing, or the
+    // path would escape the theme directory. Cache is cleared on reload.
+    // Sub-keys (e.g. "krell.frames") are integers from the same images
+    // section — used to describe sprite layout.
+    QPixmap pixmap(const QString &key) const;
+    int     imageInt(const QString &key, int fallback = 0) const;
 
     // Resolve a relative sprite path under the current theme root, refusing
     // any path that would escape the theme directory. Empty on rejection.
@@ -52,16 +70,18 @@ private:
     void loadDefaults();
     bool parseJsonFile(const QString &path);
 
-    static bool    isSafeThemeName(const QString &name);
     static QString canonicalize(const QString &path);
 
     QString m_name;
     QString m_rootDir;
     QString m_jsonPath;
 
-    QHash<QString, QColor> m_colors;
-    QHash<QString, QFont>  m_fonts;
-    QHash<QString, int>    m_metrics;
+    QHash<QString, QColor>   m_colors;
+    QHash<QString, QFont>    m_fonts;
+    QHash<QString, int>      m_metrics;
+    QHash<QString, QString>  m_imagePaths;        // key -> relative filename
+    QHash<QString, int>      m_imageInts;         // "krell.frames" -> 32
+    mutable QHash<QString, QPixmap> m_pixmapCache;  // lazy-loaded; cleared on reload
 
     QFileSystemWatcher *m_watcher = nullptr;  // child QObject; parent owns
 

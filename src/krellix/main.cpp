@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QCommandLineOption>
 #include <QCommandLineParser>
+#include <QSettings>
 #include <QStringList>
 
 #ifndef KRELLIX_VERSION
@@ -39,7 +40,11 @@ int main(int argc, char *argv[])
     parser.process(app);
 
     auto *theme = new Theme(&app);
-    theme->load(parser.value(themeOpt));
+    const QString themeName = parser.isSet(themeOpt)
+        ? parser.value(themeOpt)
+        : QSettings().value(QStringLiteral("theme/name"),
+                            QStringLiteral("default")).toString();
+    theme->load(themeName);
 
     QStringList enabledIds;
     if (parser.isSet(monitorsOpt)) {

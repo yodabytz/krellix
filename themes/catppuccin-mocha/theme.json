@@ -1,0 +1,33 @@
+{
+  "name": "catppuccin-mocha",
+  "version": "1.0",
+  "author": "krellix",
+  "description": "Catppuccin Mocha — pastel pleasure by the Catppuccin team.",
+
+  "colors": {
+    "panel_bg":        "#1e1e2e",
+    "panel_border":    "#45475a",
+    "panel_highlight": "#313244",
+    "chart_bg":        "#181825",
+    "chart_grid":      "#313244",
+    "text_primary":    "#cdd6f4",
+    "text_secondary":  "#a6adc8",
+    "krell_track":     "#313244",
+    "krell_indicator": "#89b4fa"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  200,
+    "krell_height":     8,
+    "chart_height":     32,
+    "chart_grid_lines": 4
+  }
+}
