@@ -69,20 +69,30 @@ void HostMonitor::tick()
 {
     if (!m_hostnameDecal || !m_sysDecal) return;
 
+    const bool fqdn =
+        QSettings().value(QStringLiteral("host/show_fqdn"), false).toBool();
+
+    // Helper: drop everything from the first dot onward when the user has
+    // FQDN turned off. So "mail.quantumbytz.com" -> "mail" with the
+    // checkbox unchecked, but the full name returns when checked.
+    auto applyFqdnSetting = [fqdn](QString s) {
+        if (fqdn) return s;
+        const int dot = s.indexOf(QLatin1Char('.'));
+        return (dot > 0) ? s.left(dot) : s;
+    };
+
     // In remote-host mode (krellix --host ...), prefer the hostname &
-    // kernel reported by the daemon — that's what the user expects to see
-    // when monitoring another machine.
+    // kernel reported by the daemon. Still respect the FQDN setting —
+    // strip the domain when the user has it unchecked, even though the
+    // wire format always carries the full name.
     if (auto *r = RemoteSource::instance(); r && r->isConnected()) {
         const QString rh = r->remoteHostname();
         const QString rk = r->remoteKernel();
-        if (!rh.isEmpty()) m_hostnameDecal->setText(rh);
+        if (!rh.isEmpty()) m_hostnameDecal->setText(applyFqdnSetting(rh));
         if (!rk.isEmpty()) m_sysDecal->setText(rk);
         if (!rh.isEmpty() || !rk.isEmpty()) return;
         // fall through to local readings until first remote sample arrives
     }
-
-    const bool fqdn =
-        QSettings().value(QStringLiteral("host/show_fqdn"), false).toBool();
 
     const QString name = fqdn ? resolveFqdn() : QSysInfo::machineHostName();
     m_hostnameDecal->setText(name);
