@@ -281,12 +281,13 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
 void MainWindow::paintEvent(QPaintEvent *)
 {
-    // Window-frame compositing: stretch frame_top/bottom horizontally and
-    // frame_left/right vertically across the appropriate edge band. Their
-    // alpha channel forms the visible silhouette of the window. If a theme
-    // doesn't supply frames, paintEvent does nothing and the panels paint
-    // themselves directly on the (translucent) window background.
+    // Window-frame compositing: top + bottom frames stretch horizontally
+    // (smoothly) to the window width; left + right frames TILE vertically
+    // down the side rather than stretching, so a tall window doesn't blow
+    // up the artwork into pixelated mush. Alpha channel of each pixmap
+    // forms the visible silhouette of the window.
     QPainter p(this);
+    p.setRenderHint(QPainter::SmoothPixmapTransform, true);
 
     const QPixmap topPix    = m_theme->pixmap(QStringLiteral("frame_top"));
     const QPixmap bottomPix = m_theme->pixmap(QStringLiteral("frame_bottom"));
@@ -307,10 +308,12 @@ void MainWindow::paintEvent(QPaintEvent *)
     const int sideBottom = height() - bottomH;
     if (sideBottom > sideTop) {
         if (!leftPix.isNull())
-            p.drawPixmap(QRect(0, sideTop, leftW, sideBottom - sideTop), leftPix);
+            p.drawTiledPixmap(QRect(0, sideTop, leftW, sideBottom - sideTop),
+                              leftPix);
         if (!rightPix.isNull())
-            p.drawPixmap(QRect(width() - rightW, sideTop, rightW, sideBottom - sideTop),
-                         rightPix);
+            p.drawTiledPixmap(QRect(width() - rightW, sideTop, rightW,
+                                    sideBottom - sideTop),
+                              rightPix);
     }
 }
 
