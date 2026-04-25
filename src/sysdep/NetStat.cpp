@@ -9,7 +9,10 @@ Q_LOGGING_CATEGORY(lcNetStat, "krellix.sysdep.net")
 
 namespace {
 constexpr qint64 kProcNetDevMaxBytes = 1024 * 1024;  // generous cap
+NetStat::ReadFn g_readOverride = nullptr;
 }
+
+void NetStat::setReadOverride(NetStat::ReadFn fn) { g_readOverride = fn; }
 
 bool NetStat::isMainInterface(const QString &name)
 {
@@ -28,6 +31,7 @@ bool NetStat::isMainInterface(const QString &name)
 
 QList<NetSample> NetStat::read()
 {
+    if (g_readOverride) return g_readOverride();
     QFile f(QStringLiteral("/proc/net/dev"));
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qCWarning(lcNetStat) << "cannot open /proc/net/dev:" << f.errorString();

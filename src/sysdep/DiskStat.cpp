@@ -11,10 +11,14 @@ Q_LOGGING_CATEGORY(lcDiskStat, "krellix.sysdep.disk")
 
 namespace {
 constexpr qint64 kProcDiskstatsMaxBytes = 1024 * 1024;
+DiskStat::ReadFn g_readOverride = nullptr;
 }
+
+void DiskStat::setReadOverride(DiskStat::ReadFn fn) { g_readOverride = fn; }
 
 QList<DiskSample> DiskStat::read()
 {
+    if (g_readOverride) return g_readOverride();
     QFile f(QStringLiteral("/proc/diskstats"));
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qCWarning(lcDiskStat) << "cannot open /proc/diskstats:" << f.errorString();

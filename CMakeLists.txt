@@ -50,6 +50,8 @@ set(KRELLIX_SOURCES
     src/krellix/PluginLoader.h
     src/krellix/SettingsDialog.cpp
     src/krellix/SettingsDialog.h
+    src/remote/RemoteSource.cpp
+    src/remote/RemoteSource.h
     src/sdk/KrellixPlugin.h
     src/theme/Theme.cpp
     src/theme/Theme.h
@@ -117,3 +119,38 @@ set_target_properties(krellix PROPERTIES
 
 install(TARGETS krellix RUNTIME DESTINATION bin)
 install(DIRECTORY themes/ DESTINATION share/krellix/themes)
+
+# ---- krellixd: remote monitoring daemon ---------------------------------
+# QtCore + QtNetwork only (no Widgets, no display). Designed to run as a
+# headless systemd service that exposes /proc readings over TCP. Reuses
+# the same sysdep readers as the GUI client.
+qt_add_executable(krellixd
+    src/krellixd/main.cpp
+    src/krellixd/KrellixdServer.cpp
+    src/krellixd/KrellixdServer.h
+    src/krellixd/ClientSession.cpp
+    src/krellixd/ClientSession.h
+    src/sysdep/CpuStat.cpp
+    src/sysdep/CpuStat.h
+    src/sysdep/MemStat.cpp
+    src/sysdep/MemStat.h
+    src/sysdep/NetStat.cpp
+    src/sysdep/NetStat.h
+    src/sysdep/DiskStat.cpp
+    src/sysdep/DiskStat.h
+    src/sysdep/UptimeStat.cpp
+    src/sysdep/UptimeStat.h
+)
+target_include_directories(krellixd PRIVATE src)
+target_link_libraries(krellixd PRIVATE Qt6::Core Qt6::Network)
+target_compile_definitions(krellixd PRIVATE
+    QT_NO_CAST_FROM_ASCII
+    QT_NO_CAST_TO_ASCII
+    QT_NO_NARROWING_CONVERSIONS_IN_CONNECT
+    KRELLIX_VERSION="${KRELLIX_VERSION_FULL}"
+)
+set_target_properties(krellixd PROPERTIES
+    WIN32_EXECUTABLE OFF
+    MACOSX_BUNDLE OFF
+)
+install(TARGETS krellixd RUNTIME DESTINATION sbin)

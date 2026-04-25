@@ -7,6 +7,10 @@
 
 Q_LOGGING_CATEGORY(lcMemStat, "krellix.sysdep.mem")
 
+namespace { MemStat::ReadFn g_readOverride = nullptr; }
+
+void MemStat::setReadOverride(MemStat::ReadFn fn) { g_readOverride = fn; }
+
 namespace {
 
 constexpr qint64 kProcMeminfoMaxBytes = 64 * 1024;  // /proc/meminfo is tiny
@@ -35,6 +39,7 @@ quint64 parseValueKb(const QByteArray &line)
 
 MemInfo MemStat::read()
 {
+    if (g_readOverride) return g_readOverride();
     MemInfo out;
     QFile f(QStringLiteral("/proc/meminfo"));
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {

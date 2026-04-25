@@ -17,7 +17,11 @@ class NetStat
 public:
     // Reads /proc/net/dev. Filters out the loopback ("lo"); empty list on
     // failure. Order is the order in which the kernel listed them.
+    // Honors a remote override (setReadOverride) when set.
     static QList<NetSample> read();
+
+    using ReadFn = QList<NetSample> (*)();
+    static void setReadOverride(ReadFn fn);
 
     // Heuristic — true for "main" physical/wireless interfaces (eth*, en*,
     // wlan*, wlp*, ww*), false for virtualization/container plumbing

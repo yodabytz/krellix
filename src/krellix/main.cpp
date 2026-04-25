@@ -1,4 +1,10 @@
 #include "MainWindow.h"
+#include "remote/RemoteSource.h"
+#include "sysdep/CpuStat.h"
+#include "sysdep/DiskStat.h"
+#include "sysdep/MemStat.h"
+#include "sysdep/NetStat.h"
+#include "sysdep/UptimeStat.h"
 #include "theme/Theme.h"
 
 #include <QApplication>
@@ -108,13 +114,31 @@ int main(int argc, char *argv[])
     }
 
     if (parser.isSet(hostOpt)) {
-        // Remote-monitoring mode (krellixd connection) is planned but not
-        // yet implemented. For now the window opens with local readings
-        // but the per-host instance namespace still applies, so settings
-        // for that 'host' are persisted separately.
-        qWarning("krellix: --host %s noted but krellixd remote protocol is "
-                 "not yet implemented; showing LOCAL system readings.",
-                 qUtf8Printable(parser.value(hostOpt)));
+        // Remote-monitoring mode: stand up a RemoteSource and route every
+        // sysdep read through it. The MainWindow is otherwise unchanged
+        // — every monitor calls e.g. CpuStat::read() as before, but the
+        // override delivers the most-recent sample from the remote
+        // krellixd JSON stream.
+        const QString hostSpec = parser.value(hostOpt);
+        QString  host = hostSpec;
+        quint16  port = 19150;
+        const int colon = hostSpec.lastIndexOf(QLatin1Char(':'));
+        if (colon > 0 && hostSpec.indexOf(QLatin1Char(':')) == colon) {
+            host = hostSpec.left(colon);
+            port = hostSpec.mid(colon + 1).toUShort();
+        }
+
+        auto *remote = new RemoteSource(&app);
+        remote->connectToHost(host, port);
+
+        CpuStat::setReadOverride(   []() { auto* r = RemoteSource::instance(); return r ? r->cpuSamples()  : QList<CpuSample>{};  });
+        MemStat::setReadOverride(   []() { auto* r = RemoteSource::instance(); return r ? r->memInfo()     : MemInfo{};           });
+        NetStat::setReadOverride(   []() { auto* r = RemoteSource::instance(); return r ? r->netSamples()  : QList<NetSample>{};  });
+        DiskStat::setReadOverride(  []() { auto* r = RemoteSource::instance(); return r ? r->diskSamples() : QList<DiskSample>{}; });
+        UptimeStat::setReadOverride([]() { auto* r = RemoteSource::instance(); return r ? r->uptimeSeconds() : qint64(-1);        });
+
+        qInfo("krellix: connecting to remote krellixd at %s:%u",
+              qUtf8Printable(host), port);
     }
 
     MainWindow w(theme, enabledIds);

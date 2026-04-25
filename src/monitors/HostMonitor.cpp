@@ -1,5 +1,6 @@
 #include "HostMonitor.h"
 
+#include "remote/RemoteSource.h"
 #include "widgets/Decal.h"
 #include "widgets/Panel.h"
 
@@ -68,6 +69,18 @@ QWidget *HostMonitor::createWidget(QWidget *parent)
 void HostMonitor::tick()
 {
     if (!m_hostnameDecal || !m_sysDecal) return;
+
+    // In remote-host mode (krellix --host ...), prefer the hostname &
+    // kernel reported by the daemon — that's what the user expects to see
+    // when monitoring another machine.
+    if (auto *r = RemoteSource::instance(); r && r->isConnected()) {
+        const QString rh = r->remoteHostname();
+        const QString rk = r->remoteKernel();
+        if (!rh.isEmpty()) m_hostnameDecal->setText(rh);
+        if (!rk.isEmpty()) m_sysDecal->setText(rk);
+        if (!rh.isEmpty() || !rk.isEmpty()) return;
+        // fall through to local readings until first remote sample arrives
+    }
 
     const bool fqdn =
         QSettings().value(QStringLiteral("host/show_fqdn"), false).toBool();

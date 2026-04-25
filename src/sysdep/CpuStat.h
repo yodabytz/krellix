@@ -25,9 +25,17 @@ struct CpuSample {
 class CpuStat
 {
 public:
-    // Reads /proc/stat. First entry is the aggregate ("cpu"), followed by
-    // per-core entries in CPU index order. Empty list on failure.
+    // Reads /proc/stat by default; if a remote override has been installed
+    // (see setReadOverride) calls that instead. First entry is the
+    // aggregate ("cpu"), followed by per-core entries in CPU index order.
+    // Empty list on failure.
     static QList<CpuSample> read();
+
+    // Install a function that returns CPU samples in lieu of /proc/stat —
+    // krellix uses this to route reads through RemoteSource when running
+    // in --host client mode. Pass nullptr to restore local-only behavior.
+    using ReadFn = QList<CpuSample> (*)();
+    static void setReadOverride(ReadFn fn);
 
     // Compute utilization (0..1) between two samples of the same CPU.
     // Returns 0 if samples don't differ or differ in name/index.

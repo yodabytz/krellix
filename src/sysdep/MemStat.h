@@ -37,6 +37,11 @@ struct MemInfo {
 class MemStat
 {
 public:
-    // Reads /proc/meminfo. Returns a MemInfo with valid()==false on failure.
+    // Reads /proc/meminfo by default, or the installed override (see
+    // setReadOverride) if one is set. Returns a MemInfo with
+    // valid()==false on failure.
     static MemInfo read();
+
+    using ReadFn = MemInfo (*)();
+    static void setReadOverride(ReadFn fn);
 };

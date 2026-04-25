@@ -17,6 +17,9 @@ public:
 
     // Reads /proc/diskstats. Returns whole disks only — partitions and
     // virtual devices (loop, ram, dm-) are filtered out by checking that
-    // /sys/block/<name>/ exists.
+    // /sys/block/<name>/ exists. Honors a remote override when set.
     static QList<DiskSample> read();
+
+    using ReadFn = QList<DiskSample> (*)();
+    static void setReadOverride(ReadFn fn);
 };

@@ -3,8 +3,13 @@
 #include <QByteArray>
 #include <QFile>
 
+namespace { UptimeStat::ReadFn g_readOverride = nullptr; }
+
+void UptimeStat::setReadOverride(UptimeStat::ReadFn fn) { g_readOverride = fn; }
+
 qint64 UptimeStat::secondsSinceBoot()
 {
+    if (g_readOverride) return g_readOverride();
     QFile f(QStringLiteral("/proc/uptime"));
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) return -1;
     const QByteArray bytes = f.read(64);

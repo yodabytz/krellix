@@ -8,6 +8,15 @@
 Q_LOGGING_CATEGORY(lcCpuStat, "krellix.sysdep.cpu")
 
 namespace {
+CpuStat::ReadFn g_readOverride = nullptr;
+} // namespace
+
+void CpuStat::setReadOverride(CpuStat::ReadFn fn)
+{
+    g_readOverride = fn;
+}
+
+namespace {
 
 constexpr qint64 kProcStatMaxBytes = 256 * 1024;  // hard cap; /proc/stat is tiny
 
@@ -51,6 +60,7 @@ bool parseCpuLine(const QByteArray &line, CpuSample &out)
 
 QList<CpuSample> CpuStat::read()
 {
+    if (g_readOverride) return g_readOverride();
     QFile f(QStringLiteral("/proc/stat"));
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qCWarning(lcCpuStat) << "cannot open /proc/stat:" << f.errorString();
