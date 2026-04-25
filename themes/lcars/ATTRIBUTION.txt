@@ -1,6 +1,0 @@
-
-
-Image assets in this directory are from the original GKrellM theme,
-distributed under the GPL alongside GKrellM. The theme.json mapping
-those assets into krellix's theme format is part of the krellix
-project (GPL-3.0-or-later).
