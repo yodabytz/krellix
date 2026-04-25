@@ -48,6 +48,8 @@ private slots:
     void showAbout();
     void showSettings();
     void toggleAlwaysOnTop();
+    void cycleThemeForward();
+    void cycleThemeBackward();
 
 private:
     struct LiveMonitor {
@@ -56,6 +58,7 @@ private:
     };
 
     void addMonitor(MonitorBase *m);
+    void cycleTheme(int direction);
     void buildBuiltins(const QStringList &enabledIds, bool clockOnly);
     void buildPanelStack(const QStringList &enabledIds);
     void clearPanelStack();

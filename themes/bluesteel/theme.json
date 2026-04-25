@@ -1,0 +1,53 @@
+{
+  "name": "bluesteel",
+  "version": "1.0",
+  "author": "Dan Erat <erat@cats.ucsc.edu> (assets, ca. 1999-2000) — krellix project (mapping)",
+  "description": "Port of Dan Erat's GKrellM 'BlueSteel' theme. Steel-blue panels with cyan and teal accent charts.",
+
+  "colors": {
+    "panel_bg":           "#4a5560",
+    "panel_border":       "#1a2030",
+    "panel_highlight":    "#6a7888",
+    "chart_bg":           "#1a2030",
+    "chart_grid":         "#3a4a5a",
+    "text_primary":       "#c0d0e0",
+    "text_secondary":     "#7a8a9a",
+    "text_accent":        "#9ab8d8",
+    "krell_track":        "#2a3540",
+    "krell_indicator":    "#c0d0e0",
+    "chart_line_default": "#0081c4",
+    "chart_line_cpu":     "#e85a4a",
+    "chart_line_mem":     "#00b084",
+    "chart_line_swap":    "#0081c4",
+    "chart_line_net_rx":  "#5dade2",
+    "chart_line_net_tx":  "#f5b041",
+    "chart_line_disk":    "#a070c0",
+    "accent_warning":     "#f5b041",
+    "accent_critical":    "#e85a4a"
+  },
+
+  "fonts": {
+    "label": { "family": "Helvetica", "size": 9,  "bold": false },
+    "value": { "family": "Helvetica", "size": 10, "bold": true  },
+    "time":  { "family": "Helvetica", "size": 11, "bold": false }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    1,
+    "panel_border":     0,
+    "panel_min_width":  170,
+    "krell_height":     12,
+    "chart_height":     40,
+    "chart_grid_lines": 4
+  },
+
+  "images": {
+    "panel_bg":     { "image": "bg_panel.png", "mode": "tile" },
+    "chart_bg":     { "image": "bg_chart.png", "mode": "tile" },
+    "frame_top":    "frame_top.png",
+    "frame_bottom": "frame_bottom.png",
+    "frame_left":   "frame_left.png",
+    "frame_right":  "frame_right.png"
+  }
+}

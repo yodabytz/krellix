@@ -17,6 +17,7 @@
 #include <QApplication>
 #include <QCloseEvent>
 #include <QContextMenuEvent>
+#include <QKeySequence>
 #include <QLayoutItem>
 #include <QMenu>
 #include <QMessageBox>
@@ -24,6 +25,7 @@
 #include <QPaintEvent>
 #include <QPainter>
 #include <QSettings>
+#include <QShortcut>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWindow>
@@ -73,6 +75,17 @@ MainWindow::MainWindow(Theme *theme,
     applyFixedWidth();
     restorePosition();
     connect(m_theme, &Theme::themeChanged, this, &MainWindow::onThemeChanged);
+
+    // Keybindings: T / Shift+T cycle through installed themes (forward /
+    // backward). No rebuild on theme switch, so chart history survives.
+    auto *nextTheme = new QShortcut(QKeySequence(QStringLiteral("T")), this);
+    nextTheme->setContext(Qt::WindowShortcut);
+    connect(nextTheme, &QShortcut::activated,
+            this, &MainWindow::cycleThemeForward);
+    auto *prevTheme = new QShortcut(QKeySequence(QStringLiteral("Shift+T")), this);
+    prevTheme->setContext(Qt::WindowShortcut);
+    connect(prevTheme, &QShortcut::activated,
+            this, &MainWindow::cycleThemeBackward);
 }
 
 MainWindow::~MainWindow() = default;
@@ -382,7 +395,10 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
                     QSettings s;
                     s.setValue(QStringLiteral("theme/name"), name);
                     applySettingsOverridesToTheme();
-                    rebuildPanels();
+                    // No rebuildPanels() here — Theme::themeChanged fires
+                    // and every Panel/Decal/Krell/Chart already repaints
+                    // itself, so chart history and per-monitor state are
+                    // preserved across theme switches.
                 }
             });
         }
@@ -412,6 +428,26 @@ void MainWindow::toggleAlwaysOnTop()
 
     QSettings s;
     s.setValue(QStringLiteral("window/always_on_top"), now);
+}
+
+void MainWindow::cycleThemeForward()  { cycleTheme(+1); }
+void MainWindow::cycleThemeBackward() { cycleTheme(-1); }
+
+void MainWindow::cycleTheme(int direction)
+{
+    const QStringList themes = Theme::availableThemes();
+    if (themes.isEmpty()) return;
+
+    const QString current = m_theme->name();
+    int idx = themes.indexOf(current);
+    if (idx < 0) idx = 0;
+    const int n = themes.size();
+    idx = ((idx + direction) % n + n) % n;
+    const QString next = themes[idx];
+    if (m_theme->load(next)) {
+        QSettings().setValue(QStringLiteral("theme/name"), next);
+        applySettingsOverridesToTheme();
+    }
 }
 
 void MainWindow::showAbout()
