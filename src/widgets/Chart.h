@@ -13,7 +13,12 @@ class Chart : public QWidget
     Q_OBJECT
 
 public:
-    explicit Chart(Theme *theme, QWidget *parent = nullptr);
+    // colorKey selects which theme color paints the line — e.g.
+    // "chart_line_cpu", "chart_line_mem". Falls back to text_primary if
+    // the key isn't defined in the theme.
+    explicit Chart(Theme *theme,
+                   const QString &colorKey = QStringLiteral("chart_line_default"),
+                   QWidget *parent = nullptr);
     ~Chart() override;
 
     void appendSample(double value);
@@ -33,7 +38,8 @@ private slots:
 private:
     void rebuildCapacityForWidth();
 
-    Theme *m_theme;
+    Theme  *m_theme;
+    QString m_colorKey;
     std::vector<double> m_samples;     // ring buffer; size <= m_capacity
     int    m_head = 0;                 // next write index
     int    m_capacity = 128;

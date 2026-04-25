@@ -44,12 +44,14 @@ protected:
 private slots:
     void onThemeChanged();
     void showAbout();
+    void showSettings();
     void toggleAlwaysOnTop();
 
 private:
     void addMonitor(MonitorBase *m);
     void buildBuiltins(const QStringList &enabledIds, bool clockOnly);
     void applyMinimumWidth();
+    void applySettingsOverridesToTheme();
     void restoreGeometry();
     void persistGeometry();
 

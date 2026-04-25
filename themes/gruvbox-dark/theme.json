@@ -1,19 +1,29 @@
 {
   "name": "gruvbox-dark",
-  "version": "1.0",
+  "version": "1.1",
   "author": "krellix",
-  "description": "Gruvbox Dark — retro warm tones by Pavel Pertsev (vim).",
+  "description": "Gruvbox Dark — retro warm tones with vivid per-series accents.",
 
   "colors": {
-    "panel_bg":        "#282828",
-    "panel_border":    "#504945",
-    "panel_highlight": "#3c3836",
-    "chart_bg":        "#1d2021",
-    "chart_grid":      "#504945",
-    "text_primary":    "#ebdbb2",
-    "text_secondary":  "#a89984",
-    "krell_track":     "#3c3836",
-    "krell_indicator": "#fabd2f"
+    "panel_bg":           "#282828",
+    "panel_border":       "#504945",
+    "panel_highlight":    "#3c3836",
+    "chart_bg":           "#1d2021",
+    "chart_grid":         "#504945",
+    "text_primary":       "#ebdbb2",
+    "text_secondary":     "#a89984",
+    "text_accent":        "#d3869b",
+    "krell_track":        "#3c3836",
+    "krell_indicator":    "#fabd2f",
+    "chart_line_default": "#fabd2f",
+    "chart_line_cpu":     "#fb4934",
+    "chart_line_mem":     "#b8bb26",
+    "chart_line_swap":    "#d3869b",
+    "chart_line_net_rx":  "#83a598",
+    "chart_line_net_tx":  "#fe8019",
+    "chart_line_disk":    "#8ec07c",
+    "accent_warning":     "#fe8019",
+    "accent_critical":    "#fb4934"
   },
 
   "fonts": {
@@ -25,7 +35,7 @@
     "panel_padding":    4,
     "panel_spacing":    2,
     "panel_border":     1,
-    "panel_min_width":  200,
+    "panel_min_width":  100,
     "krell_height":     8,
     "chart_height":     32,
     "chart_grid_lines": 4

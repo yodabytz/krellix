@@ -1,19 +1,29 @@
 {
   "name": "tokyo-night",
-  "version": "1.0",
+  "version": "1.1",
   "author": "krellix",
-  "description": "Tokyo Night — the classic dark variant by enkia & Folke (vim).",
+  "description": "Tokyo Night — the classic dark variant with vivid per-series accents.",
 
   "colors": {
-    "panel_bg":        "#1a1b26",
-    "panel_border":    "#414868",
-    "panel_highlight": "#292e42",
-    "chart_bg":        "#16161e",
-    "chart_grid":      "#292e42",
-    "text_primary":    "#c0caf5",
-    "text_secondary":  "#565f89",
-    "krell_track":     "#292e42",
-    "krell_indicator": "#7aa2f7"
+    "panel_bg":           "#1a1b26",
+    "panel_border":       "#414868",
+    "panel_highlight":    "#292e42",
+    "chart_bg":           "#16161e",
+    "chart_grid":         "#292e42",
+    "text_primary":       "#c0caf5",
+    "text_secondary":     "#565f89",
+    "text_accent":        "#bb9af7",
+    "krell_track":        "#292e42",
+    "krell_indicator":    "#7aa2f7",
+    "chart_line_default": "#7aa2f7",
+    "chart_line_cpu":     "#f7768e",
+    "chart_line_mem":     "#9ece6a",
+    "chart_line_swap":    "#e0af68",
+    "chart_line_net_rx":  "#7dcfff",
+    "chart_line_net_tx":  "#e0af68",
+    "chart_line_disk":    "#bb9af7",
+    "accent_warning":     "#ff9e64",
+    "accent_critical":    "#f7768e"
   },
 
   "fonts": {
@@ -25,7 +35,7 @@
     "panel_padding":    4,
     "panel_spacing":    2,
     "panel_border":     1,
-    "panel_min_width":  200,
+    "panel_min_width":  100,
     "krell_height":     8,
     "chart_height":     32,
     "chart_grid_lines": 4

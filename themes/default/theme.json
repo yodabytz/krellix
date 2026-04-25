@@ -1,19 +1,29 @@
 {
   "name": "default",
-  "version": "1.0",
+  "version": "1.1",
   "author": "krellix",
-  "description": "Classic green-on-black, in the spirit of GKrellM.",
+  "description": "Classic green-on-black, in the spirit of GKrellM, with vivid per-series accents.",
 
   "colors": {
-    "panel_bg":        "#0a0e0a",
-    "panel_border":    "#1a2a1a",
-    "panel_highlight": "#284828",
-    "chart_bg":        "#000000",
-    "chart_grid":      "#0a3a0a",
-    "text_primary":    "#7fff7f",
-    "text_secondary":  "#3fbf3f",
-    "krell_track":     "#1a3a1a",
-    "krell_indicator": "#7fff7f"
+    "panel_bg":           "#0a0e0a",
+    "panel_border":       "#1a3a1a",
+    "panel_highlight":    "#284828",
+    "chart_bg":           "#000000",
+    "chart_grid":         "#0a3a0a",
+    "text_primary":       "#7fff7f",
+    "text_secondary":     "#3fbf3f",
+    "text_accent":        "#aaffaa",
+    "krell_track":        "#1a3a1a",
+    "krell_indicator":    "#7fff7f",
+    "chart_line_default": "#7fff7f",
+    "chart_line_cpu":     "#ff5555",
+    "chart_line_mem":     "#ffcc00",
+    "chart_line_swap":    "#00aaff",
+    "chart_line_net_rx":  "#55ffff",
+    "chart_line_net_tx":  "#ffaa55",
+    "chart_line_disk":    "#cc88ff",
+    "accent_warning":     "#ffaa00",
+    "accent_critical":    "#ff3333"
   },
 
   "fonts": {
@@ -25,7 +35,7 @@
     "panel_padding":    4,
     "panel_spacing":    2,
     "panel_border":     1,
-    "panel_min_width":  200,
+    "panel_min_width":  100,
     "krell_height":     8,
     "chart_height":     32,
     "chart_grid_lines": 4

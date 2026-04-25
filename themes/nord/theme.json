@@ -1,19 +1,29 @@
 {
   "name": "nord",
-  "version": "1.0",
+  "version": "1.1",
   "author": "krellix",
-  "description": "Nord — arctic, north-bluish by Sven Greb (arcticicestudio).",
+  "description": "Nord — arctic, north-bluish with vivid per-series accents.",
 
   "colors": {
-    "panel_bg":        "#2e3440",
-    "panel_border":    "#434c5e",
-    "panel_highlight": "#3b4252",
-    "chart_bg":        "#2e3440",
-    "chart_grid":      "#3b4252",
-    "text_primary":    "#d8dee9",
-    "text_secondary":  "#81a1c1",
-    "krell_track":     "#3b4252",
-    "krell_indicator": "#88c0d0"
+    "panel_bg":           "#2e3440",
+    "panel_border":       "#434c5e",
+    "panel_highlight":    "#3b4252",
+    "chart_bg":           "#2e3440",
+    "chart_grid":         "#3b4252",
+    "text_primary":       "#d8dee9",
+    "text_secondary":     "#81a1c1",
+    "text_accent":        "#b48ead",
+    "krell_track":        "#3b4252",
+    "krell_indicator":    "#88c0d0",
+    "chart_line_default": "#88c0d0",
+    "chart_line_cpu":     "#bf616a",
+    "chart_line_mem":     "#a3be8c",
+    "chart_line_swap":    "#ebcb8b",
+    "chart_line_net_rx":  "#8fbcbb",
+    "chart_line_net_tx":  "#d08770",
+    "chart_line_disk":    "#b48ead",
+    "accent_warning":     "#d08770",
+    "accent_critical":    "#bf616a"
   },
 
   "fonts": {
@@ -25,7 +35,7 @@
     "panel_padding":    4,
     "panel_spacing":    2,
     "panel_border":     1,
-    "panel_min_width":  200,
+    "panel_min_width":  100,
     "krell_height":     8,
     "chart_height":     32,
     "chart_grid_lines": 4

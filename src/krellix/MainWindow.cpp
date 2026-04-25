@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 
 #include "krellix/PluginLoader.h"
+#include "krellix/SettingsDialog.h"
 #include "monitors/ClockMonitor.h"
 #include "monitors/CpuMonitor.h"
 #include "monitors/HostMonitor.h"
@@ -54,11 +55,22 @@ MainWindow::MainWindow(Theme *theme,
     connect(qApp, &QCoreApplication::aboutToQuit,
             this, &MainWindow::persistGeometry);
 
+    // Honor user overrides for panel/krell/chart sizing before any widgets
+    // ask the theme for those metrics.
+    applySettingsOverridesToTheme();
+
     m_layout = new QVBoxLayout(this);
     m_layout->setContentsMargins(0, 0, 0, 0);
     m_layout->setSpacing(0);
 
-    // Built-in monitors except Clock first.
+    // Clock at top toggle (GKrellM-style host-and-clock-at-top mode).
+    const bool clockAtTop =
+        QSettings().value(QStringLiteral("window/clock_at_top"), false).toBool();
+
+    if (clockAtTop)
+        buildBuiltins(enabledMonitorIds, /*clockOnly=*/true);
+
+    // Other built-in monitors (host, cpu, mem).
     buildBuiltins(enabledMonitorIds, /*clockOnly=*/false);
 
     // Plugin monitors next.
@@ -66,8 +78,8 @@ MainWindow::MainWindow(Theme *theme,
         m_pluginLoader->discoverAndLoad(m_theme, this);
     for (MonitorBase *m : pluginMonitors) addMonitor(m);
 
-    // Clock pinned to the bottom of the monitor stack.
-    buildBuiltins(enabledMonitorIds, /*clockOnly=*/true);
+    if (!clockAtTop)
+        buildBuiltins(enabledMonitorIds, /*clockOnly=*/true);
 
     m_layout->addStretch(1);
 
@@ -103,8 +115,11 @@ void MainWindow::addMonitor(MonitorBase *m)
 
 void MainWindow::buildBuiltins(const QStringList &enabledIds, bool clockOnly)
 {
+    // CLI --monitors=... overrides everything; otherwise consult QSettings
+    // (default: every built-in is on).
     auto enabled = [&enabledIds](const QString &id) {
-        return enabledIds.isEmpty() || enabledIds.contains(id);
+        if (!enabledIds.isEmpty()) return enabledIds.contains(id);
+        return QSettings().value(QStringLiteral("monitors/") + id, true).toBool();
     };
 
     if (clockOnly) {
@@ -123,9 +138,23 @@ void MainWindow::buildBuiltins(const QStringList &enabledIds, bool clockOnly)
 
 void MainWindow::applyMinimumWidth()
 {
-    const int w = m_theme->metric(QStringLiteral("panel_min_width"), 200);
+    const int w = m_theme->metric(QStringLiteral("panel_min_width"), 100);
     setMinimumWidth(w);
     // No setMaximumWidth — user can resize via the QSizeGrip.
+}
+
+void MainWindow::applySettingsOverridesToTheme()
+{
+    QSettings s;
+    if (s.contains(QStringLiteral("appearance/panel_width")))
+        m_theme->setMetric(QStringLiteral("panel_min_width"),
+                           s.value(QStringLiteral("appearance/panel_width")).toInt());
+    if (s.contains(QStringLiteral("appearance/krell_height")))
+        m_theme->setMetric(QStringLiteral("krell_height"),
+                           s.value(QStringLiteral("appearance/krell_height")).toInt());
+    if (s.contains(QStringLiteral("appearance/chart_height")))
+        m_theme->setMetric(QStringLiteral("chart_height"),
+                           s.value(QStringLiteral("appearance/chart_height")).toInt());
 }
 
 void MainWindow::restoreGeometry()
@@ -207,6 +236,9 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
 
+    QAction *settingsA = menu.addAction(QStringLiteral("Settings..."));
+    connect(settingsA, &QAction::triggered, this, &MainWindow::showSettings);
+
     QAction *aotA = menu.addAction(QStringLiteral("Always on top"));
     aotA->setCheckable(true);
     aotA->setChecked(windowFlags().testFlag(Qt::WindowStaysOnTopHint));
@@ -264,4 +296,26 @@ void MainWindow::showAbout()
         QStringLiteral("About krellix"),
         QStringLiteral("krellix %1\n\nA themeable Qt 6 system monitor in the spirit of GKrellM.")
         .arg(QString::fromUtf8(KRELLIX_VERSION)));
+}
+
+void MainWindow::showSettings()
+{
+    auto *dlg = new SettingsDialog(m_theme, this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+
+    connect(dlg, &SettingsDialog::themeNameChanged, this,
+            [this](const QString &name) {
+                if (m_theme->load(name)) applySettingsOverridesToTheme();
+            });
+    connect(dlg, &SettingsDialog::alwaysOnTopChanged, this,
+            [this](bool on) {
+                Qt::WindowFlags f = windowFlags();
+                f.setFlag(Qt::WindowStaysOnTopHint, on);
+                setWindowFlags(f);
+                show();
+            });
+
+    // open() is non-blocking and modal (the dialog itself sets setModal(true))
+    // — avoids nesting an event loop in the slot.
+    dlg->open();
 }

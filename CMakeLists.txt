@@ -48,6 +48,8 @@ set(KRELLIX_SOURCES
     src/krellix/MainWindow.h
     src/krellix/PluginLoader.cpp
     src/krellix/PluginLoader.h
+    src/krellix/SettingsDialog.cpp
+    src/krellix/SettingsDialog.h
     src/sdk/KrellixPlugin.h
     src/theme/Theme.cpp
     src/theme/Theme.h

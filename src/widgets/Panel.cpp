@@ -56,9 +56,9 @@ Krell *Panel::addKrell()
     return k;
 }
 
-Chart *Panel::addChart()
+Chart *Panel::addChart(const QString &colorKey)
 {
-    auto *c = new Chart(m_theme, this);
+    auto *c = new Chart(m_theme, colorKey, this);
     m_layout->addWidget(c);
     return c;
 }

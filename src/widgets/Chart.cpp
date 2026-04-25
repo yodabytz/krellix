@@ -10,9 +10,10 @@
 
 #include <algorithm>
 
-Chart::Chart(Theme *theme, QWidget *parent)
+Chart::Chart(Theme *theme, const QString &colorKey, QWidget *parent)
     : QWidget(parent)
     , m_theme(theme)
+    , m_colorKey(colorKey)
 {
     Q_ASSERT(m_theme);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -85,7 +86,8 @@ void Chart::paintEvent(QPaintEvent *)
     const QRect r = rect();
     const QColor bg   = m_theme->color(QStringLiteral("chart_bg"));
     const QColor grid = m_theme->color(QStringLiteral("chart_grid"));
-    const QColor line = m_theme->color(QStringLiteral("text_primary"));
+    const QColor line = m_theme->color(m_colorKey,
+                          m_theme->color(QStringLiteral("text_primary")));
 
     p.fillRect(r, bg);
 

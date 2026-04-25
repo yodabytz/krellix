@@ -213,7 +213,7 @@ void Theme::loadDefaults()
     m_metrics.insert(QStringLiteral("panel_padding"),    4);
     m_metrics.insert(QStringLiteral("panel_spacing"),    2);
     m_metrics.insert(QStringLiteral("panel_border"),     1);
-    m_metrics.insert(QStringLiteral("panel_min_width"),  200);
+    m_metrics.insert(QStringLiteral("panel_min_width"),  100);
     m_metrics.insert(QStringLiteral("krell_height"),     8);
     m_metrics.insert(QStringLiteral("chart_height"),     32);
     m_metrics.insert(QStringLiteral("chart_grid_lines"), 4);
@@ -310,6 +310,14 @@ QFont Theme::font(const QString &key, const QFont &fallback) const
 int Theme::metric(const QString &key, int fallback) const
 {
     return m_metrics.value(key, fallback);
+}
+
+void Theme::setMetric(const QString &key, int value)
+{
+    const int clamped = qBound(0, value, 4096);
+    if (m_metrics.value(key) == clamped) return;
+    m_metrics.insert(key, clamped);
+    emit themeChanged();
 }
 
 QString Theme::assetPath(const QString &relativePath) const

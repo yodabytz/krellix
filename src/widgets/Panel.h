@@ -23,7 +23,7 @@ public:
     Decal *addDecal(const QString &fontKey   = QStringLiteral("label"),
                     const QString &colorKey  = QStringLiteral("text_primary"));
     Krell *addKrell();
-    Chart *addChart();
+    Chart *addChart(const QString &colorKey = QStringLiteral("chart_line_default"));
 
     Theme *theme() const { return m_theme; }
 

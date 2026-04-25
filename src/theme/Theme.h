@@ -48,6 +48,10 @@ public:
     QFont  font (const QString &key, const QFont  &fallback = QFont())  const;
     int    metric(const QString &key, int fallback = 0) const;
 
+    // Runtime override of a theme metric (e.g. user-set krell_height from
+    // SettingsDialog). Triggers themeChanged() so widgets refresh.
+    void   setMetric(const QString &key, int value);
+
     // Image assets declared under "images" in theme.json. pixmap() returns
     // an empty QPixmap if the key isn't set, the file is missing, or the
     // path would escape the theme directory. Cache is cleared on reload.

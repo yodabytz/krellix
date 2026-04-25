@@ -48,7 +48,7 @@ QWidget *CpuMonitor::createWidget(QWidget *parent)
                                     QStringLiteral("text_primary"));
         ui.valueDecal->setText(QStringLiteral("0%"));
         ui.krell = p->addKrell();
-        ui.chart = p->addChart();
+        ui.chart = p->addChart(QStringLiteral("chart_line_cpu"));
         if (ui.chart) ui.chart->setMaxValue(1.0);
 
         m_cores.append(ui);

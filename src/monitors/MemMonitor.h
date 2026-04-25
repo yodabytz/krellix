@@ -4,6 +4,7 @@
 
 #include <QPointer>
 
+class Chart;
 class Decal;
 class Krell;
 
@@ -26,6 +27,7 @@ public:
 private:
     QPointer<Decal> m_memText;
     QPointer<Krell> m_memKrell;
+    QPointer<Chart> m_memChart;
     QPointer<Decal> m_swapText;
     QPointer<Krell> m_swapKrell;
 

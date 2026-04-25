@@ -1,6 +1,7 @@
 #include "MemMonitor.h"
 
 #include "sysdep/MemStat.h"
+#include "widgets/Chart.h"
 #include "widgets/Decal.h"
 #include "widgets/Krell.h"
 #include "widgets/Panel.h"
@@ -41,6 +42,8 @@ QWidget *MemMonitor::createWidget(QWidget *parent)
     m_memText  = p->addDecal(QStringLiteral("label"),
                              QStringLiteral("text_primary"));
     m_memKrell = p->addKrell();
+    m_memChart = p->addChart(QStringLiteral("chart_line_mem"));
+    if (m_memChart) m_memChart->setMaxValue(1.0);
 
     m_swapText  = p->addDecal(QStringLiteral("label"),
                               QStringLiteral("text_secondary"));
@@ -65,6 +68,8 @@ void MemMonitor::tick()
         m_memText->setText(QStringLiteral("RAM ") + usedTotal(m.memUsedKb(), m.totalKb));
     if (m_memKrell)
         m_memKrell->setValue(m.memUsedRatio());
+    if (m_memChart)
+        m_memChart->appendSample(m.memUsedRatio());
 
     if (m.swapTotalKb == 0) {
         if (m_swapText)  m_swapText->setText(QStringLiteral("Swap none"));

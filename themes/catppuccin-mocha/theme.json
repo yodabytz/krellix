@@ -1,19 +1,29 @@
 {
   "name": "catppuccin-mocha",
-  "version": "1.0",
+  "version": "1.1",
   "author": "krellix",
-  "description": "Catppuccin Mocha — pastel pleasure by the Catppuccin team.",
+  "description": "Catppuccin Mocha — pastel pleasure with vivid per-series accents.",
 
   "colors": {
-    "panel_bg":        "#1e1e2e",
-    "panel_border":    "#45475a",
-    "panel_highlight": "#313244",
-    "chart_bg":        "#181825",
-    "chart_grid":      "#313244",
-    "text_primary":    "#cdd6f4",
-    "text_secondary":  "#a6adc8",
-    "krell_track":     "#313244",
-    "krell_indicator": "#89b4fa"
+    "panel_bg":           "#1e1e2e",
+    "panel_border":       "#45475a",
+    "panel_highlight":    "#313244",
+    "chart_bg":           "#181825",
+    "chart_grid":         "#313244",
+    "text_primary":       "#cdd6f4",
+    "text_secondary":     "#a6adc8",
+    "text_accent":        "#cba6f7",
+    "krell_track":        "#313244",
+    "krell_indicator":    "#89b4fa",
+    "chart_line_default": "#89b4fa",
+    "chart_line_cpu":     "#f38ba8",
+    "chart_line_mem":     "#a6e3a1",
+    "chart_line_swap":    "#f9e2af",
+    "chart_line_net_rx":  "#94e2d5",
+    "chart_line_net_tx":  "#fab387",
+    "chart_line_disk":    "#cba6f7",
+    "accent_warning":     "#fab387",
+    "accent_critical":    "#f38ba8"
   },
 
   "fonts": {
@@ -25,7 +35,7 @@
     "panel_padding":    4,
     "panel_spacing":    2,
     "panel_border":     1,
-    "panel_min_width":  200,
+    "panel_min_width":  100,
     "krell_height":     8,
     "chart_height":     32,
     "chart_grid_lines": 4

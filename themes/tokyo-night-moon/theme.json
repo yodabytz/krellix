@@ -1,19 +1,29 @@
 {
   "name": "tokyo-night-moon",
-  "version": "1.0",
+  "version": "1.1",
   "author": "krellix",
-  "description": "Tokyo Night Moon — soft purple/blue palette by enkia & Folke (vim).",
+  "description": "Tokyo Night Moon — soft purple/blue palette with vivid per-series accents.",
 
   "colors": {
-    "panel_bg":        "#222436",
-    "panel_border":    "#3b4261",
-    "panel_highlight": "#2f334d",
-    "chart_bg":        "#1e2030",
-    "chart_grid":      "#3b4261",
-    "text_primary":    "#c8d3f5",
-    "text_secondary":  "#828bb8",
-    "krell_track":     "#2f334d",
-    "krell_indicator": "#82aaff"
+    "panel_bg":           "#222436",
+    "panel_border":       "#3b4261",
+    "panel_highlight":    "#2f334d",
+    "chart_bg":           "#1e2030",
+    "chart_grid":         "#3b4261",
+    "text_primary":       "#c8d3f5",
+    "text_secondary":     "#828bb8",
+    "text_accent":        "#c099ff",
+    "krell_track":        "#2f334d",
+    "krell_indicator":    "#82aaff",
+    "chart_line_default": "#82aaff",
+    "chart_line_cpu":     "#ff757f",
+    "chart_line_mem":     "#c3e88d",
+    "chart_line_swap":    "#ffc777",
+    "chart_line_net_rx":  "#86e1fc",
+    "chart_line_net_tx":  "#ffc777",
+    "chart_line_disk":    "#c099ff",
+    "accent_warning":     "#ff966c",
+    "accent_critical":    "#ff757f"
   },
 
   "fonts": {
@@ -25,7 +35,7 @@
     "panel_padding":    4,
     "panel_spacing":    2,
     "panel_border":     1,
-    "panel_min_width":  200,
+    "panel_min_width":  100,
     "krell_height":     8,
     "chart_height":     32,
     "chart_grid_lines": 4
