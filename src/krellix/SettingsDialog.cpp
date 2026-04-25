@@ -99,14 +99,20 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
 
     auto *monitorsBox = new QGroupBox(QStringLiteral("Built-in monitors"), this);
     auto *monitorsForm = new QVBoxLayout(monitorsBox);
-    m_hostEnabled  = new QCheckBox(QStringLiteral("Host (hostname + kernel)"),  monitorsBox);
-    m_cpuEnabled   = new QCheckBox(QStringLiteral("CPU (per-core krell + chart)"), monitorsBox);
-    m_memEnabled   = new QCheckBox(QStringLiteral("Memory + Swap"),               monitorsBox);
-    m_clockEnabled = new QCheckBox(QStringLiteral("Clock + date"),                monitorsBox);
+    m_hostEnabled   = new QCheckBox(QStringLiteral("Host (hostname + kernel)"),       monitorsBox);
+    m_clockEnabled  = new QCheckBox(QStringLiteral("Clock + date"),                   monitorsBox);
+    m_cpuEnabled    = new QCheckBox(QStringLiteral("CPU (per-core krell + chart)"),   monitorsBox);
+    m_memEnabled    = new QCheckBox(QStringLiteral("Memory + Swap"),                  monitorsBox);
+    m_uptimeEnabled = new QCheckBox(QStringLiteral("Uptime"),                         monitorsBox);
+    m_netEnabled    = new QCheckBox(QStringLiteral("Net (per-interface RX/TX)"),      monitorsBox);
+    m_diskEnabled   = new QCheckBox(QStringLiteral("Disk I/O (per-disk read/write)"), monitorsBox);
     monitorsForm->addWidget(m_hostEnabled);
+    monitorsForm->addWidget(m_clockEnabled);
     monitorsForm->addWidget(m_cpuEnabled);
     monitorsForm->addWidget(m_memEnabled);
-    monitorsForm->addWidget(m_clockEnabled);
+    monitorsForm->addWidget(m_uptimeEnabled);
+    monitorsForm->addWidget(m_netEnabled);
+    monitorsForm->addWidget(m_diskEnabled);
 
     auto *pluginsBox = new QGroupBox(QStringLiteral("Plugins"), this);
     auto *pluginsLayout = new QVBoxLayout(pluginsBox);
@@ -172,10 +178,13 @@ void SettingsDialog::loadFromSettings()
     m_scrollSpeed->setValue(s.value(QStringLiteral("appearance/scroll_pps"),
                                     kDefaultScrollPps).toInt());
 
-    m_hostEnabled ->setChecked(s.value(QStringLiteral("monitors/host"),  true).toBool());
-    m_cpuEnabled  ->setChecked(s.value(QStringLiteral("monitors/cpu"),   true).toBool());
-    m_memEnabled  ->setChecked(s.value(QStringLiteral("monitors/mem"),   true).toBool());
-    m_clockEnabled->setChecked(s.value(QStringLiteral("monitors/clock"), true).toBool());
+    m_hostEnabled  ->setChecked(s.value(QStringLiteral("monitors/host"),   true).toBool());
+    m_cpuEnabled   ->setChecked(s.value(QStringLiteral("monitors/cpu"),    true).toBool());
+    m_memEnabled   ->setChecked(s.value(QStringLiteral("monitors/mem"),    true).toBool());
+    m_clockEnabled ->setChecked(s.value(QStringLiteral("monitors/clock"),  true).toBool());
+    m_uptimeEnabled->setChecked(s.value(QStringLiteral("monitors/uptime"), true).toBool());
+    m_netEnabled   ->setChecked(s.value(QStringLiteral("monitors/net"),    true).toBool());
+    m_diskEnabled  ->setChecked(s.value(QStringLiteral("monitors/disk"),   true).toBool());
 }
 
 void SettingsDialog::saveToSettings()
@@ -195,10 +204,13 @@ void SettingsDialog::saveToSettings()
     s.setValue(QStringLiteral("appearance/chart_height"),   m_chartHeight->value());
     s.setValue(QStringLiteral("update/interval_ms"),        m_updateMs->value());
     s.setValue(QStringLiteral("appearance/scroll_pps"),     m_scrollSpeed->value());
-    s.setValue(QStringLiteral("monitors/host"),  m_hostEnabled ->isChecked());
-    s.setValue(QStringLiteral("monitors/cpu"),   m_cpuEnabled  ->isChecked());
-    s.setValue(QStringLiteral("monitors/mem"),   m_memEnabled  ->isChecked());
-    s.setValue(QStringLiteral("monitors/clock"), m_clockEnabled->isChecked());
+    s.setValue(QStringLiteral("monitors/host"),   m_hostEnabled  ->isChecked());
+    s.setValue(QStringLiteral("monitors/cpu"),    m_cpuEnabled   ->isChecked());
+    s.setValue(QStringLiteral("monitors/mem"),    m_memEnabled   ->isChecked());
+    s.setValue(QStringLiteral("monitors/clock"),  m_clockEnabled ->isChecked());
+    s.setValue(QStringLiteral("monitors/uptime"), m_uptimeEnabled->isChecked());
+    s.setValue(QStringLiteral("monitors/net"),    m_netEnabled   ->isChecked());
+    s.setValue(QStringLiteral("monitors/disk"),   m_diskEnabled  ->isChecked());
 
     emit themeNameChanged(themeName);
     emit alwaysOnTopChanged(alwaysOnTop);
