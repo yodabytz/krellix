@@ -1,6 +1,7 @@
 #include "SettingsDialog.h"
 
 #include "krellix/PluginLoader.h"
+#include "sysdep/CpuStat.h"
 #include "sysdep/NetStat.h"
 #include "theme/Theme.h"
 
@@ -119,6 +120,64 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
     monitorsForm->addWidget(m_netEnabled);
     monitorsForm->addWidget(m_diskEnabled);
 
+    // ---------- CPU display (mode + per-core enable) ----------
+    auto *cpuBox    = new QGroupBox(QStringLiteral("CPU display"), this);
+    auto *cpuLayout = new QVBoxLayout(cpuBox);
+
+    auto *cpuModeRow = new QFormLayout;
+    auto *cpuModeCombo = new QComboBox(cpuBox);
+    cpuModeCombo->addItem(QStringLiteral("Per-core (one panel each)"),
+                          QStringLiteral("per-core"));
+    cpuModeCombo->addItem(QStringLiteral("Aggregate (single panel for all cores)"),
+                          QStringLiteral("aggregate"));
+    {
+        QSettings cs;
+        const QString cur = cs.value(QStringLiteral("monitors/cpu/mode"),
+                                     QStringLiteral("per-core")).toString();
+        const int idx = cpuModeCombo->findData(cur);
+        if (idx >= 0) cpuModeCombo->setCurrentIndex(idx);
+    }
+    cpuModeRow->addRow(QStringLiteral("Mode:"), cpuModeCombo);
+    cpuLayout->addLayout(cpuModeRow);
+
+    auto *coresLabel = new QLabel(QStringLiteral("Cores (per-core mode only):"),
+                                  cpuBox);
+    cpuLayout->addWidget(coresLabel);
+
+    const QList<CpuSample> coreList = CpuStat::read();
+    if (coreList.size() < 2) {
+        auto *lbl = new QLabel(QStringLiteral("(no per-core data — connect to a host first)"),
+                               cpuBox);
+        cpuLayout->addWidget(lbl);
+    } else {
+        QSettings cs;
+        for (int i = 1; i < coreList.size(); ++i) {
+            const CpuSample &smp = coreList[i];
+            const QString key = QStringLiteral("monitors/cpu/")
+                                + QString::number(smp.index);
+            const bool checked = cs.value(key, true).toBool();
+            auto *cb = new QCheckBox(smp.name, cpuBox);
+            cb->setChecked(checked);
+            cpuLayout->addWidget(cb);
+
+            const int cpuIdx = smp.index;
+            connect(cb, &QCheckBox::toggled, this,
+                    [this, cpuIdx](bool v) {
+                        QSettings().setValue(QStringLiteral("monitors/cpu/")
+                                             + QString::number(cpuIdx), v);
+                        emit settingsApplied();
+                    });
+        }
+    }
+
+    connect(cpuModeCombo,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this, cpuModeCombo](int) {
+                QSettings().setValue(QStringLiteral("monitors/cpu/mode"),
+                                     cpuModeCombo->currentData().toString());
+                emit settingsApplied();
+            });
+
     // ---------- Network interfaces (per-iface checkboxes) ----------
     auto *netIfaceBox    = new QGroupBox(QStringLiteral("Network interfaces"), this);
     auto *netIfaceLayout = new QVBoxLayout(netIfaceBox);
@@ -161,6 +220,7 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
     root->addWidget(generalBox);
     root->addWidget(appearanceBox);
     root->addWidget(monitorsBox);
+    root->addWidget(cpuBox);
     root->addWidget(netIfaceBox);
     root->addWidget(pluginsBox);
 

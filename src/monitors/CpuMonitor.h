@@ -34,7 +34,13 @@ private:
         QPointer<Chart> chart;
     };
 
+    // Mode-specific UI: in per-core mode m_cores[i] corresponds to the
+    // i-th visible core. In aggregate mode only m_aggregateUI is used.
     QList<CoreUI>    m_cores;
+    QList<int>       m_visibleCoreIndices;   // /proc/stat indices we actually show
+    CoreUI           m_aggregateUI;
+    bool             m_aggregateMode = false;
+
     QList<CpuSample> m_prevSamples;
     bool             m_havePrev = false;
 
