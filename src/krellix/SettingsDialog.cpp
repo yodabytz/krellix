@@ -1,6 +1,7 @@
 #include "SettingsDialog.h"
 
 #include "krellix/PluginLoader.h"
+#include "sysdep/NetStat.h"
 #include "theme/Theme.h"
 
 #include <QCheckBox>
@@ -13,6 +14,7 @@
 #include <QListWidget>
 #include <QPushButton>
 #include <QSettings>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QStringList>
 #include <QVBoxLayout>
@@ -27,7 +29,7 @@ constexpr int kMinChartHeight  = 12;
 constexpr int kMaxChartHeight  = 200;
 constexpr int kMinUpdateMs     = 100;       // 10 Hz
 constexpr int kMaxUpdateMs     = 10000;     // 0.1 Hz
-constexpr int kMinScrollPps    = 5;         // pixels/sec
+constexpr int kMinScrollPps    = 5;
 constexpr int kMaxScrollPps    = 200;
 constexpr int kDefaultScrollPps = 30;
 
@@ -43,7 +45,8 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
 
     auto *root = new QVBoxLayout(this);
 
-    auto *generalBox = new QGroupBox(QStringLiteral("General"), this);
+    // ---------- General ----------
+    auto *generalBox  = new QGroupBox(QStringLiteral("General"), this);
     auto *generalForm = new QFormLayout(generalBox);
 
     m_themeCombo = new QComboBox(generalBox);
@@ -78,14 +81,15 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
     m_scrollSpeed->setSuffix(QStringLiteral(" px/s"));
     generalForm->addRow(QStringLiteral("Ticker scroll speed:"), m_scrollSpeed);
 
-    auto *appearanceBox = new QGroupBox(QStringLiteral("Appearance"), this);
+    // ---------- Appearance ----------
+    auto *appearanceBox  = new QGroupBox(QStringLiteral("Appearance"), this);
     auto *appearanceForm = new QFormLayout(appearanceBox);
 
     m_panelWidth = new QSpinBox(appearanceBox);
     m_panelWidth->setRange(kMinPanelWidth, kMaxPanelWidth);
     m_panelWidth->setSingleStep(10);
     m_panelWidth->setSuffix(QStringLiteral(" px"));
-    appearanceForm->addRow(QStringLiteral("Panel width:"), m_panelWidth);
+    appearanceForm->addRow(QStringLiteral("Window width:"), m_panelWidth);
 
     m_krellHeight = new QSpinBox(appearanceBox);
     m_krellHeight->setRange(kMinKrellHeight, kMaxKrellHeight);
@@ -97,7 +101,8 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
     m_chartHeight->setSuffix(QStringLiteral(" px"));
     appearanceForm->addRow(QStringLiteral("Chart height:"), m_chartHeight);
 
-    auto *monitorsBox = new QGroupBox(QStringLiteral("Built-in monitors"), this);
+    // ---------- Built-in monitors ----------
+    auto *monitorsBox  = new QGroupBox(QStringLiteral("Built-in monitors"), this);
     auto *monitorsForm = new QVBoxLayout(monitorsBox);
     m_hostEnabled   = new QCheckBox(QStringLiteral("Host (hostname + kernel)"),       monitorsBox);
     m_clockEnabled  = new QCheckBox(QStringLiteral("Clock + date"),                   monitorsBox);
@@ -114,14 +119,40 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
     monitorsForm->addWidget(m_netEnabled);
     monitorsForm->addWidget(m_diskEnabled);
 
-    auto *pluginsBox = new QGroupBox(QStringLiteral("Plugins"), this);
+    // ---------- Network interfaces (per-iface checkboxes) ----------
+    auto *netIfaceBox    = new QGroupBox(QStringLiteral("Network interfaces"), this);
+    auto *netIfaceLayout = new QVBoxLayout(netIfaceBox);
+    const QList<NetSample> ifaces = NetStat::read();
+    if (ifaces.isEmpty()) {
+        auto *lbl = new QLabel(QStringLiteral("(no interfaces detected)"), netIfaceBox);
+        netIfaceLayout->addWidget(lbl);
+    } else {
+        QSettings s;
+        for (const NetSample &smp : ifaces) {
+            const bool defEnabled = NetStat::isMainInterface(smp.name);
+            const bool checked = s.value(QStringLiteral("monitors/net/") + smp.name,
+                                         defEnabled).toBool();
+            auto *cb = new QCheckBox(smp.name, netIfaceBox);
+            cb->setChecked(checked);
+            netIfaceLayout->addWidget(cb);
+
+            const QString name = smp.name;
+            connect(cb, &QCheckBox::toggled, this,
+                    [this, name](bool v) {
+                        QSettings().setValue(QStringLiteral("monitors/net/") + name, v);
+                        emit settingsApplied();
+                    });
+        }
+    }
+
+    // ---------- Plugins (read-only list) ----------
+    auto *pluginsBox    = new QGroupBox(QStringLiteral("Plugins"), this);
     auto *pluginsLayout = new QVBoxLayout(pluginsBox);
     m_pluginList = new QListWidget(pluginsBox);
     m_pluginList->setMaximumHeight(120);
     pluginsLayout->addWidget(m_pluginList);
     auto *pluginNote = new QLabel(
-        QStringLiteral("Drop plugin .so files in:\n"
-                       "  ~/.local/share/krellix/plugins/\n"
+        QStringLiteral("Drop plugin .so files in ~/.local/share/krellix/plugins/.\n"
                        "Restart krellix to pick up new plugins."),
         pluginsBox);
     pluginNote->setWordWrap(true);
@@ -130,10 +161,11 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
     root->addWidget(generalBox);
     root->addWidget(appearanceBox);
     root->addWidget(monitorsBox);
+    root->addWidget(netIfaceBox);
     root->addWidget(pluginsBox);
 
     auto *liveHint = new QLabel(
-        QStringLiteral("Settings apply immediately when you click OK."),
+        QStringLiteral("Every change applies immediately."),
         this);
     liveHint->setWordWrap(true);
     QFont hintFont = liveHint->font();
@@ -141,13 +173,97 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
     liveHint->setFont(hintFont);
     root->addWidget(liveHint);
 
-    auto *buttons = new QDialogButtonBox(
-        QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    connect(buttons, &QDialogButtonBox::accepted, this, &SettingsDialog::onAccept);
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
+    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::accept);
     root->addWidget(buttons);
 
-    loadFromSettings();
+    // Load values FIRST (with signal-blocking so we don't fire spurious
+    // change events during initial population), then wire up live signals.
+    {
+        QSignalBlocker b1(m_themeCombo);
+        QSignalBlocker b2(m_alwaysOnTop);
+        QSignalBlocker b3(m_clockAtTop);
+        QSignalBlocker b4(m_militaryTime);
+        QSignalBlocker b5(m_showFqdn);
+        QSignalBlocker b6(m_updateMs);
+        QSignalBlocker b7(m_scrollSpeed);
+        QSignalBlocker b8(m_panelWidth);
+        QSignalBlocker b9(m_krellHeight);
+        QSignalBlocker b10(m_chartHeight);
+        QSignalBlocker b11(m_hostEnabled);
+        QSignalBlocker b12(m_clockEnabled);
+        QSignalBlocker b13(m_cpuEnabled);
+        QSignalBlocker b14(m_memEnabled);
+        QSignalBlocker b15(m_uptimeEnabled);
+        QSignalBlocker b16(m_netEnabled);
+        QSignalBlocker b17(m_diskEnabled);
+        loadFromSettings();
+    }
+
+    // ---------- Live wiring ----------
+    connect(m_themeCombo,
+            QOverload<const QString &>::of(&QComboBox::currentTextChanged),
+            this, [this](const QString &name) {
+                QSettings().setValue(QStringLiteral("theme/name"), name);
+                emit themeNameChanged(name);
+            });
+    connect(m_alwaysOnTop, &QCheckBox::toggled, this, [this](bool v) {
+        QSettings().setValue(QStringLiteral("window/always_on_top"), v);
+        emit alwaysOnTopChanged(v);
+    });
+    connect(m_clockAtTop, &QCheckBox::toggled, this, [this](bool v) {
+        QSettings().setValue(QStringLiteral("window/clock_at_top"), v);
+        emit settingsApplied();
+    });
+    connect(m_militaryTime, &QCheckBox::toggled, this, [](bool v) {
+        // Live read by ClockMonitor; no rebuild needed.
+        QSettings().setValue(QStringLiteral("clock/military"), v);
+    });
+    connect(m_showFqdn, &QCheckBox::toggled, this, [](bool v) {
+        // Live read by HostMonitor; no rebuild needed.
+        QSettings().setValue(QStringLiteral("host/show_fqdn"), v);
+    });
+    connect(m_updateMs, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int v) {
+                QSettings().setValue(QStringLiteral("update/interval_ms"), v);
+                emit settingsApplied();
+            });
+    connect(m_scrollSpeed, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [](int v) {
+                // Live read by Decal each tick.
+                QSettings().setValue(QStringLiteral("appearance/scroll_pps"), v);
+            });
+    connect(m_panelWidth, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int v) {
+                QSettings().setValue(QStringLiteral("appearance/panel_width"), v);
+                emit settingsApplied();
+            });
+    connect(m_krellHeight, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int v) {
+                QSettings().setValue(QStringLiteral("appearance/krell_height"), v);
+                emit settingsApplied();
+            });
+    connect(m_chartHeight, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, [this](int v) {
+                QSettings().setValue(QStringLiteral("appearance/chart_height"), v);
+                emit settingsApplied();
+            });
+
+    auto wireMonitorToggle = [this](QCheckBox *cb, const char *key) {
+        const QString k = QStringLiteral("monitors/") + QString::fromLatin1(key);
+        connect(cb, &QCheckBox::toggled, this, [this, k](bool v) {
+            QSettings().setValue(k, v);
+            emit settingsApplied();
+        });
+    };
+    wireMonitorToggle(m_hostEnabled,   "host");
+    wireMonitorToggle(m_clockEnabled,  "clock");
+    wireMonitorToggle(m_cpuEnabled,    "cpu");
+    wireMonitorToggle(m_memEnabled,    "mem");
+    wireMonitorToggle(m_uptimeEnabled, "uptime");
+    wireMonitorToggle(m_netEnabled,    "net");
+    wireMonitorToggle(m_diskEnabled,   "disk");
+
     populatePlugins();
 }
 
@@ -163,12 +279,11 @@ void SettingsDialog::loadFromSettings()
     if (themeIdx >= 0) m_themeCombo->setCurrentIndex(themeIdx);
 
     m_alwaysOnTop  ->setChecked(s.value(QStringLiteral("window/always_on_top"), false).toBool());
-    m_clockAtTop   ->setChecked(s.value(QStringLiteral("window/clock_at_top"),  true).toBool());
-    m_militaryTime ->setChecked(s.value(QStringLiteral("clock/military"),       true).toBool());
+    m_clockAtTop   ->setChecked(s.value(QStringLiteral("window/clock_at_top"),  true ).toBool());
+    m_militaryTime ->setChecked(s.value(QStringLiteral("clock/military"),       true ).toBool());
     m_showFqdn     ->setChecked(s.value(QStringLiteral("host/show_fqdn"),       false).toBool());
 
-    m_panelWidth ->setValue(s.value(QStringLiteral("appearance/panel_width"),
-                                    m_theme->metric(QStringLiteral("panel_min_width"), 100)).toInt());
+    m_panelWidth ->setValue(s.value(QStringLiteral("appearance/panel_width"),  100).toInt());
     m_krellHeight->setValue(s.value(QStringLiteral("appearance/krell_height"),
                                     m_theme->metric(QStringLiteral("krell_height"), 8)).toInt());
     m_chartHeight->setValue(s.value(QStringLiteral("appearance/chart_height"),
@@ -189,32 +304,8 @@ void SettingsDialog::loadFromSettings()
 
 void SettingsDialog::saveToSettings()
 {
-    QSettings s;
-
-    const QString themeName   = m_themeCombo->currentText();
-    const bool    alwaysOnTop = m_alwaysOnTop->isChecked();
-
-    s.setValue(QStringLiteral("theme/name"),                themeName);
-    s.setValue(QStringLiteral("window/always_on_top"),      alwaysOnTop);
-    s.setValue(QStringLiteral("window/clock_at_top"),       m_clockAtTop->isChecked());
-    s.setValue(QStringLiteral("clock/military"),            m_militaryTime->isChecked());
-    s.setValue(QStringLiteral("host/show_fqdn"),            m_showFqdn->isChecked());
-    s.setValue(QStringLiteral("appearance/panel_width"),    m_panelWidth->value());
-    s.setValue(QStringLiteral("appearance/krell_height"),   m_krellHeight->value());
-    s.setValue(QStringLiteral("appearance/chart_height"),   m_chartHeight->value());
-    s.setValue(QStringLiteral("update/interval_ms"),        m_updateMs->value());
-    s.setValue(QStringLiteral("appearance/scroll_pps"),     m_scrollSpeed->value());
-    s.setValue(QStringLiteral("monitors/host"),   m_hostEnabled  ->isChecked());
-    s.setValue(QStringLiteral("monitors/cpu"),    m_cpuEnabled   ->isChecked());
-    s.setValue(QStringLiteral("monitors/mem"),    m_memEnabled   ->isChecked());
-    s.setValue(QStringLiteral("monitors/clock"),  m_clockEnabled ->isChecked());
-    s.setValue(QStringLiteral("monitors/uptime"), m_uptimeEnabled->isChecked());
-    s.setValue(QStringLiteral("monitors/net"),    m_netEnabled   ->isChecked());
-    s.setValue(QStringLiteral("monitors/disk"),   m_diskEnabled  ->isChecked());
-
-    emit themeNameChanged(themeName);
-    emit alwaysOnTopChanged(alwaysOnTop);
-    emit settingsApplied();
+    // Retained for backwards compatibility; live signal handlers now do
+    // each save inline. Unused — but harmless to keep the symbol.
 }
 
 void SettingsDialog::populatePlugins()
@@ -243,6 +334,6 @@ void SettingsDialog::populatePlugins()
 
 void SettingsDialog::onAccept()
 {
-    saveToSettings();
+    // No-op now — live signals handle saves; Close button just dismisses.
     accept();
 }

@@ -17,7 +17,6 @@
 #include <QApplication>
 #include <QCloseEvent>
 #include <QContextMenuEvent>
-#include <QHBoxLayout>
 #include <QLayoutItem>
 #include <QMenu>
 #include <QMessageBox>
@@ -25,7 +24,6 @@
 #include <QPaintEvent>
 #include <QPainter>
 #include <QSettings>
-#include <QSizeGrip>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWindow>
@@ -59,7 +57,7 @@ MainWindow::MainWindow(Theme *theme,
     setAttribute(Qt::WA_NoSystemBackground,    true);
 
     connect(qApp, &QCoreApplication::aboutToQuit,
-            this, &MainWindow::persistGeometry);
+            this, &MainWindow::persistPosition);
 
     applySettingsOverridesToTheme();
 
@@ -72,8 +70,8 @@ MainWindow::MainWindow(Theme *theme,
     buildPanelStack(m_cliEnabledIds);
 
     applyFrameMargins();
-    applyMinimumWidth();
-    restoreGeometry();
+    applyFixedWidth();
+    restorePosition();
     connect(m_theme, &Theme::themeChanged, this, &MainWindow::onThemeChanged);
 }
 
@@ -169,13 +167,6 @@ void MainWindow::buildPanelStack(const QStringList &enabledIds)
         buildBuiltins(enabledIds, /*clockOnly=*/true);
 
     m_layout->addStretch(1);
-
-    m_gripRow = new QHBoxLayout;
-    m_gripRow->setContentsMargins(0, 0, 0, 0);
-    m_gripRow->addStretch(1);
-    m_sizeGrip = new QSizeGrip(this);
-    m_gripRow->addWidget(m_sizeGrip, 0, Qt::AlignRight | Qt::AlignBottom);
-    m_layout->addLayout(m_gripRow);
 }
 
 static void deleteLayoutContents(QLayout *layout)
@@ -211,10 +202,8 @@ void MainWindow::clearPanelStack()
     }
     m_monitors.clear();
 
-    // Drop the stretch + grip row too — buildPanelStack re-adds them.
+    // Drop the trailing stretch too — buildPanelStack re-adds it.
     deleteLayoutContents(m_layout);
-    m_gripRow  = nullptr;
-    m_sizeGrip = nullptr;
 }
 
 void MainWindow::rebuildPanels()
@@ -222,14 +211,20 @@ void MainWindow::rebuildPanels()
     clearPanelStack();
     buildPanelStack(m_cliEnabledIds);
     applyFrameMargins();
-    applyMinimumWidth();
+    applyFixedWidth();
     update();
 }
 
-void MainWindow::applyMinimumWidth()
+void MainWindow::applyFixedWidth()
 {
-    const int w = m_theme->metric(QStringLiteral("panel_min_width"), 100);
-    setMinimumWidth(w);
+    // Window width is locked to the user's appearance/panel_width setting
+    // (defaults to 100). Themes never override this — switching themes
+    // keeps your chosen width. Resize handle is not provided; change the
+    // value via Settings.
+    const int w = qBound(80,
+        QSettings().value(QStringLiteral("appearance/panel_width"), 100).toInt(),
+        600);
+    setFixedWidth(w);
 }
 
 void MainWindow::applyFrameMargins()
@@ -245,9 +240,10 @@ void MainWindow::applyFrameMargins()
 void MainWindow::applySettingsOverridesToTheme()
 {
     QSettings s;
-    if (s.contains(QStringLiteral("appearance/panel_width")))
-        m_theme->setMetric(QStringLiteral("panel_min_width"),
-                           s.value(QStringLiteral("appearance/panel_width")).toInt());
+    // Note: panel_width is NOT pushed into the theme — window width is
+    // controlled by applyFixedWidth() reading the setting directly.
+    // Krell/chart height overrides do go into the theme so widgets can
+    // pick them up via the standard themeChanged signal path.
     if (s.contains(QStringLiteral("appearance/krell_height")))
         m_theme->setMetric(QStringLiteral("krell_height"),
                            s.value(QStringLiteral("appearance/krell_height")).toInt());
@@ -256,42 +252,30 @@ void MainWindow::applySettingsOverridesToTheme()
                            s.value(QStringLiteral("appearance/chart_height")).toInt());
 }
 
-void MainWindow::restoreGeometry()
+void MainWindow::restorePosition()
 {
+    // Width is fixed by setting; only the on-screen position is restored.
     QSettings s;
-    s.beginGroup(QStringLiteral("window"));
-    const QSize savedSize = s.value(QStringLiteral("size")).toSize();
-    const QPoint savedPos = s.value(QStringLiteral("pos")).toPoint();
-    s.endGroup();
-
-    if (savedSize.isValid() && savedSize.width() >= minimumWidth()
-        && savedSize.height() > 0) {
-        resize(savedSize);
-    }
-    if (!savedPos.isNull()) {
-        move(savedPos);
-    }
+    const QPoint savedPos = s.value(QStringLiteral("window/pos")).toPoint();
+    if (!savedPos.isNull()) move(savedPos);
 }
 
-void MainWindow::persistGeometry()
+void MainWindow::persistPosition()
 {
     QSettings s;
-    s.beginGroup(QStringLiteral("window"));
-    s.setValue(QStringLiteral("size"), size());
-    s.setValue(QStringLiteral("pos"),  pos());
-    s.endGroup();
+    s.setValue(QStringLiteral("window/pos"), pos());
 }
 
 void MainWindow::onThemeChanged()
 {
     applyFrameMargins();
-    applyMinimumWidth();
+    applyFixedWidth();
     update();
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    persistGeometry();
+    persistPosition();
     QWidget::closeEvent(event);
 }
 
@@ -454,6 +438,7 @@ void MainWindow::showSettings()
     connect(dlg, &SettingsDialog::settingsApplied, this,
             [this]() {
                 applySettingsOverridesToTheme();
+                applyFixedWidth();
                 rebuildPanels();
             });
 

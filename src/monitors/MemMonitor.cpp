@@ -41,12 +41,14 @@ QWidget *MemMonitor::createWidget(QWidget *parent)
 
     m_memText  = p->addDecal(QStringLiteral("label"),
                              QStringLiteral("text_primary"));
+    m_memText->setAlignment(Qt::AlignHCenter);
     m_memKrell = p->addKrell();
     m_memChart = p->addChart(QStringLiteral("chart_line_mem"));
     if (m_memChart) m_memChart->setMaxValue(1.0);
 
     m_swapText  = p->addDecal(QStringLiteral("label"),
                               QStringLiteral("text_secondary"));
+    m_swapText->setAlignment(Qt::AlignHCenter);
     m_swapKrell = p->addKrell();
 
     tick();

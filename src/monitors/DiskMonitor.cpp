@@ -59,6 +59,7 @@ QWidget *DiskMonitor::createWidget(QWidget *parent)
         DiskUI ui;
         ui.textDecal = p->addDecal(QStringLiteral("label"),
                                    QStringLiteral("text_primary"));
+        ui.textDecal->setAlignment(Qt::AlignHCenter);
         ui.textDecal->setText(QStringLiteral("R 0  W 0"));
         ui.readKrell  = p->addKrell();
         ui.writeKrell = p->addKrell();

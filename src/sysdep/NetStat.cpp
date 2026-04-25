@@ -11,6 +11,21 @@ namespace {
 constexpr qint64 kProcNetDevMaxBytes = 1024 * 1024;  // generous cap
 }
 
+bool NetStat::isMainInterface(const QString &name)
+{
+    static const QStringList virtualPrefixes = {
+        QStringLiteral("docker"), QStringLiteral("virbr"),
+        QStringLiteral("veth"),   QStringLiteral("br-"),
+        QStringLiteral("tun"),    QStringLiteral("tap"),
+        QStringLiteral("vmnet"),  QStringLiteral("wg"),
+        QStringLiteral("vnet"),   QStringLiteral("zt"),
+    };
+    for (const QString &prefix : virtualPrefixes) {
+        if (name.startsWith(prefix)) return false;
+    }
+    return true;
+}
+
 QList<NetSample> NetStat::read()
 {
     QFile f(QStringLiteral("/proc/net/dev"));

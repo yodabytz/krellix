@@ -13,8 +13,6 @@ class QMouseEvent;
 class QContextMenuEvent;
 class QCloseEvent;
 class QPaintEvent;
-class QHBoxLayout;
-class QSizeGrip;
 
 // Top-level frameless window. Owns the Theme passed in (parented), constructs
 // the requested built-in monitors, loads plugin monitors, lays them out
@@ -62,18 +60,16 @@ private:
     void buildPanelStack(const QStringList &enabledIds);
     void clearPanelStack();
     void rebuildPanels();
-    void applyMinimumWidth();
+    void applyFixedWidth();
     void applyFrameMargins();
     void applySettingsOverridesToTheme();
-    void restoreGeometry();
-    void persistGeometry();
+    void restorePosition();
+    void persistPosition();
 
     QStringList   m_cliEnabledIds;             // remembered from constructor
     Theme         *m_theme;
     PluginLoader  *m_pluginLoader = nullptr;
     QVBoxLayout   *m_layout       = nullptr;
-    QHBoxLayout   *m_gripRow      = nullptr;
-    QSizeGrip     *m_sizeGrip     = nullptr;
     QList<LiveMonitor> m_monitors;
 
     bool   m_dragging   = false;

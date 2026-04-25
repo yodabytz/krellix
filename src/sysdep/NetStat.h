@@ -18,4 +18,10 @@ public:
     // Reads /proc/net/dev. Filters out the loopback ("lo"); empty list on
     // failure. Order is the order in which the kernel listed them.
     static QList<NetSample> read();
+
+    // Heuristic — true for "main" physical/wireless interfaces (eth*, en*,
+    // wlan*, wlp*, ww*), false for virtualization/container plumbing
+    // (docker*, virbr*, veth*, br-*, tun*, tap*, vmnet*, wg*).
+    // Used as the default for monitors/net/<iface> when not explicitly set.
+    static bool isMainInterface(const QString &name);
 };

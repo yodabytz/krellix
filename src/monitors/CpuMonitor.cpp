@@ -44,8 +44,9 @@ QWidget *CpuMonitor::createWidget(QWidget *parent)
         p->setTitle(samples[i].name);
 
         CoreUI ui;
-        ui.valueDecal = p->addDecal(QStringLiteral("value"),
+        ui.valueDecal = p->addDecal(QStringLiteral("label"),
                                     QStringLiteral("text_primary"));
+        ui.valueDecal->setAlignment(Qt::AlignHCenter);
         ui.valueDecal->setText(QStringLiteral("0%"));
         ui.krell = p->addKrell();
         ui.chart = p->addChart(QStringLiteral("chart_line_cpu"));

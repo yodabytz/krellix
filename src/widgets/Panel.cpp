@@ -33,10 +33,13 @@ Panel::~Panel() = default;
 void Panel::setTitle(const QString &title)
 {
     if (!m_titleDecal) {
+        // Non-bold "label" font with center alignment — bold/left-aligned
+        // titles overpowered the data below them.
         m_titleDecal = new Decal(m_theme,
-                                 QStringLiteral("value"),
+                                 QStringLiteral("label"),
                                  QStringLiteral("text_secondary"),
                                  this);
+        m_titleDecal->setAlignment(Qt::AlignHCenter);
         m_layout->insertWidget(0, m_titleDecal);
     }
     m_titleDecal->setText(title);

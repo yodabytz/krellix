@@ -5,6 +5,7 @@
 #include "widgets/Krell.h"
 #include "widgets/Panel.h"
 
+#include <QSettings>
 #include <QString>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -52,13 +53,25 @@ QWidget *NetMonitor::createWidget(QWidget *parent)
         return container;
     }
 
+    QSettings settings;
+    int shown = 0;
     for (const NetSample &s : samples) {
+        // Per-interface enable/disable. Default = isMainInterface() so
+        // physical/wireless interfaces are visible out of the box and
+        // virtualization/container plumbing (docker0, virbr0, veth*, ...)
+        // stays hidden until the user opts in.
+        const bool defaultEnabled = NetStat::isMainInterface(s.name);
+        const bool enabled = settings.value(
+            QStringLiteral("monitors/net/") + s.name, defaultEnabled).toBool();
+        if (!enabled) continue;
+
         auto *p = new Panel(theme(), container);
         p->setTitle(s.name);
 
         IfaceUI ui;
         ui.textDecal = p->addDecal(QStringLiteral("label"),
                                    QStringLiteral("text_primary"));
+        ui.textDecal->setAlignment(Qt::AlignHCenter);
         ui.textDecal->setText(QStringLiteral("RX 0  TX 0"));
         ui.rxKrell = p->addKrell();
         ui.txKrell = p->addKrell();
@@ -67,6 +80,16 @@ QWidget *NetMonitor::createWidget(QWidget *parent)
 
         m_ifaces.insert(s.name, ui);
         m_prevSamples.insert(s.name, s);
+        vbox->addWidget(p);
+        ++shown;
+    }
+    if (shown == 0) {
+        auto *p = new Panel(theme(), container);
+        p->setTitle(QStringLiteral("Net"));
+        Decal *d = p->addDecal(QStringLiteral("label"),
+                               QStringLiteral("text_secondary"));
+        d->setAlignment(Qt::AlignHCenter);
+        d->setText(QStringLiteral("(no interfaces selected)"));
         vbox->addWidget(p);
     }
 
