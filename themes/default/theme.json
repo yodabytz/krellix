@@ -1,0 +1,33 @@
+{
+  "name": "default",
+  "version": "1.0",
+  "author": "krellix",
+  "description": "Classic green-on-black, in the spirit of GKrellM.",
+
+  "colors": {
+    "panel_bg":        "#0a0e0a",
+    "panel_border":    "#1a2a1a",
+    "panel_highlight": "#284828",
+    "chart_bg":        "#000000",
+    "chart_grid":      "#0a3a0a",
+    "text_primary":    "#7fff7f",
+    "text_secondary":  "#3fbf3f",
+    "krell_track":     "#1a3a1a",
+    "krell_indicator": "#7fff7f"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  200,
+    "krell_height":     8,
+    "chart_height":     32,
+    "chart_grid_lines": 4
+  }
+}

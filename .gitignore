@@ -1,0 +1,17 @@
+build/
+build-*/
+.cache/
+.vscode/
+.idea/
+.claude/
+compile_commands.json
+*.user
+*.autosave
+CMakeUserPresets.json
+*.o
+*.obj
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
