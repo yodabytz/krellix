@@ -24,6 +24,7 @@
 #include <QFileInfo>
 #include <QHostAddress>
 #include <QLoggingCategory>
+#include <QRegularExpression>
 #include <QSet>
 #include <QSettings>
 #include <QStringList>

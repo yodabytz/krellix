@@ -5,6 +5,8 @@
 #include <QLoggingCategory>
 #include <QTcpSocket>
 
+#include <unistd.h>
+
 Q_LOGGING_CATEGORY(lcServer, "krellixd.server")
 
 KrellixdServer::KrellixdServer(int intervalMs,
