@@ -40,6 +40,7 @@ private:
 
     Theme  *m_theme;
     QString m_colorKey;
+    QString m_overlayText;
     std::vector<double> m_samples;     // ring buffer; size <= m_capacity
     int    m_head = 0;                 // next write index
     int    m_capacity = 128;

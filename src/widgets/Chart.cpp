@@ -51,6 +51,13 @@ void Chart::setCapacity(int samples)
     update();
 }
 
+void Chart::setOverlayText(const QString &text)
+{
+    if (m_overlayText == text) return;
+    m_overlayText = text;
+    update();
+}
+
 void Chart::onThemeChanged()
 {
     updateGeometry();
@@ -154,4 +161,16 @@ void Chart::paintEvent(QPaintEvent *)
     p.setPen(linePen);
     p.setBrush(Qt::NoBrush);
     p.drawPolyline(intPoly);
+
+    // Optional in-chart overlay label (e.g. "cpu0  37%") — drawn after
+    // the line so it sits on top, anti-aliased, in the chart's primary
+    // text color. Saves a full decal row of vertical space per panel.
+    if (!m_overlayText.isEmpty()) {
+        p.setRenderHint(QPainter::TextAntialiasing, true);
+        QFont f = m_theme->font(QStringLiteral("label"));
+        p.setFont(f);
+        p.setPen(m_theme->color(QStringLiteral("text_primary")));
+        p.drawText(r.adjusted(4, 1, -4, -1),
+                   Qt::AlignTop | Qt::AlignLeft, m_overlayText);
+    }
 }
