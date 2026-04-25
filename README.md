@@ -5,8 +5,10 @@ A themeable Qt 6 desktop system monitor in the spirit of GKrellM.
 A skinny vertical panel of stacked "krell" monitors — CPU, memory, disk, net, sensors,
 and more — driven by a clean-sheet native theme format that any user can author.
 
-> Status: very early scaffolding. Phase 0/1 only — host panel and clock render against
-> a hot-reloadable theme. Real monitors land next.
+> **Status: 0.1.0-beta.** Host, CPU (per-core krell + chart), Memory/Swap, and Clock
+> monitors render against a hot-reloadable theme. Disk, Net, FS, Sensors, Battery,
+> and the optional `krellixd` remote daemon are still to come. Expect breakages
+> while the API stabilizes.
 
 ## Build
 

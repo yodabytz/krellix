@@ -4,6 +4,16 @@ project(krellix
     DESCRIPTION "Themeable Qt 6 system monitor in the spirit of GKrellM"
     LANGUAGES CXX)
 
+# SemVer pre-release label. Full string ("0.1.0-beta") is what the binary
+# reports via --version, the About dialog, and packaging artifacts. Bump
+# this (and PROJECT_VERSION) when cutting a new release.
+set(KRELLIX_PRERELEASE "beta")
+if(KRELLIX_PRERELEASE STREQUAL "")
+    set(KRELLIX_VERSION_FULL "${PROJECT_VERSION}")
+else()
+    set(KRELLIX_VERSION_FULL "${PROJECT_VERSION}-${KRELLIX_PRERELEASE}")
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -77,7 +87,7 @@ target_compile_definitions(krellix PRIVATE
     QT_NO_CAST_TO_ASCII
     QT_NO_NARROWING_CONVERSIONS_IN_CONNECT
     QT_DEPRECATED_WARNINGS
-    KRELLIX_VERSION="${PROJECT_VERSION}"
+    KRELLIX_VERSION="${KRELLIX_VERSION_FULL}"
     KRELLIX_THEMES_SYSTEM_DIR="${CMAKE_INSTALL_PREFIX}/share/krellix/themes"
 )
 
