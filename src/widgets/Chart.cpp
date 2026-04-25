@@ -91,7 +91,11 @@ void Chart::paintEvent(QPaintEvent *)
 
     const QPixmap bgPix = m_theme->pixmap(QStringLiteral("chart_bg"));
     if (!bgPix.isNull()) {
-        p.drawTiledPixmap(r, bgPix);
+        const QString mode = m_theme->imageMode(QStringLiteral("chart_bg"));
+        if (mode == QStringLiteral("stretch"))
+            p.drawPixmap(r, bgPix);
+        else
+            p.drawTiledPixmap(r, bgPix);
     } else {
         p.fillRect(r, bg);
     }

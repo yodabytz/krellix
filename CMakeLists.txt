@@ -38,7 +38,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     )
 endif()
 
-find_package(Qt6 6.2 REQUIRED COMPONENTS Core Gui Widgets)
+find_package(Qt6 6.2 REQUIRED COMPONENTS Core Gui Widgets Network)
 
 qt_standard_project_setup()
 
@@ -85,6 +85,7 @@ target_link_libraries(krellix PRIVATE
     Qt6::Core
     Qt6::Gui
     Qt6::Widgets
+    Qt6::Network
 )
 
 target_compile_definitions(krellix PRIVATE

@@ -3,6 +3,8 @@
 #include "widgets/Decal.h"
 #include "widgets/Panel.h"
 
+#include <QHostInfo>
+#include <QSettings>
 #include <QSysInfo>
 
 HostMonitor::HostMonitor(Theme *theme, QObject *parent)
@@ -15,7 +17,7 @@ HostMonitor::~HostMonitor() = default;
 QWidget *HostMonitor::createWidget(QWidget *parent)
 {
     auto *p = new Panel(theme(), parent);
-    p->setTitle(QStringLiteral("krellix"));
+    // No title — the hostname IS the top label, like classic gkrellm.
     m_hostnameDecal = p->addDecal(QStringLiteral("value"),
                                   QStringLiteral("text_primary"));
     m_sysDecal      = p->addDecal(QStringLiteral("label"),
@@ -27,7 +29,20 @@ QWidget *HostMonitor::createWidget(QWidget *parent)
 void HostMonitor::tick()
 {
     if (!m_hostnameDecal || !m_sysDecal) return;
-    m_hostnameDecal->setText(QSysInfo::machineHostName());
+
+    const bool fqdn =
+        QSettings().value(QStringLiteral("host/show_fqdn"), false).toBool();
+
+    QString name = QSysInfo::machineHostName();
+    if (fqdn) {
+        const QString domain = QHostInfo::localDomainName();
+        if (!domain.isEmpty()
+            && !name.endsWith(QLatin1Char('.') + domain)
+            && name != domain) {
+            name = name + QLatin1Char('.') + domain;
+        }
+    }
+    m_hostnameDecal->setText(name);
     m_sysDecal->setText(QSysInfo::kernelType()
                         + QStringLiteral(" ")
                         + QSysInfo::kernelVersion());

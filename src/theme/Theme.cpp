@@ -187,6 +187,7 @@ void Theme::loadDefaults()
 {
     m_imagePaths.clear();
     m_imageInts.clear();
+    m_imageStrings.clear();
     m_pixmapCache.clear();
 
     m_colors.clear();
@@ -204,10 +205,13 @@ void Theme::loadDefaults()
     label.setStyleHint(QFont::TypeWriter);
     QFont value = label;
     value.setBold(true);
+    QFont time = label;
+    time.setPointSize(12);   // larger but not bold — for the clock display
 
     m_fonts.clear();
     m_fonts.insert(QStringLiteral("label"), label);
     m_fonts.insert(QStringLiteral("value"), value);
+    m_fonts.insert(QStringLiteral("time"),  time);
 
     m_metrics.clear();
     m_metrics.insert(QStringLiteral("panel_padding"),    4);
@@ -286,10 +290,15 @@ bool Theme::parseJsonFile(const QString &path)
                     m_imagePaths.insert(key, imgVal.toString());
                 for (auto io = obj.constBegin(); io != obj.constEnd(); ++io) {
                     if (io.key() == QStringLiteral("image")) continue;
-                    if (!io.value().isDouble())              continue;
-                    const int v = static_cast<int>(io.value().toDouble());
-                    m_imageInts.insert(key + QLatin1Char('.') + io.key(),
-                                       qBound(0, v, 4096));
+                    const QString fullKey = key + QLatin1Char('.') + io.key();
+                    if (io.value().isDouble()) {
+                        const int v = static_cast<int>(io.value().toDouble());
+                        m_imageInts.insert(fullKey, qBound(0, v, 4096));
+                    } else if (io.value().isString()) {
+                        m_imageStrings.insert(fullKey, io.value().toString());
+                    } else if (io.value().isBool()) {
+                        m_imageInts.insert(fullKey, io.value().toBool() ? 1 : 0);
+                    }
                 }
             }
         }
@@ -363,4 +372,18 @@ QPixmap Theme::pixmap(const QString &key) const
 int Theme::imageInt(const QString &key, int fallback) const
 {
     return m_imageInts.value(key, fallback);
+}
+
+QString Theme::imageStr(const QString &key, const QString &fallback) const
+{
+    return m_imageStrings.value(key, fallback);
+}
+
+QString Theme::imageMode(const QString &key, const QString &fallback) const
+{
+    const QString mode = m_imageStrings.value(key + QStringLiteral(".mode"));
+    if (mode.isEmpty()) return fallback;
+    if (mode == QStringLiteral("stretch") || mode == QStringLiteral("tile"))
+        return mode;
+    return fallback;
 }

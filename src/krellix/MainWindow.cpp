@@ -15,9 +15,12 @@
 #include <QCloseEvent>
 #include <QContextMenuEvent>
 #include <QHBoxLayout>
+#include <QLayoutItem>
 #include <QMenu>
 #include <QMessageBox>
 #include <QMouseEvent>
+#include <QPaintEvent>
+#include <QPainter>
 #include <QSettings>
 #include <QSizeGrip>
 #include <QTimer>
@@ -32,14 +35,12 @@ MainWindow::MainWindow(Theme *theme,
                        const QStringList &enabledMonitorIds,
                        QWidget *parent)
     : QWidget(parent)
+    , m_cliEnabledIds(enabledMonitorIds)
     , m_theme(theme)
     , m_pluginLoader(new PluginLoader(this))
 {
     Q_ASSERT(m_theme);
 
-    // Restore always-on-top from settings before the first setWindowFlags
-    // call — avoids a flash where the window pops up without the flag and
-    // is then re-shown with it.
     Qt::WindowFlags flags = Qt::FramelessWindowHint | Qt::Tool;
     {
         QSettings s;
@@ -50,52 +51,24 @@ MainWindow::MainWindow(Theme *theme,
     setWindowTitle(QStringLiteral("krellix"));
 
     // Translucent main window: panels paint their own backgrounds, gaps are
-    // see-through, and themes whose panel_bg PNG carries alpha can shape
-    // the visible silhouette (gkrellm 'Aliens'-style). Requires a
-    // compositing window manager — gracefully falls back to opaque if not.
+    // see-through, alpha-channeled frame_* pixmaps shape the silhouette.
     setAttribute(Qt::WA_TranslucentBackground, true);
     setAttribute(Qt::WA_NoSystemBackground,    true);
 
-    // aboutToQuit fires for both window-close and Quit-via-menu paths,
-    // so geometry persists either way.
     connect(qApp, &QCoreApplication::aboutToQuit,
             this, &MainWindow::persistGeometry);
 
-    // Honor user overrides for panel/krell/chart sizing before any widgets
-    // ask the theme for those metrics.
     applySettingsOverridesToTheme();
 
     m_layout = new QVBoxLayout(this);
     m_layout->setContentsMargins(0, 0, 0, 0);
     m_layout->setSpacing(0);
 
-    // Clock at top toggle (GKrellM-style host-and-clock-at-top mode).
-    const bool clockAtTop =
-        QSettings().value(QStringLiteral("window/clock_at_top"), false).toBool();
+    // Initial discovery + monitor instantiation.
+    (void) m_pluginLoader->discoverAndLoad(m_theme, this);
+    buildPanelStack(m_cliEnabledIds);
 
-    if (clockAtTop)
-        buildBuiltins(enabledMonitorIds, /*clockOnly=*/true);
-
-    // Other built-in monitors (host, cpu, mem).
-    buildBuiltins(enabledMonitorIds, /*clockOnly=*/false);
-
-    // Plugin monitors next.
-    const QList<MonitorBase *> pluginMonitors =
-        m_pluginLoader->discoverAndLoad(m_theme, this);
-    for (MonitorBase *m : pluginMonitors) addMonitor(m);
-
-    if (!clockAtTop)
-        buildBuiltins(enabledMonitorIds, /*clockOnly=*/true);
-
-    m_layout->addStretch(1);
-
-    // Resize grip in the bottom-right corner.
-    auto *gripRow = new QHBoxLayout;
-    gripRow->setContentsMargins(0, 0, 0, 0);
-    gripRow->addStretch(1);
-    gripRow->addWidget(new QSizeGrip(this), 0, Qt::AlignRight | Qt::AlignBottom);
-    m_layout->addLayout(gripRow);
-
+    applyFrameMargins();
     applyMinimumWidth();
     restoreGeometry();
     connect(m_theme, &Theme::themeChanged, this, &MainWindow::onThemeChanged);
@@ -107,7 +80,6 @@ void MainWindow::addMonitor(MonitorBase *m)
 {
     Q_ASSERT(m);
     if (!m->parent()) m->setParent(this);
-    m_monitors.append(m);
 
     QWidget *w = m->createWidget(this);
     if (w) m_layout->addWidget(w);
@@ -117,12 +89,12 @@ void MainWindow::addMonitor(MonitorBase *m)
     timer->setInterval(m->tickIntervalMs());
     connect(timer, &QTimer::timeout, m, &MonitorBase::tick);
     timer->start();
+
+    m_monitors.append(LiveMonitor{m, w});
 }
 
 void MainWindow::buildBuiltins(const QStringList &enabledIds, bool clockOnly)
 {
-    // CLI --monitors=... overrides everything; otherwise consult QSettings
-    // (default: every built-in is on).
     auto enabled = [&enabledIds](const QString &id) {
         if (!enabledIds.isEmpty()) return enabledIds.contains(id);
         return QSettings().value(QStringLiteral("monitors/") + id, true).toBool();
@@ -142,11 +114,112 @@ void MainWindow::buildBuiltins(const QStringList &enabledIds, bool clockOnly)
         addMonitor(new MemMonitor(m_theme, this));
 }
 
+void MainWindow::buildPanelStack(const QStringList &enabledIds)
+{
+    const bool clockAtTop =
+        QSettings().value(QStringLiteral("window/clock_at_top"), true).toBool();
+
+    if (clockAtTop) {
+        // GKrellM-style: clock right under host. host first, clock second,
+        // then the rest. We achieve this by adding host alone, then clock,
+        // then the remaining built-ins.
+        const auto enabled = [&enabledIds](const QString &id) {
+            if (!enabledIds.isEmpty()) return enabledIds.contains(id);
+            return QSettings().value(QStringLiteral("monitors/") + id, true).toBool();
+        };
+        if (enabled(QStringLiteral("host")))
+            addMonitor(new HostMonitor(m_theme, this));
+        if (enabled(QStringLiteral("clock")))
+            addMonitor(new ClockMonitor(m_theme, this));
+        if (enabled(QStringLiteral("cpu")))
+            addMonitor(new CpuMonitor(m_theme, this));
+        if (enabled(QStringLiteral("mem")))
+            addMonitor(new MemMonitor(m_theme, this));
+    } else {
+        // Clock at the bottom (legacy ordering).
+        buildBuiltins(enabledIds, /*clockOnly=*/false);
+    }
+
+    // Plugin monitors: re-instantiate from cached IKrellixPlugin list.
+    const QList<MonitorBase *> pluginMonitors =
+        m_pluginLoader->createMonitorsForAll(m_theme, this);
+    for (MonitorBase *m : pluginMonitors) addMonitor(m);
+
+    if (!clockAtTop)
+        buildBuiltins(enabledIds, /*clockOnly=*/true);
+
+    m_layout->addStretch(1);
+
+    m_gripRow = new QHBoxLayout;
+    m_gripRow->setContentsMargins(0, 0, 0, 0);
+    m_gripRow->addStretch(1);
+    m_sizeGrip = new QSizeGrip(this);
+    m_gripRow->addWidget(m_sizeGrip, 0, Qt::AlignRight | Qt::AlignBottom);
+    m_layout->addLayout(m_gripRow);
+}
+
+static void deleteLayoutContents(QLayout *layout)
+{
+    if (!layout) return;
+    while (layout->count() > 0) {
+        QLayoutItem *item = layout->takeAt(0);
+        if (!item) break;
+        if (QWidget *w = item->widget()) {
+            w->setParent(nullptr);
+            w->deleteLater();
+        } else if (QLayout *sub = item->layout()) {
+            deleteLayoutContents(sub);
+            sub->deleteLater();
+        }
+        delete item;
+    }
+}
+
+void MainWindow::clearPanelStack()
+{
+    // Tear down per-monitor widgets and the monitors themselves. Each
+    // monitor parents its QTimer, so stopping/deleting the monitor stops
+    // the tick.
+    for (const LiveMonitor &lm : m_monitors) {
+        if (lm.widget) {
+            lm.widget->setParent(nullptr);
+            lm.widget->deleteLater();
+        }
+        if (lm.monitor) {
+            lm.monitor->deleteLater();
+        }
+    }
+    m_monitors.clear();
+
+    // Drop the stretch + grip row too — buildPanelStack re-adds them.
+    deleteLayoutContents(m_layout);
+    m_gripRow  = nullptr;
+    m_sizeGrip = nullptr;
+}
+
+void MainWindow::rebuildPanels()
+{
+    clearPanelStack();
+    buildPanelStack(m_cliEnabledIds);
+    applyFrameMargins();
+    applyMinimumWidth();
+    update();
+}
+
 void MainWindow::applyMinimumWidth()
 {
     const int w = m_theme->metric(QStringLiteral("panel_min_width"), 100);
     setMinimumWidth(w);
-    // No setMaximumWidth — user can resize via the QSizeGrip.
+}
+
+void MainWindow::applyFrameMargins()
+{
+    if (!m_layout) return;
+    const int top    = m_theme->pixmap(QStringLiteral("frame_top")).height();
+    const int bottom = m_theme->pixmap(QStringLiteral("frame_bottom")).height();
+    const int left   = m_theme->pixmap(QStringLiteral("frame_left")).width();
+    const int right  = m_theme->pixmap(QStringLiteral("frame_right")).width();
+    m_layout->setContentsMargins(left, top, right, bottom);
 }
 
 void MainWindow::applySettingsOverridesToTheme()
@@ -191,6 +264,7 @@ void MainWindow::persistGeometry()
 
 void MainWindow::onThemeChanged()
 {
+    applyFrameMargins();
     applyMinimumWidth();
     update();
 }
@@ -199,6 +273,41 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     persistGeometry();
     QWidget::closeEvent(event);
+}
+
+void MainWindow::paintEvent(QPaintEvent *)
+{
+    // Window-frame compositing: stretch frame_top/bottom horizontally and
+    // frame_left/right vertically across the appropriate edge band. Their
+    // alpha channel forms the visible silhouette of the window. If a theme
+    // doesn't supply frames, paintEvent does nothing and the panels paint
+    // themselves directly on the (translucent) window background.
+    QPainter p(this);
+
+    const QPixmap topPix    = m_theme->pixmap(QStringLiteral("frame_top"));
+    const QPixmap bottomPix = m_theme->pixmap(QStringLiteral("frame_bottom"));
+    const QPixmap leftPix   = m_theme->pixmap(QStringLiteral("frame_left"));
+    const QPixmap rightPix  = m_theme->pixmap(QStringLiteral("frame_right"));
+
+    const int topH    = topPix.isNull()    ? 0 : topPix.height();
+    const int bottomH = bottomPix.isNull() ? 0 : bottomPix.height();
+    const int leftW   = leftPix.isNull()   ? 0 : leftPix.width();
+    const int rightW  = rightPix.isNull()  ? 0 : rightPix.width();
+
+    if (!topPix.isNull())
+        p.drawPixmap(QRect(0, 0, width(), topH), topPix);
+    if (!bottomPix.isNull())
+        p.drawPixmap(QRect(0, height() - bottomH, width(), bottomH), bottomPix);
+
+    const int sideTop    = topH;
+    const int sideBottom = height() - bottomH;
+    if (sideBottom > sideTop) {
+        if (!leftPix.isNull())
+            p.drawPixmap(QRect(0, sideTop, leftW, sideBottom - sideTop), leftPix);
+        if (!rightPix.isNull())
+            p.drawPixmap(QRect(width() - rightW, sideTop, rightW, sideBottom - sideTop),
+                         rightPix);
+    }
 }
 
 void MainWindow::mousePressEvent(QMouseEvent *event)
@@ -265,6 +374,8 @@ void MainWindow::contextMenuEvent(QContextMenuEvent *event)
                 if (m_theme->load(name)) {
                     QSettings s;
                     s.setValue(QStringLiteral("theme/name"), name);
+                    applySettingsOverridesToTheme();
+                    rebuildPanels();
                 }
             });
         }
@@ -290,7 +401,7 @@ void MainWindow::toggleAlwaysOnTop()
     Qt::WindowFlags f = windowFlags();
     f.setFlag(Qt::WindowStaysOnTopHint, now);
     setWindowFlags(f);
-    show();  // setWindowFlags hides the window on X11
+    show();
 
     QSettings s;
     s.setValue(QStringLiteral("window/always_on_top"), now);
@@ -320,8 +431,11 @@ void MainWindow::showSettings()
                 setWindowFlags(f);
                 show();
             });
+    connect(dlg, &SettingsDialog::settingsApplied, this,
+            [this]() {
+                applySettingsOverridesToTheme();
+                rebuildPanels();
+            });
 
-    // open() is non-blocking and modal (the dialog itself sets setModal(true))
-    // — avoids nesting an event loop in the slot.
     dlg->open();
 }

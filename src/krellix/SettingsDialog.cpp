@@ -27,6 +27,9 @@ constexpr int kMinChartHeight  = 12;
 constexpr int kMaxChartHeight  = 200;
 constexpr int kMinUpdateMs     = 100;       // 10 Hz
 constexpr int kMaxUpdateMs     = 10000;     // 0.1 Hz
+constexpr int kMinScrollPps    = 5;         // pixels/sec
+constexpr int kMaxScrollPps    = 200;
+constexpr int kDefaultScrollPps = 30;
 
 } // namespace
 
@@ -51,15 +54,29 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
                                   generalBox);
     generalForm->addRow(QString(), m_alwaysOnTop);
 
-    m_clockAtTop = new QCheckBox(QStringLiteral("Show clock at top (instead of bottom)"),
+    m_clockAtTop = new QCheckBox(QStringLiteral("Clock right under hostname (vs. at bottom)"),
                                  generalBox);
     generalForm->addRow(QString(), m_clockAtTop);
+
+    m_militaryTime = new QCheckBox(QStringLiteral("24-hour time (uncheck for 12-hour AM/PM)"),
+                                   generalBox);
+    generalForm->addRow(QString(), m_militaryTime);
+
+    m_showFqdn = new QCheckBox(QStringLiteral("Show fully-qualified hostname"),
+                               generalBox);
+    generalForm->addRow(QString(), m_showFqdn);
 
     m_updateMs = new QSpinBox(generalBox);
     m_updateMs->setRange(kMinUpdateMs, kMaxUpdateMs);
     m_updateMs->setSingleStep(100);
     m_updateMs->setSuffix(QStringLiteral(" ms"));
     generalForm->addRow(QStringLiteral("Update interval:"), m_updateMs);
+
+    m_scrollSpeed = new QSpinBox(generalBox);
+    m_scrollSpeed->setRange(kMinScrollPps, kMaxScrollPps);
+    m_scrollSpeed->setSingleStep(5);
+    m_scrollSpeed->setSuffix(QStringLiteral(" px/s"));
+    generalForm->addRow(QStringLiteral("Ticker scroll speed:"), m_scrollSpeed);
 
     auto *appearanceBox = new QGroupBox(QStringLiteral("Appearance"), this);
     auto *appearanceForm = new QFormLayout(appearanceBox);
@@ -97,9 +114,9 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
     m_pluginList->setMaximumHeight(120);
     pluginsLayout->addWidget(m_pluginList);
     auto *pluginNote = new QLabel(
-        QStringLiteral("Plugin enable/disable lands in a future release. "
-                       "For now, drop .so files in:\n"
-                       "  ~/.local/share/krellix/plugins/"),
+        QStringLiteral("Drop plugin .so files in:\n"
+                       "  ~/.local/share/krellix/plugins/\n"
+                       "Restart krellix to pick up new plugins."),
         pluginsBox);
     pluginNote->setWordWrap(true);
     pluginsLayout->addWidget(pluginNote);
@@ -109,15 +126,14 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
     root->addWidget(monitorsBox);
     root->addWidget(pluginsBox);
 
-    auto *restartHint = new QLabel(
-        QStringLiteral("Theme and Always-on-top apply immediately. "
-                       "Other changes take effect at the next launch."),
+    auto *liveHint = new QLabel(
+        QStringLiteral("Settings apply immediately when you click OK."),
         this);
-    restartHint->setWordWrap(true);
-    QFont hintFont = restartHint->font();
+    liveHint->setWordWrap(true);
+    QFont hintFont = liveHint->font();
     hintFont.setItalic(true);
-    restartHint->setFont(hintFont);
-    root->addWidget(restartHint);
+    liveHint->setFont(hintFont);
+    root->addWidget(liveHint);
 
     auto *buttons = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
@@ -140,8 +156,10 @@ void SettingsDialog::loadFromSettings()
     const int themeIdx = m_themeCombo->findText(currentTheme);
     if (themeIdx >= 0) m_themeCombo->setCurrentIndex(themeIdx);
 
-    m_alwaysOnTop->setChecked(s.value(QStringLiteral("window/always_on_top"), false).toBool());
-    m_clockAtTop ->setChecked(s.value(QStringLiteral("window/clock_at_top"),  false).toBool());
+    m_alwaysOnTop  ->setChecked(s.value(QStringLiteral("window/always_on_top"), false).toBool());
+    m_clockAtTop   ->setChecked(s.value(QStringLiteral("window/clock_at_top"),  true).toBool());
+    m_militaryTime ->setChecked(s.value(QStringLiteral("clock/military"),       true).toBool());
+    m_showFqdn     ->setChecked(s.value(QStringLiteral("host/show_fqdn"),       false).toBool());
 
     m_panelWidth ->setValue(s.value(QStringLiteral("appearance/panel_width"),
                                     m_theme->metric(QStringLiteral("panel_min_width"), 100)).toInt());
@@ -150,7 +168,9 @@ void SettingsDialog::loadFromSettings()
     m_chartHeight->setValue(s.value(QStringLiteral("appearance/chart_height"),
                                     m_theme->metric(QStringLiteral("chart_height"), 32)).toInt());
 
-    m_updateMs->setValue(s.value(QStringLiteral("update/interval_ms"), 1000).toInt());
+    m_updateMs   ->setValue(s.value(QStringLiteral("update/interval_ms"),  1000).toInt());
+    m_scrollSpeed->setValue(s.value(QStringLiteral("appearance/scroll_pps"),
+                                    kDefaultScrollPps).toInt());
 
     m_hostEnabled ->setChecked(s.value(QStringLiteral("monitors/host"),  true).toBool());
     m_cpuEnabled  ->setChecked(s.value(QStringLiteral("monitors/cpu"),   true).toBool());
@@ -162,16 +182,19 @@ void SettingsDialog::saveToSettings()
 {
     QSettings s;
 
-    const QString themeName = m_themeCombo->currentText();
+    const QString themeName   = m_themeCombo->currentText();
     const bool    alwaysOnTop = m_alwaysOnTop->isChecked();
 
-    s.setValue(QStringLiteral("theme/name"),               themeName);
-    s.setValue(QStringLiteral("window/always_on_top"),     alwaysOnTop);
-    s.setValue(QStringLiteral("window/clock_at_top"),      m_clockAtTop->isChecked());
-    s.setValue(QStringLiteral("appearance/panel_width"),   m_panelWidth->value());
-    s.setValue(QStringLiteral("appearance/krell_height"),  m_krellHeight->value());
-    s.setValue(QStringLiteral("appearance/chart_height"),  m_chartHeight->value());
-    s.setValue(QStringLiteral("update/interval_ms"),       m_updateMs->value());
+    s.setValue(QStringLiteral("theme/name"),                themeName);
+    s.setValue(QStringLiteral("window/always_on_top"),      alwaysOnTop);
+    s.setValue(QStringLiteral("window/clock_at_top"),       m_clockAtTop->isChecked());
+    s.setValue(QStringLiteral("clock/military"),            m_militaryTime->isChecked());
+    s.setValue(QStringLiteral("host/show_fqdn"),            m_showFqdn->isChecked());
+    s.setValue(QStringLiteral("appearance/panel_width"),    m_panelWidth->value());
+    s.setValue(QStringLiteral("appearance/krell_height"),   m_krellHeight->value());
+    s.setValue(QStringLiteral("appearance/chart_height"),   m_chartHeight->value());
+    s.setValue(QStringLiteral("update/interval_ms"),        m_updateMs->value());
+    s.setValue(QStringLiteral("appearance/scroll_pps"),     m_scrollSpeed->value());
     s.setValue(QStringLiteral("monitors/host"),  m_hostEnabled ->isChecked());
     s.setValue(QStringLiteral("monitors/cpu"),   m_cpuEnabled  ->isChecked());
     s.setValue(QStringLiteral("monitors/mem"),   m_memEnabled  ->isChecked());
@@ -179,6 +202,7 @@ void SettingsDialog::saveToSettings()
 
     emit themeNameChanged(themeName);
     emit alwaysOnTopChanged(alwaysOnTop);
+    emit settingsApplied();
 }
 
 void SettingsDialog::populatePlugins()

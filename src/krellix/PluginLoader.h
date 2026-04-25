@@ -7,6 +7,7 @@
 
 class MonitorBase;
 class Theme;
+class IKrellixPlugin;
 class QPluginLoader;
 
 // Discovers, validates, and loads krellix plugins (Qt shared libraries
@@ -31,8 +32,17 @@ public:
     QList<MonitorBase *> discoverAndLoad(Theme *theme,
                                          QObject *monitorParent);
 
+    // Re-create monitor instances from the already-loaded plugins. Used by
+    // MainWindow's live rebuild path so settings changes can re-construct
+    // the panel stack without re-scanning the filesystem.
+    QList<MonitorBase *> createMonitorsForAll(Theme *theme,
+                                              QObject *monitorParent);
+
+    QList<IKrellixPlugin *> loadedPlugins() const { return m_plugins; }
+
 private:
-    QList<QPluginLoader *> m_loaders;
+    QList<QPluginLoader *>  m_loaders;
+    QList<IKrellixPlugin *> m_plugins;     // non-owning; loaders own QObject
 
     Q_DISABLE_COPY_MOVE(PluginLoader)
 };

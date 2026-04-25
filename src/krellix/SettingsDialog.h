@@ -28,6 +28,9 @@ public:
 signals:
     void themeNameChanged(const QString &name);
     void alwaysOnTopChanged(bool on);
+    // Generic settings-changed notification — MainWindow listens to rebuild
+    // the panel stack so changes apply live.
+    void settingsApplied();
 
 private slots:
     void onAccept();
@@ -42,10 +45,13 @@ private:
     QComboBox   *m_themeCombo    = nullptr;
     QCheckBox   *m_alwaysOnTop   = nullptr;
     QCheckBox   *m_clockAtTop    = nullptr;
+    QCheckBox   *m_militaryTime  = nullptr;
+    QCheckBox   *m_showFqdn      = nullptr;
     QSpinBox    *m_panelWidth    = nullptr;
     QSpinBox    *m_krellHeight   = nullptr;
     QSpinBox    *m_chartHeight   = nullptr;
     QSpinBox    *m_updateMs      = nullptr;
+    QSpinBox    *m_scrollSpeed   = nullptr;
     QCheckBox   *m_hostEnabled   = nullptr;
     QCheckBox   *m_cpuEnabled    = nullptr;
     QCheckBox   *m_memEnabled    = nullptr;

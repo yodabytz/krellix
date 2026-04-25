@@ -120,9 +120,27 @@ QList<MonitorBase *> PluginLoader::discoverAndLoad(Theme *theme,
                 << " (" << monitors.size() << " monitor(s))";
 
             m_loaders.append(loader);
+            m_plugins.append(plugin);
             ++loaded;
         }
     }
 
+    return all;
+}
+
+QList<MonitorBase *> PluginLoader::createMonitorsForAll(Theme *theme,
+                                                        QObject *monitorParent)
+{
+    Q_ASSERT(theme);
+    Q_ASSERT(monitorParent);
+
+    QList<MonitorBase *> all;
+    for (IKrellixPlugin *p : m_plugins) {
+        if (!p) continue;
+        const QList<MonitorBase *> monitors = p->createMonitors(theme, monitorParent);
+        for (MonitorBase *m : monitors) {
+            if (m) all.append(m);
+        }
+    }
     return all;
 }

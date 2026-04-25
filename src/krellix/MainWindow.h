@@ -12,6 +12,9 @@ class QVBoxLayout;
 class QMouseEvent;
 class QContextMenuEvent;
 class QCloseEvent;
+class QPaintEvent;
+class QHBoxLayout;
+class QSizeGrip;
 
 // Top-level frameless window. Owns the Theme passed in (parented), constructs
 // the requested built-in monitors, loads plugin monitors, lays them out
@@ -40,6 +43,7 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
+    void paintEvent(QPaintEvent *event) override;
 
 private slots:
     void onThemeChanged();
@@ -48,17 +52,29 @@ private slots:
     void toggleAlwaysOnTop();
 
 private:
+    struct LiveMonitor {
+        MonitorBase *monitor;
+        QWidget     *widget;
+    };
+
     void addMonitor(MonitorBase *m);
     void buildBuiltins(const QStringList &enabledIds, bool clockOnly);
+    void buildPanelStack(const QStringList &enabledIds);
+    void clearPanelStack();
+    void rebuildPanels();
     void applyMinimumWidth();
+    void applyFrameMargins();
     void applySettingsOverridesToTheme();
     void restoreGeometry();
     void persistGeometry();
 
+    QStringList   m_cliEnabledIds;             // remembered from constructor
     Theme         *m_theme;
     PluginLoader  *m_pluginLoader = nullptr;
     QVBoxLayout   *m_layout       = nullptr;
-    QList<MonitorBase *> m_monitors;
+    QHBoxLayout   *m_gripRow      = nullptr;
+    QSizeGrip     *m_sizeGrip     = nullptr;
+    QList<LiveMonitor> m_monitors;
 
     bool   m_dragging   = false;
     QPoint m_dragOffset;

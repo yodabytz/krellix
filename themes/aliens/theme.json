@@ -1,8 +1,8 @@
 {
   "name": "aliens",
-  "version": "1.0",
+  "version": "1.2",
   "author": "Alan Swanson (assets, ca. 2001) — krellix project (mapping)",
-  "description": "Port of the classic GKrellM 'Aliens' theme. Sci-fi green-yellow on dark, with original tileable PNGs.",
+  "description": "Port of the classic GKrellM 'Aliens' theme. Sci-fi green-yellow on dark, with the original alien-silhouette frame artwork around the edges.",
 
   "colors": {
     "panel_bg":           "#1a1a14",
@@ -28,22 +28,27 @@
 
   "fonts": {
     "label": { "family": "Helvetica", "size": 8,  "bold": false },
-    "value": { "family": "Helvetica", "size": 10, "bold": true  }
+    "value": { "family": "Helvetica", "size": 10, "bold": true  },
+    "time":  { "family": "Helvetica", "size": 13, "bold": false }
   },
 
   "metrics": {
     "panel_padding":    4,
     "panel_spacing":    0,
     "panel_border":     0,
-    "panel_min_width":  170,
+    "panel_min_width":  237,
     "krell_height":     12,
     "chart_height":     33,
     "chart_grid_lines": 4
   },
 
   "images": {
-    "panel_bg": "bg_panel.png",
-    "chart_bg": "bg_chart.png",
-    "krell":    { "image": "krell_panel.png", "frames": 4, "vertical": 1 }
+    "panel_bg":     { "image": "bg_panel.png", "mode": "stretch" },
+    "chart_bg":     { "image": "bg_chart.png", "mode": "stretch" },
+    "krell":        { "image": "krell_panel.png", "frames": 4, "vertical": 1 },
+    "frame_top":    "frame_top.png",
+    "frame_bottom": "frame_bottom.png",
+    "frame_left":   "frame_left.png",
+    "frame_right":  "frame_right.png"
   }
 }

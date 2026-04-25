@@ -81,7 +81,11 @@ void Panel::paintEvent(QPaintEvent *)
     // failed to load.
     const QPixmap bgPix = m_theme->pixmap(QStringLiteral("panel_bg"));
     if (!bgPix.isNull()) {
-        p.drawTiledPixmap(r, bgPix);
+        const QString mode = m_theme->imageMode(QStringLiteral("panel_bg"));
+        if (mode == QStringLiteral("stretch"))
+            p.drawPixmap(r, bgPix);
+        else
+            p.drawTiledPixmap(r, bgPix);
     } else {
         p.fillRect(r, m_theme->color(QStringLiteral("panel_bg")));
     }

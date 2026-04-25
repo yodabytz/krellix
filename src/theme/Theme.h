@@ -59,6 +59,12 @@ public:
     // section — used to describe sprite layout.
     QPixmap pixmap(const QString &key) const;
     int     imageInt(const QString &key, int fallback = 0) const;
+    QString imageStr(const QString &key, const QString &fallback = QString()) const;
+
+    // Image rendering mode for keys that paint a region: "tile" (default)
+    // or "stretch". Tile repeats the image across the area; stretch scales
+    // the whole image to fill it (no aspect-ratio preservation).
+    QString imageMode(const QString &key, const QString &fallback = QStringLiteral("tile")) const;
 
     // Resolve a relative sprite path under the current theme root, refusing
     // any path that would escape the theme directory. Empty on rejection.
@@ -85,6 +91,7 @@ private:
     QHash<QString, int>      m_metrics;
     QHash<QString, QString>  m_imagePaths;        // key -> relative filename
     QHash<QString, int>      m_imageInts;         // "krell.frames" -> 32
+    QHash<QString, QString>  m_imageStrings;      // "panel_bg.mode" -> "stretch"
     mutable QHash<QString, QPixmap> m_pixmapCache;  // lazy-loaded; cleared on reload
 
     QFileSystemWatcher *m_watcher = nullptr;  // child QObject; parent owns
