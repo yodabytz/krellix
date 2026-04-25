@@ -25,6 +25,11 @@ public:
     void setMaxValue(double maxValue);          // full-scale; clamped >0
     void setCapacity(int samples);              // ring size; clamped [16,4096]
 
+    // Optional text drawn over the chart in the top-left corner — used by
+    // CpuMonitor (and any other monitor that wants to label its data
+    // inside the graph instead of in a separate decal row, saving height).
+    void setOverlayText(const QString &text);
+
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
 

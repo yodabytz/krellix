@@ -43,28 +43,22 @@ QWidget *CpuMonitor::createWidget(QWidget *parent)
                                  QStringLiteral("per-core")).toString();
     m_aggregateMode = (mode == QStringLiteral("aggregate"));
 
+    // Per-CPU panel layout is intentionally compact: just a krell row and
+    // a chart, with the core name + current % drawn as an overlay inside
+    // the chart (top-left). Saves a whole decal row per core, so a many-
+    // core machine fits in a much shorter window.
     if (m_aggregateMode) {
-        // Single panel showing the kernel's "cpu" aggregate (samples[0]).
-        // Useful when the machine has many cores and per-core panels would
-        // make the window taller than the screen.
         auto *p = new Panel(theme(), container);
-        p->setTitle(QStringLiteral("CPU (all cores)"));
-
         CoreUI ui;
-        ui.valueDecal = p->addDecal(QStringLiteral("label"),
-                                    QStringLiteral("text_primary"));
-        ui.valueDecal->setAlignment(Qt::AlignHCenter);
-        ui.valueDecal->setText(QStringLiteral("0%"));
         ui.krell = p->addKrell();
         ui.chart = p->addChart(QStringLiteral("chart_line_cpu"));
-        if (ui.chart) ui.chart->setMaxValue(1.0);
-
+        if (ui.chart) {
+            ui.chart->setMaxValue(1.0);
+            ui.chart->setOverlayText(QStringLiteral("CPU 0%"));
+        }
         m_aggregateUI = ui;
         vbox->addWidget(p);
     } else {
-        // Per-core mode: one panel per kernel CPU index, but each one is
-        // gated by monitors/cpu/<index> (default true) so the user can
-        // disable individual cores on a many-CPU machine via settings.
         for (int i = 1; i < samples.size(); ++i) {
             const CpuSample &smp = samples[i];
             const QString key = QStringLiteral("monitors/cpu/") +
@@ -73,17 +67,13 @@ QWidget *CpuMonitor::createWidget(QWidget *parent)
             if (!enabled) continue;
 
             auto *p = new Panel(theme(), container);
-            p->setTitle(smp.name);
-
             CoreUI ui;
-            ui.valueDecal = p->addDecal(QStringLiteral("label"),
-                                        QStringLiteral("text_primary"));
-            ui.valueDecal->setAlignment(Qt::AlignHCenter);
-            ui.valueDecal->setText(QStringLiteral("0%"));
             ui.krell = p->addKrell();
             ui.chart = p->addChart(QStringLiteral("chart_line_cpu"));
-            if (ui.chart) ui.chart->setMaxValue(1.0);
-
+            if (ui.chart) {
+                ui.chart->setMaxValue(1.0);
+                ui.chart->setOverlayText(smp.name + QStringLiteral("  0%"));
+            }
             m_cores.append(ui);
             m_visibleCoreIndices.append(smp.index);
             vbox->addWidget(p);
@@ -114,11 +104,11 @@ void CpuMonitor::tick()
             const double util =
                 CpuStat::utilization(m_prevSamples.first(), samples.first());
             if (m_aggregateUI.krell) m_aggregateUI.krell->setValue(util);
-            if (m_aggregateUI.chart) m_aggregateUI.chart->appendSample(util);
-            if (m_aggregateUI.valueDecal) {
+            if (m_aggregateUI.chart) {
+                m_aggregateUI.chart->appendSample(util);
                 const int pct = static_cast<int>(util * 100.0 + 0.5);
-                m_aggregateUI.valueDecal->setText(QString::number(pct)
-                                                  + QStringLiteral("%"));
+                m_aggregateUI.chart->setOverlayText(
+                    QStringLiteral("CPU %1%").arg(pct));
             }
         }
     } else if (m_havePrev) {
@@ -139,11 +129,11 @@ void CpuMonitor::tick()
             const double util = CpuStat::utilization(*prev, *curr);
             CoreUI &ui = m_cores[slot];
             if (ui.krell) ui.krell->setValue(util);
-            if (ui.chart) ui.chart->appendSample(util);
-            if (ui.valueDecal) {
+            if (ui.chart) {
+                ui.chart->appendSample(util);
                 const int pct = static_cast<int>(util * 100.0 + 0.5);
-                ui.valueDecal->setText(QString::number(pct)
-                                       + QStringLiteral("%"));
+                ui.chart->setOverlayText(
+                    QStringLiteral("%1  %2%").arg(curr->name).arg(pct));
             }
         }
     }
