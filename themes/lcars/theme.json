@@ -1,0 +1,44 @@
+{
+  "name": "lcars",
+  "version": "1.0",
+  "author": "krellix",
+  "description": "LCARS-inspired palette — color-only theme drawn from the gklcars reference (lavender, periwinkle, gold, cream on near-black).",
+
+  "colors": {
+    "panel_bg":           "#040203",
+    "panel_border":       "#66544D",
+    "panel_highlight":    "#A18EA0",
+    "chart_bg":           "#170413",
+    "chart_grid":         "#66544D",
+    "text_primary":       "#D4CBAE",
+    "text_secondary":     "#A18EA0",
+    "text_accent":        "#C79E5B",
+    "krell_track":        "#66544D",
+    "krell_indicator":    "#C79E5B",
+    "chart_line_default": "#C79E5B",
+    "chart_line_cpu":     "#A18EA0",
+    "chart_line_mem":     "#8E8AD0",
+    "chart_line_swap":    "#7A6E89",
+    "chart_line_net_rx":  "#8E8AD0",
+    "chart_line_net_tx":  "#C79E5B",
+    "chart_line_disk":    "#A18EA0",
+    "accent_warning":     "#C79E5B",
+    "accent_critical":    "#A18EA0"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  },
+    "time":  { "family": "Monospace", "size": 11, "bold": false }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    1,
+    "panel_border":     1,
+    "panel_min_width":  100,
+    "krell_height":     8,
+    "chart_height":     32,
+    "chart_grid_lines": 4
+  }
+}
