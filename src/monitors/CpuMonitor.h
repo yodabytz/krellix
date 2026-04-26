@@ -3,6 +3,8 @@
 #include "MonitorBase.h"
 #include "sysdep/CpuStat.h"
 
+#include "widgets/Chart.h"
+
 #include <QList>
 #include <QPointer>
 
@@ -36,10 +38,15 @@ private:
 
     // Mode-specific UI: in per-core mode m_cores[i] corresponds to the
     // i-th visible core. In aggregate mode only m_aggregateUI is used.
+    enum class Mode { PerCore, Aggregate, Combined };
+
     QList<CoreUI>    m_cores;
     QList<int>       m_visibleCoreIndices;   // /proc/stat indices we actually show
     CoreUI           m_aggregateUI;
-    bool             m_aggregateMode = false;
+    QPointer<Chart>  m_combinedChart;
+    QList<int>       m_combinedCoreIndices;
+    Mode             m_mode = Mode::PerCore;
+    bool             m_aggregateMode = false;  // legacy alias for backwards compat
 
     QList<CpuSample> m_prevSamples;
     bool             m_havePrev = false;

@@ -41,13 +41,38 @@ QWidget *CpuMonitor::createWidget(QWidget *parent)
     QSettings s;
     const QString mode = s.value(QStringLiteral("monitors/cpu/mode"),
                                  QStringLiteral("per-core")).toString();
-    m_aggregateMode = (mode == QStringLiteral("aggregate"));
+    if      (mode == QStringLiteral("aggregate")) m_mode = Mode::Aggregate;
+    else if (mode == QStringLiteral("combined"))  m_mode = Mode::Combined;
+    else                                          m_mode = Mode::PerCore;
+    m_aggregateMode = (m_mode == Mode::Aggregate);
+
+    // Combined mode: ONE panel, ONE chart, with one line per core (each
+    // in a distinct hue from the rainbow palette). Saves the most space
+    // on many-core boxes while still showing every core individually.
+    if (m_mode == Mode::Combined) {
+        auto *p = new Panel(theme(), container);
+        Krell *aggKrell = p->addKrell();
+        Chart *chart = p->addChart();
+        chart->setMaxValue(1.0);
+        const int nCores = samples.size() - 1;   // skip aggregate at [0]
+        chart->setRainbowSeries(nCores);
+        chart->setOverlayText(QStringLiteral("CPU x%1  0%").arg(nCores));
+
+        m_combinedChart = chart;
+        m_aggregateUI.krell = aggKrell;
+        for (int i = 1; i < samples.size(); ++i)
+            m_combinedCoreIndices.append(samples[i].index);
+        vbox->addWidget(p);
+
+        m_prevSamples = samples;
+        m_havePrev    = true;
+        return container;
+    }
 
     // Per-CPU panel layout is intentionally compact: just a krell row and
     // a chart, with the core name + current % drawn as an overlay inside
-    // the chart (top-left). Saves a whole decal row per core, so a many-
-    // core machine fits in a much shorter window.
-    if (m_aggregateMode) {
+    // the chart (top-left). Saves a whole decal row per core.
+    if (m_mode == Mode::Aggregate) {
         auto *p = new Panel(theme(), container);
         CoreUI ui;
         ui.krell = p->addKrell();
@@ -99,7 +124,38 @@ void CpuMonitor::tick()
     const QList<CpuSample> samples = CpuStat::read();
     if (samples.isEmpty()) return;
 
-    if (m_aggregateMode) {
+    if (m_mode == Mode::Combined) {
+        if (m_havePrev && m_combinedChart && !m_combinedCoreIndices.isEmpty()) {
+            // Per-core series + aggregate krell at the top.
+            int sumPct = 0;
+            int counted = 0;
+            const int n = m_combinedCoreIndices.size();
+            for (int slot = 0; slot < n; ++slot) {
+                const int wantIdx = m_combinedCoreIndices[slot];
+                const CpuSample *prev = nullptr, *curr = nullptr;
+                for (const CpuSample &c : m_prevSamples)
+                    if (c.index == wantIdx) { prev = &c; break; }
+                for (const CpuSample &c : samples)
+                    if (c.index == wantIdx) { curr = &c; break; }
+                if (!prev || !curr) continue;
+                const double util = CpuStat::utilization(*prev, *curr);
+                m_combinedChart->appendSampleAt(slot, util);
+                sumPct += static_cast<int>(util * 100.0 + 0.5);
+                ++counted;
+            }
+            // Aggregate krell uses the kernel's "cpu" line for accuracy.
+            if (m_aggregateUI.krell && !m_prevSamples.isEmpty()) {
+                const double agg = CpuStat::utilization(
+                    m_prevSamples.first(), samples.first());
+                m_aggregateUI.krell->setValue(agg);
+            }
+            if (counted > 0) {
+                m_combinedChart->setOverlayText(
+                    QStringLiteral("CPU x%1  avg %2%")
+                        .arg(counted).arg(sumPct / counted));
+            }
+        }
+    } else if (m_mode == Mode::Aggregate) {
         if (m_havePrev && !m_prevSamples.isEmpty()) {
             const double util =
                 CpuStat::utilization(m_prevSamples.first(), samples.first());

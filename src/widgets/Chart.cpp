@@ -22,17 +22,70 @@ Chart::Chart(Theme *theme, const QString &colorKey, QWidget *parent)
     setAttribute(Qt::WA_OpaquePaintEvent, true);
     connect(m_theme, &Theme::themeChanged, this, &Chart::onThemeChanged);
     m_samples.assign(static_cast<std::size_t>(m_capacity), 0.0);
+    m_seriesColors.clear();
 }
 
 Chart::~Chart() = default;
 
 void Chart::appendSample(double value)
 {
-    if (m_capacity <= 0 || m_samples.empty()) return;
+    appendSampleAt(0, value);
+}
+
+void Chart::appendSampleAt(int seriesIdx, double value)
+{
+    if (m_capacity <= 0) return;
     if (value < 0.0) value = 0.0;
-    m_samples[static_cast<std::size_t>(m_head)] = value;
-    m_head = (m_head + 1) % m_capacity;
+
+    if (m_multiSamples.empty()) {
+        // Single-series mode (legacy).
+        if (seriesIdx != 0 || m_samples.empty()) return;
+        m_samples[static_cast<std::size_t>(m_head)] = value;
+        if (seriesIdx == 0) m_head = (m_head + 1) % m_capacity;
+    } else {
+        if (seriesIdx < 0
+            || seriesIdx >= static_cast<int>(m_multiSamples.size())) return;
+        auto &ring = m_multiSamples[static_cast<std::size_t>(seriesIdx)];
+        if (ring.empty()) return;
+        ring[static_cast<std::size_t>(m_head)] = value;
+        // Advance the head only after the LAST series of this tick is written
+        // so all series stay aligned. Caller convention: write series 0..N-1
+        // every tick, and the head bumps once after the last.
+        if (seriesIdx == static_cast<int>(m_multiSamples.size()) - 1)
+            m_head = (m_head + 1) % m_capacity;
+    }
     update();
+}
+
+void Chart::setSeriesColors(const QList<QColor> &colors)
+{
+    m_seriesColors = colors;
+    if (colors.isEmpty()) {
+        m_multiSamples.clear();
+        m_samples.assign(static_cast<std::size_t>(m_capacity), 0.0);
+    } else {
+        m_multiSamples.assign(
+            static_cast<std::size_t>(colors.size()),
+            std::vector<double>(static_cast<std::size_t>(m_capacity), 0.0));
+        m_samples.clear();
+    }
+    m_head = 0;
+    update();
+}
+
+void Chart::setRainbowSeries(int n)
+{
+    n = qMax(1, n);
+    QList<QColor> palette;
+    palette.reserve(n);
+    // Evenly-spaced hues at fixed S/V — keeps the lines distinguishable
+    // without anyone being too dim. Skip the very-red region near 0° on
+    // its own (it's reserved for warning/critical accents in our themes).
+    for (int i = 0; i < n; ++i) {
+        const int hue = ((i * 360) / n + 30) % 360;
+        palette.append(QColor::fromHsv(hue, 200, 230));
+    }
+    setSeriesColors(palette);
 }
 
 void Chart::setMaxValue(double maxValue)
@@ -46,7 +99,12 @@ void Chart::setCapacity(int samples)
     const int clamped = qBound(16, samples, 4096);
     if (clamped == m_capacity) return;
     m_capacity = clamped;
-    m_samples.assign(static_cast<std::size_t>(m_capacity), 0.0);
+    if (m_multiSamples.empty()) {
+        m_samples.assign(static_cast<std::size_t>(m_capacity), 0.0);
+    } else {
+        for (auto &ring : m_multiSamples)
+            ring.assign(static_cast<std::size_t>(m_capacity), 0.0);
+    }
     m_head = 0;
     update();
 }
@@ -67,7 +125,8 @@ void Chart::onThemeChanged()
 void Chart::rebuildCapacityForWidth()
 {
     // One sample per visible pixel keeps draw work trivial and avoids
-    // re-allocating per frame.
+    // re-allocating per frame. Multi-series mode also benefits — each
+    // series gets the same per-pixel resolution.
     const int target = qMax(16, width());
     setCapacity(target);
 }
@@ -120,47 +179,59 @@ void Chart::paintEvent(QPaintEvent *)
         }
     }
 
-    const int n = static_cast<int>(m_samples.size());
-    if (n < 2 || r.width() < 2) return;
+    auto drawSeries = [&](const std::vector<double> &ring,
+                          const QColor &lineColor, bool fillBelow) {
+        const int n = static_cast<int>(ring.size());
+        if (n < 2 || r.width() < 2) return;
 
-    QPolygonF poly;
-    poly.reserve(n);
-    const double yScale = static_cast<double>(r.height() - 1);
-    for (int i = 0; i < n; ++i) {
-        const int idx = (m_head + i) % n;
-        const double v = m_samples[static_cast<std::size_t>(idx)] / m_max;
-        const double clamped = std::clamp(v, 0.0, 1.0);
-        const double x = (static_cast<double>(i) * (r.width() - 1)) / (n - 1);
-        const double y = (r.height() - 1) - clamped * yScale;
-        poly << QPointF(x, y);
+        QPolygonF poly;
+        poly.reserve(n);
+        const double yScale = static_cast<double>(r.height() - 1);
+        for (int i = 0; i < n; ++i) {
+            const int idx = (m_head + i) % n;
+            const double v = ring[static_cast<std::size_t>(idx)] / m_max;
+            const double clamped = std::clamp(v, 0.0, 1.0);
+            const double x = (static_cast<double>(i) * (r.width() - 1)) / (n - 1);
+            const double y = (r.height() - 1) - clamped * yScale;
+            poly << QPointF(x, y);
+        }
+
+        if (fillBelow) {
+            QPolygonF area = poly;
+            area << QPointF(static_cast<double>(r.right()),
+                            static_cast<double>(r.bottom()))
+                 << QPointF(static_cast<double>(r.left()),
+                            static_cast<double>(r.bottom()));
+            QColor fill = lineColor;
+            fill.setAlpha(110);
+            p.setRenderHint(QPainter::Antialiasing, false);
+            p.setPen(Qt::NoPen);
+            p.setBrush(fill);
+            p.drawPolygon(area);
+        }
+
+        QPolygon intPoly;
+        intPoly.reserve(static_cast<int>(poly.size()));
+        for (const QPointF &pt : poly) intPoly << pt.toPoint();
+        QPen linePen(lineColor);
+        linePen.setWidth(1);
+        linePen.setCosmetic(true);
+        p.setPen(linePen);
+        p.setBrush(Qt::NoBrush);
+        p.drawPolyline(intPoly);
+    };
+
+    if (m_multiSamples.empty()) {
+        drawSeries(m_samples, line, /*fillBelow=*/true);
+    } else {
+        // Multi-series: don't fill (overlapping translucent fills become
+        // muddy). Just stroke each line in its own color.
+        for (std::size_t i = 0; i < m_multiSamples.size(); ++i) {
+            const QColor c = (i < static_cast<std::size_t>(m_seriesColors.size()))
+                ? m_seriesColors.at(static_cast<int>(i)) : line;
+            drawSeries(m_multiSamples[i], c, /*fillBelow=*/false);
+        }
     }
-
-    // Filled area beneath the curve, closed at the chart floor. Single
-    // semi-transparent fill (no gradient, no glow) — matches the look of
-    // the original GKrellM filled charts.
-    QPolygonF area = poly;
-    area << QPointF(static_cast<double>(r.right()), static_cast<double>(r.bottom()))
-         << QPointF(static_cast<double>(r.left()),  static_cast<double>(r.bottom()));
-
-    QColor fill = line;
-    fill.setAlpha(110);  // visible but the chart_bg still reads through
-    p.setRenderHint(QPainter::Antialiasing, false);
-    p.setPen(Qt::NoPen);
-    p.setBrush(fill);
-    p.drawPolygon(area);
-
-    // Crisp pixel-aligned 1px line on top — no anti-aliasing, integer
-    // coordinates. Same hairline crispness as gkrellm's classic graphs.
-    QPolygon intPoly;
-    intPoly.reserve(static_cast<int>(poly.size()));
-    for (const QPointF &pt : poly) intPoly << pt.toPoint();
-
-    QPen linePen(line);
-    linePen.setWidth(1);
-    linePen.setCosmetic(true);
-    p.setPen(linePen);
-    p.setBrush(Qt::NoBrush);
-    p.drawPolyline(intPoly);
 
     // Optional in-chart overlay label (e.g. "cpu0  37%") — drawn after
     // the line so it sits on top, anti-aliased, in the chart's primary

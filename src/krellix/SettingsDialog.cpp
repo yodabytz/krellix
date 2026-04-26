@@ -134,6 +134,8 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
                           QStringLiteral("per-core"));
     cpuModeCombo->addItem(QStringLiteral("Aggregate (single panel for all cores)"),
                           QStringLiteral("aggregate"));
+    cpuModeCombo->addItem(QStringLiteral("Combined (one chart, one line per core)"),
+                          QStringLiteral("combined"));
     {
         QSettings cs;
         const QString cur = cs.value(QStringLiteral("monitors/cpu/mode"),

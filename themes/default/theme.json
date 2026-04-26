@@ -16,7 +16,7 @@
     "krell_track":        "#1a3a1a",
     "krell_indicator":    "#7fff7f",
     "chart_line_default": "#7fff7f",
-    "chart_line_cpu":     "#ff5555",
+    "chart_line_cpu":     "#55ddff",
     "chart_line_mem":     "#ffcc00",
     "chart_line_swap":    "#00aaff",
     "chart_line_net_rx":  "#55ffff",
