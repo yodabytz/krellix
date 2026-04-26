@@ -45,6 +45,7 @@ private:
     QHash<QString, NetSample>  m_prevSamples;
     QPointer<QWidget>          m_container;     // for lazy-add of new ifaces
     QPointer<QVBoxLayout>      m_containerLayout;
+    QPointer<QWidget>          m_placeholderPanel;  // "(waiting for data...)"
     QElapsedTimer              m_lastReadTimer;
     bool                       m_havePrev = false;
 

@@ -24,18 +24,40 @@ QWidget *CpuMonitor::createWidget(QWidget *parent)
     auto *vbox = new QVBoxLayout(container);
     vbox->setContentsMargins(0, 0, 0, 0);
     vbox->setSpacing(0);
+    m_container       = container;
+    m_containerLayout = vbox;
 
     const QList<CpuSample> samples = CpuStat::read();
 
     if (samples.isEmpty()) {
+        // No data yet — typical in --host mode where the first remote
+        // sample arrives a tick after createWidget(). Drop a placeholder
+        // and rebuild the real panels in tick() when samples land.
         auto *p = new Panel(theme(), container);
         p->setTitle(QStringLiteral("CPU"));
         Decal *d = p->addDecal(QStringLiteral("label"),
                                QStringLiteral("text_secondary"));
         d->setAlignment(Qt::AlignHCenter);
-        d->setText(QStringLiteral("(no /proc/stat)"));
+        d->setText(QStringLiteral("(waiting for data...)"));
         vbox->addWidget(p);
+        m_placeholderPanel = p;
         return container;
+    }
+
+    buildPanels(samples);
+    return container;
+}
+
+void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
+{
+    if (m_panelsBuilt || samples.isEmpty()
+        || !m_container || !m_containerLayout) return;
+
+    // Discard the "(waiting for data...)" placeholder if we put one up.
+    if (m_placeholderPanel) {
+        m_containerLayout->removeWidget(m_placeholderPanel);
+        m_placeholderPanel->deleteLater();
+        m_placeholderPanel = nullptr;
     }
 
     QSettings s;
@@ -45,6 +67,9 @@ QWidget *CpuMonitor::createWidget(QWidget *parent)
     else if (mode == QStringLiteral("combined"))  m_mode = Mode::Combined;
     else                                          m_mode = Mode::PerCore;
     m_aggregateMode = (m_mode == Mode::Aggregate);
+
+    QWidget *container = m_container;
+    QVBoxLayout *vbox  = m_containerLayout;
 
     // Combined mode: ONE panel, ONE chart, with one line per core (each
     // in a distinct hue from the rainbow palette). Saves the most space
@@ -63,16 +88,10 @@ QWidget *CpuMonitor::createWidget(QWidget *parent)
         for (int i = 1; i < samples.size(); ++i)
             m_combinedCoreIndices.append(samples[i].index);
         vbox->addWidget(p);
-
-        m_prevSamples = samples;
-        m_havePrev    = true;
-        return container;
-    }
-
-    // Per-CPU panel layout is intentionally compact: just a krell row and
-    // a chart, with the core name + current % drawn as an overlay inside
-    // the chart (top-left). Saves a whole decal row per core.
-    if (m_mode == Mode::Aggregate) {
+    } else if (m_mode == Mode::Aggregate) {
+        // Per-CPU panel layout is intentionally compact: just a krell
+        // row and a chart, with the core name + current % drawn as an
+        // overlay inside the chart (top-left). Saves a decal row.
         auto *p = new Panel(theme(), container);
         CoreUI ui;
         ui.krell = p->addKrell();
@@ -116,13 +135,21 @@ QWidget *CpuMonitor::createWidget(QWidget *parent)
 
     m_prevSamples = samples;
     m_havePrev    = true;
-    return container;
+    m_panelsBuilt = true;
 }
 
 void CpuMonitor::tick()
 {
     const QList<CpuSample> samples = CpuStat::read();
     if (samples.isEmpty()) return;
+
+    // First sample arrived after createWidget — build the real panels
+    // now (typical in --host mode where the remote sample lands a tick
+    // after the monitor was constructed).
+    if (!m_panelsBuilt) {
+        buildPanels(samples);
+        return;        // need a second sample to compute utilization
+    }
 
     if (m_mode == Mode::Combined) {
         if (m_havePrev && m_combinedChart && !m_combinedCoreIndices.isEmpty()) {

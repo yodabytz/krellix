@@ -89,6 +89,11 @@ QWidget *NetMonitor::createWidget(QWidget *parent)
                    ? QStringLiteral("(waiting for data...)")
                    : QStringLiteral("(no interfaces selected)"));
         vbox->addWidget(p);
+        // Track only the "waiting" placeholder — that one is supposed to
+        // disappear when real interfaces appear (typical in --host mode).
+        // The "(no interfaces selected)" placeholder is a user state and
+        // should stay until they enable an interface.
+        if (samples.isEmpty()) m_placeholderPanel = p;
     }
 
     m_havePrev = !samples.isEmpty();
@@ -118,6 +123,14 @@ void NetMonitor::tick()
             const bool enabled = settings.value(
                 QStringLiteral("monitors/net/") + s.name, defaultEnabled).toBool();
             if (!enabled || !m_container || !m_containerLayout) continue;
+            // Drop the "(waiting for data...)" placeholder the first time
+            // we add a real interface panel — otherwise it just sits
+            // above the live data forever.
+            if (m_placeholderPanel) {
+                m_containerLayout->removeWidget(m_placeholderPanel);
+                m_placeholderPanel->deleteLater();
+                m_placeholderPanel = nullptr;
+            }
             m_ifaces.insert(s.name,
                             buildIfacePanel(theme(), m_container,
                                             m_containerLayout, s.name));

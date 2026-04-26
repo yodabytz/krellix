@@ -11,6 +11,8 @@
 class Chart;
 class Decal;
 class Krell;
+class QVBoxLayout;
+class QWidget;
 
 // Per-core CPU monitor: one Panel per core (cpu0, cpu1, ...) holding a
 // percent decal, a krell (instant utilization), and a chart (1 Hz history).
@@ -39,6 +41,17 @@ private:
     // Mode-specific UI: in per-core mode m_cores[i] corresponds to the
     // i-th visible core. In aggregate mode only m_aggregateUI is used.
     enum class Mode { PerCore, Aggregate, Combined };
+
+    // Lazily build the per-mode panel layout from a non-empty samples
+    // list. Called from createWidget when samples are available, and
+    // from tick() when the first remote sample arrives in --host mode
+    // (createWidget ran before any data had landed).
+    void buildPanels(const QList<CpuSample> &samples);
+
+    QPointer<QWidget>      m_container;
+    QPointer<QVBoxLayout>  m_containerLayout;
+    QPointer<QWidget>      m_placeholderPanel;     // "(waiting for data...)" panel
+    bool                   m_panelsBuilt = false;
 
     QList<CoreUI>    m_cores;
     QList<int>       m_visibleCoreIndices;   // /proc/stat indices we actually show

@@ -137,6 +137,17 @@ ClientSession::ClientSession(QTcpSocket *socket,
             this, &ClientSession::onReadyRead);
     connect(m_socket, &QTcpSocket::disconnected,
             this, &ClientSession::onDisconnected);
+    // Reset the idle clock whenever the kernel actually flushes bytes to
+    // the peer. The protocol is one-way (we push samples, the client
+    // doesn't reply), so without this the idle timer would always fire
+    // and we'd kick perfectly healthy clients every io_timeout window.
+    // Going through bytesWritten (rather than just our own send tick)
+    // means a client that's TCP-alive but not draining our writes WILL
+    // still be kicked: their kernel buffer fills, no bytesWritten fires,
+    // idle timer expires.
+    connect(m_socket, &QTcpSocket::bytesWritten, this, [this](qint64) {
+        if (m_idleTimer) m_idleTimer->start();
+    });
 
     m_sendTimer->setTimerType(Qt::CoarseTimer);
     m_sendTimer->setInterval(m_intervalMs);

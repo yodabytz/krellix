@@ -87,6 +87,12 @@ void RemoteSource::onSocketConnected()
 void RemoteSource::onSocketDisconnected()
 {
     qCInfo(lcRemote) << "disconnected from" << remoteAddress();
+    // Drop cached samples so a subsequent reconnect doesn't blip the
+    // monitors with rates computed against pre-disconnect counters
+    // (which can be many minutes stale). Better to show "0" for one
+    // tick than to fabricate a giant spike.
+    resetCachedState();
+    m_buffer.clear();
     emit connectionStateChanged(false);
     scheduleReconnect();
 }
@@ -95,7 +101,15 @@ void RemoteSource::onSocketError()
 {
     qCWarning(lcRemote) << "socket error from" << remoteAddress() << ":"
                         << m_socket->errorString();
-    // disconnected signal will follow; reconnect is scheduled there.
+    // For a connection that *was* established, `disconnected` fires next
+    // and reconnect is scheduled there. For a failed initial connect
+    // (host unreachable, refused, etc.) we never reach ConnectedState, so
+    // `disconnected` never fires — schedule the reconnect ourselves so
+    // we don't get wedged after a one-time outage at startup.
+    if (m_socket
+        && m_socket->state() == QAbstractSocket::UnconnectedState) {
+        scheduleReconnect();
+    }
 }
 
 void RemoteSource::scheduleReconnect()
@@ -133,6 +147,12 @@ void RemoteSource::onReadyRead()
         m_buffer.remove(0, nl + 1);
         if (!line.trimmed().isEmpty())
             parseLine(line);
+        // parseLine() may have called m_socket->abort() on too-many parse
+        // errors; that fires `disconnected` synchronously and resets
+        // m_buffer. Stop the loop to avoid touching post-abort state.
+        if (!m_socket
+            || m_socket->state() != QAbstractSocket::ConnectedState)
+            return;
     }
 }
 
@@ -229,5 +249,8 @@ void RemoteSource::resetCachedState()
     m_mem  = MemInfo{};
     m_net.clear();
     m_disk.clear();
-    m_uptime = 0;
+    // -1 is the "unknown" sentinel UptimeMonitor uses to render "?".
+    // Zero would render as "00:00" — actively misleading during a
+    // disconnect window.
+    m_uptime = -1;
 }
