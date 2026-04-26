@@ -1,5 +1,7 @@
 #include "NetStat.h"
 
+#include "DockerNet.h"
+
 #include <QByteArray>
 #include <QByteArrayList>
 #include <QDir>
@@ -108,23 +110,34 @@ QList<NetSample> NetStat::read()
 
     for (NetSample &s : samples) {
         const QStringList members = bridgeMembers(s.name);
-        if (members.isEmpty()) continue;
-
-        quint64 rxB = 0, txB = 0, rxP = 0, txP = 0;
-        bool anyMember = false;
-        for (const QString &m : members) {
-            const auto it = indexByName.constFind(m);
-            if (it == indexByName.constEnd()) continue;
-            const NetSample &mb = samples[*it];
-            rxB += mb.rxBytes;   txB += mb.txBytes;
-            rxP += mb.rxPackets; txP += mb.txPackets;
-            anyMember = true;
+        if (!members.isEmpty()) {
+            quint64 rxB = 0, txB = 0, rxP = 0, txP = 0;
+            bool anyMember = false;
+            for (const QString &m : members) {
+                const auto it = indexByName.constFind(m);
+                if (it == indexByName.constEnd()) continue;
+                const NetSample &mb = samples[*it];
+                rxB += mb.rxBytes;   txB += mb.txBytes;
+                rxP += mb.rxPackets; txP += mb.txPackets;
+                anyMember = true;
+            }
+            if (anyMember) {
+                s.rxBytes   = rxB;
+                s.txBytes   = txB;
+                s.rxPackets = rxP;
+                s.txPackets = txP;
+            }
         }
-        if (!anyMember) continue;
-        s.rxBytes   = rxB;
-        s.txBytes   = txB;
-        s.rxPackets = rxP;
-        s.txPackets = txP;
+
+        // Friendly name lookup for Docker bridges. Done outside the
+        // members block on purpose — a Docker network with no
+        // currently-attached containers has an empty brif/, but the
+        // user still benefits from seeing 'cerberix-wan' instead of
+        // 'br-458bd2654c82' in the panel title. Non-Docker interfaces
+        // (eth0, ens6, ...) return an empty alias; the call is cheap
+        // because DockerNet caches the lookup.
+        const QString alias = DockerNet::aliasForBridge(s.name);
+        if (!alias.isEmpty()) s.alias = alias;
     }
 
     return samples;

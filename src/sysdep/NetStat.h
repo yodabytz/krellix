@@ -6,6 +6,7 @@
 
 struct NetSample {
     QString name;        // interface name (eth0, wlan0, ...)
+    QString alias;       // friendly name when known (e.g. Docker network name)
     quint64 rxBytes  = 0;
     quint64 txBytes  = 0;
     quint64 rxPackets = 0;

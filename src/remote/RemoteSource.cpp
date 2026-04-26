@@ -221,6 +221,7 @@ void RemoteSource::parseLine(const QByteArray &line)
         const QJsonObject n = v.toObject();
         NetSample s;
         s.name      = n.value(QStringLiteral("name")).toString();
+        s.alias     = n.value(QStringLiteral("alias")).toString();
         s.rxBytes   = quint64(n.value(QStringLiteral("rx")).toDouble());
         s.txBytes   = quint64(n.value(QStringLiteral("tx")).toDouble());
         s.rxPackets = quint64(n.value(QStringLiteral("rxp")).toDouble());

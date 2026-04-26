@@ -87,6 +87,8 @@ QJsonObject sampleObject()
     for (const NetSample &s : NetStat::read()) {
         QJsonObject n;
         n.insert(QStringLiteral("name"), s.name);
+        if (!s.alias.isEmpty())
+            n.insert(QStringLiteral("alias"), s.alias);
         n.insert(QStringLiteral("rx"),   qint64(s.rxBytes));
         n.insert(QStringLiteral("tx"),   qint64(s.txBytes));
         n.insert(QStringLiteral("rxp"),  qint64(s.rxPackets));

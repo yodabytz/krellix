@@ -38,12 +38,18 @@ NetMonitor::~NetMonitor() = default;
 // Pulled out so tick() can lazy-add interfaces that show up after
 // createWidget — important in --host mode where the first remote sample
 // may arrive after the monitor has already been constructed.
+//
+// `alias` is the human-friendly label (e.g. Docker network name) when
+// known; the panel title prefers it over the raw interface name so a
+// user looking at "internal" doesn't have to remember that means
+// br-f6739fab5f74.
 static NetMonitor::IfaceUI buildIfacePanel(Theme *theme, QWidget *parent,
                                            QVBoxLayout *into,
-                                           const QString &name)
+                                           const QString &name,
+                                           const QString &alias)
 {
     auto *p = new Panel(theme, parent);
-    p->setTitle(name);
+    p->setTitle(alias.isEmpty() ? name : alias);
     NetMonitor::IfaceUI ui;
     ui.textDecal = p->addDecal(QStringLiteral("label"),
                                QStringLiteral("text_primary"));
@@ -75,7 +81,9 @@ QWidget *NetMonitor::createWidget(QWidget *parent)
         const bool enabled = settings.value(
             QStringLiteral("monitors/net/") + s.name, defaultEnabled).toBool();
         if (!enabled) continue;
-        m_ifaces.insert(s.name, buildIfacePanel(theme(), container, vbox, s.name));
+        m_ifaces.insert(s.name,
+                        buildIfacePanel(theme(), container, vbox,
+                                        s.name, s.alias));
         m_prevSamples.insert(s.name, s);
     }
 
@@ -133,7 +141,8 @@ void NetMonitor::tick()
             }
             m_ifaces.insert(s.name,
                             buildIfacePanel(theme(), m_container,
-                                            m_containerLayout, s.name));
+                                            m_containerLayout,
+                                            s.name, s.alias));
             m_prevSamples.insert(s.name, s);
             continue;   // first appearance: defer rate computation to next tick
         }

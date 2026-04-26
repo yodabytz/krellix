@@ -73,6 +73,8 @@ set(KRELLIX_SOURCES
     src/sysdep/UptimeStat.h
     src/sysdep/NetStat.cpp
     src/sysdep/NetStat.h
+    src/sysdep/DockerNet.cpp
+    src/sysdep/DockerNet.h
     src/sysdep/DiskStat.cpp
     src/sysdep/DiskStat.h
     src/sysdep/SensorStat.cpp
@@ -146,6 +148,8 @@ qt_add_executable(krellixd
     src/sysdep/MemStat.h
     src/sysdep/NetStat.cpp
     src/sysdep/NetStat.h
+    src/sysdep/DockerNet.cpp
+    src/sysdep/DockerNet.h
     src/sysdep/DiskStat.cpp
     src/sysdep/DiskStat.h
     src/sysdep/UptimeStat.cpp
