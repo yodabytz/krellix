@@ -7,6 +7,7 @@
 #include <QHash>
 #include <QList>
 #include <QPointer>
+#include <QVBoxLayout>
 
 class Chart;
 class Decal;
@@ -30,6 +31,7 @@ public:
     void     tick() override;
 
 private:
+public:
     struct IfaceUI {
         QPointer<Decal> textDecal;
         QPointer<Krell> rxKrell;
@@ -37,9 +39,12 @@ private:
         QPointer<Chart> chart;
         double          maxBps = 1024.0 * 1024.0;  // adaptive scale
     };
+private:
 
     QHash<QString, IfaceUI>    m_ifaces;
     QHash<QString, NetSample>  m_prevSamples;
+    QPointer<QWidget>          m_container;     // for lazy-add of new ifaces
+    QPointer<QVBoxLayout>      m_containerLayout;
     QElapsedTimer              m_lastReadTimer;
     bool                       m_havePrev = false;
 

@@ -34,6 +34,29 @@ NetMonitor::NetMonitor(Theme *theme, QObject *parent)
 
 NetMonitor::~NetMonitor() = default;
 
+// Build a panel for one interface and append it to the container's vbox.
+// Pulled out so tick() can lazy-add interfaces that show up after
+// createWidget — important in --host mode where the first remote sample
+// may arrive after the monitor has already been constructed.
+static NetMonitor::IfaceUI buildIfacePanel(Theme *theme, QWidget *parent,
+                                           QVBoxLayout *into,
+                                           const QString &name)
+{
+    auto *p = new Panel(theme, parent);
+    p->setTitle(name);
+    NetMonitor::IfaceUI ui;
+    ui.textDecal = p->addDecal(QStringLiteral("label"),
+                               QStringLiteral("text_primary"));
+    ui.textDecal->setAlignment(Qt::AlignHCenter);
+    ui.textDecal->setText(QStringLiteral("RX 0  TX 0"));
+    ui.rxKrell = p->addKrell();
+    ui.txKrell = p->addKrell();
+    ui.chart   = p->addChart(QStringLiteral("chart_line_net_rx"));
+    if (ui.chart) ui.chart->setMaxValue(ui.maxBps);
+    into->addWidget(p);
+    return ui;
+}
+
 QWidget *NetMonitor::createWidget(QWidget *parent)
 {
     auto *container = new QWidget(parent);
@@ -41,59 +64,34 @@ QWidget *NetMonitor::createWidget(QWidget *parent)
     auto *vbox = new QVBoxLayout(container);
     vbox->setContentsMargins(0, 0, 0, 0);
     vbox->setSpacing(0);
-
-    const QList<NetSample> samples = NetStat::read();
-    if (samples.isEmpty()) {
-        auto *p = new Panel(theme(), container);
-        p->setTitle(QStringLiteral("Net"));
-        Decal *d = p->addDecal(QStringLiteral("label"),
-                               QStringLiteral("text_secondary"));
-        d->setText(QStringLiteral("(no /proc/net/dev)"));
-        vbox->addWidget(p);
-        return container;
-    }
+    m_container = container;
+    m_containerLayout = vbox;
 
     QSettings settings;
-    int shown = 0;
+    const QList<NetSample> samples = NetStat::read();
+
     for (const NetSample &s : samples) {
-        // Per-interface enable/disable. Default = isMainInterface() so
-        // physical/wireless interfaces are visible out of the box and
-        // virtualization/container plumbing (docker0, virbr0, veth*, ...)
-        // stays hidden until the user opts in.
         const bool defaultEnabled = NetStat::isMainInterface(s.name);
         const bool enabled = settings.value(
             QStringLiteral("monitors/net/") + s.name, defaultEnabled).toBool();
         if (!enabled) continue;
-
-        auto *p = new Panel(theme(), container);
-        p->setTitle(s.name);
-
-        IfaceUI ui;
-        ui.textDecal = p->addDecal(QStringLiteral("label"),
-                                   QStringLiteral("text_primary"));
-        ui.textDecal->setAlignment(Qt::AlignHCenter);
-        ui.textDecal->setText(QStringLiteral("RX 0  TX 0"));
-        ui.rxKrell = p->addKrell();
-        ui.txKrell = p->addKrell();
-        ui.chart   = p->addChart(QStringLiteral("chart_line_net_rx"));
-        if (ui.chart) ui.chart->setMaxValue(ui.maxBps);
-
-        m_ifaces.insert(s.name, ui);
+        m_ifaces.insert(s.name, buildIfacePanel(theme(), container, vbox, s.name));
         m_prevSamples.insert(s.name, s);
-        vbox->addWidget(p);
-        ++shown;
     }
-    if (shown == 0) {
+
+    if (m_ifaces.isEmpty()) {
         auto *p = new Panel(theme(), container);
         p->setTitle(QStringLiteral("Net"));
         Decal *d = p->addDecal(QStringLiteral("label"),
                                QStringLiteral("text_secondary"));
         d->setAlignment(Qt::AlignHCenter);
-        d->setText(QStringLiteral("(no interfaces selected)"));
+        d->setText(samples.isEmpty()
+                   ? QStringLiteral("(waiting for data...)")
+                   : QStringLiteral("(no interfaces selected)"));
         vbox->addWidget(p);
     }
 
-    m_havePrev = true;
+    m_havePrev = !samples.isEmpty();
     m_lastReadTimer.start();
     return container;
 }
@@ -107,9 +105,25 @@ void NetMonitor::tick()
     m_lastReadTimer.restart();
     const double dt = (elapsedMs > 0) ? (elapsedMs / 1000.0) : 1.0;
 
+    QSettings settings;
     for (const NetSample &s : samples) {
         auto itUI = m_ifaces.find(s.name);
-        if (itUI == m_ifaces.end()) continue;     // new interface mid-run; skip
+        if (itUI == m_ifaces.end()) {
+            // Interface arrived after createWidget — typical when in
+            // --host mode and the first remote sample lands a tick after
+            // the monitor was constructed, OR when a fresh setting just
+            // enabled this iface. Build its panel now so the user sees
+            // their toggle take effect without another rebuild.
+            const bool defaultEnabled = NetStat::isMainInterface(s.name);
+            const bool enabled = settings.value(
+                QStringLiteral("monitors/net/") + s.name, defaultEnabled).toBool();
+            if (!enabled || !m_container || !m_containerLayout) continue;
+            m_ifaces.insert(s.name,
+                            buildIfacePanel(theme(), m_container,
+                                            m_containerLayout, s.name));
+            m_prevSamples.insert(s.name, s);
+            continue;   // first appearance: defer rate computation to next tick
+        }
         IfaceUI &ui = *itUI;
 
         double rxBps = 0.0, txBps = 0.0;

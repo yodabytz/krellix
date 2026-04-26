@@ -162,7 +162,12 @@ int main(int argc, char *argv[])
     quint16 port       = kDefaultPort;
     QStringList allowEntries;
     int maxClients   = 4;
-    int idleTimeoutMs = 30 * 1000;
+    // Idle-timeout default is 5 minutes. The protocol is one-way (server
+    // streams samples, client doesn't reply), so a tighter timeout would
+    // drop perfectly-healthy long-lived clients on every interval. TCP
+    // KeepAlive (set on the socket) detects dead connections within a
+    // minute or two anyway.
+    int idleTimeoutMs = 300 * 1000;
     double updateHz  = 1.0;
 
     const QString cfgPath = parser.value(configOpt);
