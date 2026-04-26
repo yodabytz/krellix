@@ -2,6 +2,7 @@
 
 #include "krellix/PluginLoader.h"
 #include "krellix/SettingsDialog.h"
+#include "remote/RemoteSource.h"
 #include "monitors/BatteryMonitor.h"
 #include "monitors/ClockMonitor.h"
 #include "monitors/CpuMonitor.h"
@@ -13,6 +14,7 @@
 #include "monitors/SensorsMonitor.h"
 #include "monitors/UptimeMonitor.h"
 #include "theme/Theme.h"
+#include "widgets/AlertBanner.h"
 #include "widgets/Panel.h"
 
 #include <QAction>
@@ -91,6 +93,43 @@ MainWindow::MainWindow(Theme *theme,
 }
 
 MainWindow::~MainWindow() = default;
+
+void MainWindow::attachRemoteSource(RemoteSource *remote)
+{
+    if (!remote || m_remote == remote) return;
+    m_remote = remote;
+
+    if (!m_alertBanner) {
+        m_alertBanner = new AlertBanner(this);
+        // Insert at the very top of the panel stack — above hostname.
+        m_layout->insertWidget(0, m_alertBanner);
+    }
+    if (!m_alertDebounce) {
+        m_alertDebounce = new QTimer(this);
+        m_alertDebounce->setSingleShot(true);
+        m_alertDebounce->setInterval(5000);     // 5s grace before alarming
+        connect(m_alertDebounce, &QTimer::timeout, this, [this]() {
+            if (m_remote && !m_remote->isConnected() && m_alertBanner) {
+                m_alertBanner->showAlert(
+                    QStringLiteral("Connection lost: %1")
+                        .arg(m_remote->remoteAddress()));
+            }
+        });
+    }
+
+    connect(m_remote, &RemoteSource::connectionStateChanged, this,
+            [this](bool connected) {
+                if (!m_alertBanner) return;
+                if (connected) {
+                    m_alertDebounce->stop();
+                    m_alertBanner->hideAlert();
+                } else {
+                    // Debounce: a quick reconnect (< 5s) won't show the
+                    // banner. Only sustained loss does.
+                    m_alertDebounce->start();
+                }
+            });
+}
 
 void MainWindow::addMonitor(MonitorBase *m)
 {

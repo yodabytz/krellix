@@ -53,6 +53,15 @@ void BatteryMonitor::tick()
 
     m_textDecal->setText(QStringLiteral("%1 %2%%").arg(sym).arg(b.percent));
     m_krell->setValue(qBound(0.0, b.percent / 100.0, 1.0));
+    // Low-battery alert only when actually discharging — full but unplugged
+    // doesn't need a red flash.
+    if (b.status == QStringLiteral("Discharging")) {
+        m_krell->setAlertLevel(b.percent <= 10 ? Krell::AlertLevel::Critical
+                               : b.percent <= 20 ? Krell::AlertLevel::Warning
+                                                 : Krell::AlertLevel::None);
+    } else {
+        m_krell->setAlertLevel(Krell::AlertLevel::None);
+    }
 
     if (m_etaDecal) {
         if (b.timeRemainSec > 0) {

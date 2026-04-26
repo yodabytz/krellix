@@ -25,6 +25,13 @@ void Krell::setValue(double normalized)
     update();
 }
 
+void Krell::setAlertLevel(AlertLevel level)
+{
+    if (m_alertLevel == level) return;
+    m_alertLevel = level;
+    update();
+}
+
 void Krell::onThemeChanged()
 {
     updateGeometry();
@@ -91,7 +98,21 @@ void Krell::paintEvent(QPaintEvent *)
         }
     }
 
-    const QColor ind = m_theme->color(QStringLiteral("krell_indicator"));
+    QColor ind;
+    switch (m_alertLevel) {
+    case AlertLevel::Warning:
+        ind = m_theme->color(QStringLiteral("accent_warning"),
+                             m_theme->color(QStringLiteral("krell_indicator")));
+        break;
+    case AlertLevel::Critical:
+        ind = m_theme->color(QStringLiteral("accent_critical"),
+                             m_theme->color(QStringLiteral("krell_indicator")));
+        break;
+    case AlertLevel::None:
+    default:
+        ind = m_theme->color(QStringLiteral("krell_indicator"));
+        break;
+    }
     const int notchW = qMax(2, r.width() / 24);
     const int xMax   = r.width() - notchW;
     const int x      = static_cast<int>(m_value * xMax);

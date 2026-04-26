@@ -19,6 +19,10 @@ public:
     void setValue(double normalized);
     double value() const { return m_value; }
 
+    enum class AlertLevel { None, Warning, Critical };
+    void setAlertLevel(AlertLevel level);
+    AlertLevel alertLevel() const { return m_alertLevel; }
+
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
 
@@ -29,8 +33,9 @@ private slots:
     void onThemeChanged();
 
 private:
-    Theme *m_theme;
-    double m_value = 0.0;
+    Theme     *m_theme;
+    double     m_value = 0.0;
+    AlertLevel m_alertLevel = AlertLevel::None;
 
     Q_DISABLE_COPY_MOVE(Krell)
 };

@@ -5,14 +5,17 @@
 #include <QStringList>
 #include <QWidget>
 
+class AlertBanner;
 class MonitorBase;
 class PluginLoader;
+class RemoteSource;
 class Theme;
 class QVBoxLayout;
 class QMouseEvent;
 class QContextMenuEvent;
 class QCloseEvent;
 class QPaintEvent;
+class QTimer;
 
 // Top-level frameless window. Owns the Theme passed in (parented), constructs
 // the requested built-in monitors, loads plugin monitors, lays them out
@@ -34,6 +37,11 @@ public:
                const QStringList &enabledMonitorIds,
                QWidget *parent = nullptr);
     ~MainWindow() override;
+
+    // Hook the connection-lost banner up to a RemoteSource. The banner
+    // is added to the top of the layout the first time this is called.
+    // Safe to skip when running in local mode (no banner ever shown).
+    void attachRemoteSource(RemoteSource *remote);
 
 protected:
     void mousePressEvent(QMouseEvent *event) override;
@@ -73,6 +81,9 @@ private:
     Theme         *m_theme;
     PluginLoader  *m_pluginLoader = nullptr;
     QVBoxLayout   *m_layout       = nullptr;
+    AlertBanner   *m_alertBanner  = nullptr;
+    QTimer        *m_alertDebounce = nullptr;
+    RemoteSource  *m_remote       = nullptr;
     QList<LiveMonitor> m_monitors;
 
     bool   m_dragging   = false;

@@ -63,6 +63,8 @@ set(KRELLIX_SOURCES
     src/widgets/Krell.h
     src/widgets/Chart.cpp
     src/widgets/Chart.h
+    src/widgets/AlertBanner.cpp
+    src/widgets/AlertBanner.h
     src/sysdep/CpuStat.cpp
     src/sysdep/CpuStat.h
     src/sysdep/MemStat.cpp

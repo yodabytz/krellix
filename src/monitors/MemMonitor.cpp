@@ -66,20 +66,35 @@ void MemMonitor::tick()
         return;
     }
 
+    const double memRatio = m.memUsedRatio();
     if (m_memText)
         m_memText->setText(QStringLiteral("RAM ") + usedTotal(m.memUsedKb(), m.totalKb));
-    if (m_memKrell)
-        m_memKrell->setValue(m.memUsedRatio());
+    if (m_memKrell) {
+        m_memKrell->setValue(memRatio);
+        m_memKrell->setAlertLevel(memRatio >= 0.95 ? Krell::AlertLevel::Critical
+                                  : memRatio >= 0.85 ? Krell::AlertLevel::Warning
+                                                     : Krell::AlertLevel::None);
+    }
     if (m_memChart)
-        m_memChart->appendSample(m.memUsedRatio());
+        m_memChart->appendSample(memRatio);
 
     if (m.swapTotalKb == 0) {
         if (m_swapText)  m_swapText->setText(QStringLiteral("Swap none"));
-        if (m_swapKrell) m_swapKrell->setValue(0.0);
+        if (m_swapKrell) {
+            m_swapKrell->setValue(0.0);
+            m_swapKrell->setAlertLevel(Krell::AlertLevel::None);
+        }
     } else {
+        const double swapRatio = m.swapUsedRatio();
         if (m_swapText)
             m_swapText->setText(QStringLiteral("Swap ") + usedTotal(m.swapUsedKb(), m.swapTotalKb));
-        if (m_swapKrell)
-            m_swapKrell->setValue(m.swapUsedRatio());
+        if (m_swapKrell) {
+            m_swapKrell->setValue(swapRatio);
+            // Swap usage is a stronger signal than RAM usage — even
+            // moderate swap means active paging. Tighter thresholds.
+            m_swapKrell->setAlertLevel(swapRatio >= 0.50 ? Krell::AlertLevel::Critical
+                                       : swapRatio >= 0.20 ? Krell::AlertLevel::Warning
+                                                           : Krell::AlertLevel::None);
+        }
     }
 }

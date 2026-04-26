@@ -145,6 +145,12 @@ int main(int argc, char *argv[])
     }
 
     MainWindow w(theme, enabledIds);
+    if (parser.isSet(hostOpt)) {
+        // Connect the disconnect-banner to the live RemoteSource so the
+        // user sees a flashing red bar at the top of the window when the
+        // daemon stops responding for more than ~5 seconds.
+        if (auto *r = RemoteSource::instance()) w.attachRemoteSource(r);
+    }
     w.show();
     return app.exec();
 }

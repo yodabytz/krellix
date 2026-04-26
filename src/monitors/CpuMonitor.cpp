@@ -184,7 +184,12 @@ void CpuMonitor::tick()
 
             const double util = CpuStat::utilization(*prev, *curr);
             CoreUI &ui = m_cores[slot];
-            if (ui.krell) ui.krell->setValue(util);
+            if (ui.krell) {
+                ui.krell->setValue(util);
+                ui.krell->setAlertLevel(util >= 0.95 ? Krell::AlertLevel::Critical
+                                       : util >= 0.80 ? Krell::AlertLevel::Warning
+                                                      : Krell::AlertLevel::None);
+            }
             if (ui.chart) {
                 ui.chart->appendSample(util);
                 const int pct = static_cast<int>(util * 100.0 + 0.5);
