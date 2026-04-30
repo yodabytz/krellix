@@ -77,15 +77,17 @@ QWidget *NetMonitor::createWidget(QWidget *parent)
     const QList<NetSample> samples = NetStat::read();
 
     for (const NetSample &s : samples) {
-        // Default-enable real interfaces (eth*, en*, wlan*, ...) and
-        // any bridge that Docker has named for us — those carry an
-        // alias from the daemon. Hosts running Docker therefore get
-        // their named networks ("internal", "matrix_internal", ...)
-        // visible by default without the user having to know the
-        // br-<hash> mapping. veth*, wg*, virbr*, manual br0, etc.
-        // remain default-disabled.
-        const bool defaultEnabled = !s.alias.isEmpty()
-                                  || NetStat::isMainInterface(s.name);
+        // Default-enable real interfaces (eth*, en*, wlan*, ...). For
+        // Docker bridges only docker0 is default-enabled — its counters
+        // have been replaced server-side with the sum of all Docker
+        // networks, so it acts as a single combined "Docker activity"
+        // panel. Individual user-defined bridges (br-<hash>) are still
+        // available with friendly aliases, but stay default-disabled
+        // so the user gets a clean single panel by default; they can
+        // toggle individuals on for a per-network breakdown.
+        const bool defaultEnabled =
+            (s.name == QLatin1String("docker0"))
+            || NetStat::isMainInterface(s.name);
         const bool enabled = settings.value(
             QStringLiteral("monitors/net/") + s.name, defaultEnabled).toBool();
         if (!enabled) continue;
@@ -135,8 +137,9 @@ void NetMonitor::tick()
             // the monitor was constructed, OR when a fresh setting just
             // enabled this iface. Build its panel now so the user sees
             // their toggle take effect without another rebuild.
-            const bool defaultEnabled = !s.alias.isEmpty()
-                                      || NetStat::isMainInterface(s.name);
+            const bool defaultEnabled =
+                (s.name == QLatin1String("docker0"))
+                || NetStat::isMainInterface(s.name);
             const bool enabled = settings.value(
                 QStringLiteral("monitors/net/") + s.name, defaultEnabled).toBool();
             if (!enabled || !m_container || !m_containerLayout) continue;

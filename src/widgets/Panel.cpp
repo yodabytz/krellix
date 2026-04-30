@@ -130,18 +130,44 @@ void Panel::paintEvent(QPaintEvent *)
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
     const QRect r = rect();
 
-    // Stretch the panel_bg image to fill the panel rect in both
-    // dimensions. Earlier behavior was scale-to-height + tile-X (the
-    // GKrellM convention), which made the image render at noticeably
-    // different scales between a short CPU panel (~30 px tall) and a
-    // taller Net panel (~70 px tall) — same texture, different visual
-    // size, jarring across the stack. Plain stretch keeps every panel
-    // looking like the same surface; theme authors who want lossless
-    // 1:1 tiles still get pixel-accurate rendering when the panel
-    // size happens to match the source image size.
+    // Background image rendering. Earlier iterations:
+    //   v1: scale-to-height + tile-X — same image rendered at hugely
+    //       different visual size between a short CPU panel and a tall
+    //       Net panel.
+    //   v2: stretch in both dimensions — kept the *width* consistent
+    //       but tall panels (Net, with multiple ifaces stacked) made
+    //       the image render visibly stretched, again huge near the
+    //       bottom of the window.
+    //   v3 (this): scale to panel WIDTH preserving aspect ratio. The
+    //       same image now renders at the same *visual* size on every
+    //       panel (because every panel is the same width). If the
+    //       panel is taller than the scaled image, fill the gap below
+    //       with the image's bottom row stretched down — gives a
+    //       continuous-feeling background without a hard color seam,
+    //       and lets theme authors design a "header band + tail
+    //       gradient" image without having to think about each panel's
+    //       height. Panels narrower than the image height just clip
+    //       (no theme realistically hits this case).
     const QPixmap bgPix = m_theme->pixmap(QStringLiteral("panel_bg"));
     if (!bgPix.isNull() && r.width() > 0 && r.height() > 0) {
-        p.drawPixmap(r, bgPix);
+        const QPixmap scaled = bgPix.scaledToWidth(r.width(),
+                                                   Qt::SmoothTransformation);
+        const int imgH = scaled.height();
+        if (imgH >= r.height()) {
+            // Image at least as tall as the panel — paint clipped to rect.
+            p.drawPixmap(0, 0, scaled);
+        } else {
+            p.drawPixmap(0, 0, scaled);
+            // Extend bottom row down to fill remainder. Use a 1-px-tall
+            // strip stretched to remaining height so the seam between
+            // image and fill is invisible at the per-pixel level.
+            if (imgH > 0) {
+                const QPixmap tail = scaled.copy(0, imgH - 1,
+                                                 scaled.width(), 1);
+                p.drawPixmap(QRect(0, imgH, r.width(), r.height() - imgH),
+                             tail);
+            }
+        }
     } else {
         p.fillRect(r, m_theme->color(QStringLiteral("panel_bg")));
     }

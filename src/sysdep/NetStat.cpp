@@ -140,5 +140,45 @@ QList<NetSample> NetStat::read()
         if (!alias.isEmpty()) s.alias = alias;
     }
 
+    // Combined Docker view: take the existing docker0 entry and
+    // override its counters with the SUM of every Docker-managed
+    // bridge (docker0 + all br-<hash> with a friendly alias).  This
+    // makes "docker0" function as a single "all containers" pseudo-
+    // interface — the natural panel a user looking at the krellix
+    // window expects to be the one-stop Docker reading. Individual
+    // Compose-network bridges are still in the sample list (and the
+    // settings dialog can toggle them on for a per-network breakdown),
+    // but they're default-disabled so the default render is one
+    // single combined panel rather than seven separate ones.
+    //
+    // Per-bridge counters are NOT subtracted out — docker0's own
+    // member counters are already part of the bridge fixup above
+    // (member-summed), and we add docker0 itself to the total below
+    // along with every other aliased bridge. No double-counting
+    // because each interface is counted once on its own line.
+    {
+        const auto dockerIt = indexByName.constFind(QStringLiteral("docker0"));
+        if (dockerIt != indexByName.constEnd()) {
+            quint64 rxB = 0, txB = 0, rxP = 0, txP = 0;
+            int counted = 0;
+            for (const NetSample &b : samples) {
+                if (b.alias.isEmpty()) continue;     // not a Docker bridge
+                rxB += b.rxBytes;   txB += b.txBytes;
+                rxP += b.rxPackets; txP += b.txPackets;
+                ++counted;
+            }
+            if (counted > 0) {
+                NetSample &d = samples[*dockerIt];
+                d.rxBytes   = rxB;
+                d.txBytes   = txB;
+                d.rxPackets = rxP;
+                d.txPackets = txP;
+                // Replace alias with a "(N networks)" hint so the
+                // panel title makes the combined nature obvious.
+                d.alias = QStringLiteral("Docker (%1 networks)").arg(counted);
+            }
+        }
+    }
+
     return samples;
 }
