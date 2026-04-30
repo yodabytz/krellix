@@ -78,11 +78,20 @@ void Chart::setRainbowSeries(int n)
     n = qMax(1, n);
     QList<QColor> palette;
     palette.reserve(n);
-    // Evenly-spaced hues at fixed S/V — keeps the lines distinguishable
-    // without anyone being too dim. Skip the very-red region near 0° on
-    // its own (it's reserved for warning/critical accents in our themes).
+    // Cool-to-warm cores: descend hue 220° (deep blue) → 0° (red), so
+    // adjacent cores in the chart get visually-similar colors and the
+    // palette walks through the full blue → cyan → green → yellow →
+    // orange → red progression as core count climbs. This is much
+    // easier to read than the previous evenly-spread rainbow, where a
+    // bright red `cpu1` next to a deep blue `cpu2` made the chart look
+    // alarmist by default. Themes can still override with explicit
+    // chart_line_cpu_<n> entries via setSeriesColors() — this is just
+    // the default when no per-series color is provided.
     for (int i = 0; i < n; ++i) {
-        const int hue = ((i * 360) / n + 30) % 360;
+        const double t = (n == 1) ? 0.0
+                                  : static_cast<double>(i)
+                                  / static_cast<double>(n - 1);
+        const int hue = static_cast<int>(220.0 - t * 220.0 + 0.5);
         palette.append(QColor::fromHsv(hue, 200, 230));
     }
     setSeriesColors(palette);

@@ -80,16 +80,31 @@ MainWindow::MainWindow(Theme *theme,
     restorePosition();
     connect(m_theme, &Theme::themeChanged, this, &MainWindow::onThemeChanged);
 
-    // Keybindings: T / Shift+T cycle through installed themes (forward /
-    // backward). No rebuild on theme switch, so chart history survives.
-    auto *nextTheme = new QShortcut(QKeySequence(QStringLiteral("T")), this);
-    nextTheme->setContext(Qt::WindowShortcut);
-    connect(nextTheme, &QShortcut::activated,
-            this, &MainWindow::cycleThemeForward);
-    auto *prevTheme = new QShortcut(QKeySequence(QStringLiteral("Shift+T")), this);
-    prevTheme->setContext(Qt::WindowShortcut);
-    connect(prevTheme, &QShortcut::activated,
-            this, &MainWindow::cycleThemeBackward);
+    // Keybindings: T / Shift+T and Up / Down (with optional Shift) cycle
+    // through installed themes (forward / backward). No rebuild on theme
+    // switch, so chart history survives.
+    const QKeySequence forwardKeys[] = {
+        QKeySequence(QStringLiteral("T")),
+        QKeySequence(Qt::Key_Up),
+        QKeySequence(Qt::SHIFT | Qt::Key_Up),
+    };
+    const QKeySequence backwardKeys[] = {
+        QKeySequence(QStringLiteral("Shift+T")),
+        QKeySequence(Qt::Key_Down),
+        QKeySequence(Qt::SHIFT | Qt::Key_Down),
+    };
+    for (const QKeySequence &k : forwardKeys) {
+        auto *sc = new QShortcut(k, this);
+        sc->setContext(Qt::WindowShortcut);
+        connect(sc, &QShortcut::activated,
+                this, &MainWindow::cycleThemeForward);
+    }
+    for (const QKeySequence &k : backwardKeys) {
+        auto *sc = new QShortcut(k, this);
+        sc->setContext(Qt::WindowShortcut);
+        connect(sc, &QShortcut::activated,
+                this, &MainWindow::cycleThemeBackward);
+    }
 }
 
 MainWindow::~MainWindow() = default;
