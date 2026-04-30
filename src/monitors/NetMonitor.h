@@ -30,15 +30,30 @@ public:
     QWidget *createWidget(QWidget *parent) override;
     void     tick() override;
 
-private:
-public:
     struct IfaceUI {
         QPointer<Decal> textDecal;
         QPointer<Krell> rxKrell;
         QPointer<Krell> txKrell;
         QPointer<Chart> chart;
         double          maxBps = 1024.0 * 1024.0;  // adaptive scale
+
+        // Used only by the synthetic combined docker0 panel: each
+        // attached Docker bridge gets its own colored series in the
+        // chart so the user can see at a glance which network is
+        // doing the work. dockerBridges is the ordered list (one entry
+        // per chart series), dockerPrev is the previous-tick counters
+        // for each bridge so we can diff for per-series throughput.
+        bool                       dockerMultiSeries = false;
+        QStringList                dockerBridges;
+        QHash<QString, NetSample>  dockerPrev;
     };
+
+    // Wire docker0's chart up as a multi-series rainbow with one line
+    // per Docker bridge, so the combined panel shows which network is
+    // doing the work.
+    void setupDockerMultiSeries(IfaceUI &ui,
+                                const QList<NetSample> &samples);
+
 private:
 
     QHash<QString, IfaceUI>    m_ifaces;

@@ -91,9 +91,12 @@ QWidget *NetMonitor::createWidget(QWidget *parent)
         const bool enabled = settings.value(
             QStringLiteral("monitors/net/") + s.name, defaultEnabled).toBool();
         if (!enabled) continue;
-        m_ifaces.insert(s.name,
-                        buildIfacePanel(theme(), container, vbox,
-                                        s.name, s.alias));
+        IfaceUI ui = buildIfacePanel(theme(), container, vbox,
+                                     s.name, s.alias);
+        if (s.name == QLatin1String("docker0")) {
+            setupDockerMultiSeries(ui, samples);
+        }
+        m_ifaces.insert(s.name, ui);
         m_prevSamples.insert(s.name, s);
     }
 
@@ -151,10 +154,13 @@ void NetMonitor::tick()
                 m_placeholderPanel->deleteLater();
                 m_placeholderPanel = nullptr;
             }
-            m_ifaces.insert(s.name,
-                            buildIfacePanel(theme(), m_container,
-                                            m_containerLayout,
-                                            s.name, s.alias));
+            IfaceUI ui = buildIfacePanel(theme(), m_container,
+                                         m_containerLayout,
+                                         s.name, s.alias);
+            if (s.name == QLatin1String("docker0")) {
+                setupDockerMultiSeries(ui, samples);
+            }
+            m_ifaces.insert(s.name, ui);
             m_prevSamples.insert(s.name, s);
             continue;   // first appearance: defer rate computation to next tick
         }
@@ -173,15 +179,41 @@ void NetMonitor::tick()
             }
         }
 
-        const double peakBps = qMax(rxBps, txBps);
+        // For docker0 (combined Docker view), feed the chart per-bridge
+        // throughput in different colors so the user can see which
+        // network is doing the work. Krells + decal still show the
+        // combined RX/TX. For everything else, single-series chart of
+        // RX+TX as before.
+        double peakBps = qMax(rxBps, txBps);
+        if (ui.dockerMultiSeries && ui.chart) {
+            for (int i = 0; i < ui.dockerBridges.size(); ++i) {
+                const QString &bn = ui.dockerBridges[i];
+                const NetSample *curr = nullptr;
+                for (const NetSample &b : samples)
+                    if (b.name == bn) { curr = &b; break; }
+                const auto prevIt = ui.dockerPrev.constFind(bn);
+                if (!curr || prevIt == ui.dockerPrev.constEnd()) continue;
+                const quint64 dRx = (curr->rxBytes >= prevIt->rxBytes)
+                                  ? curr->rxBytes - prevIt->rxBytes : 0;
+                const quint64 dTx = (curr->txBytes >= prevIt->txBytes)
+                                  ? curr->txBytes - prevIt->txBytes : 0;
+                const double bps = static_cast<double>(dRx + dTx) / dt;
+                ui.chart->appendSampleAt(i, bps);
+                if (bps > peakBps) peakBps = bps;
+                ui.dockerPrev.insert(bn, *curr);
+            }
+        }
+
         ui.maxBps = qMax(kMinAdaptiveBps,
-                         qMax(ui.maxBps * kAdaptiveDecay, peakBps * kAdaptiveGrow));
+                         qMax(ui.maxBps * kAdaptiveDecay,
+                              peakBps * kAdaptiveGrow));
 
         if (ui.rxKrell) ui.rxKrell->setValue(qBound(0.0, rxBps / ui.maxBps, 1.0));
         if (ui.txKrell) ui.txKrell->setValue(qBound(0.0, txBps / ui.maxBps, 1.0));
         if (ui.chart) {
             ui.chart->setMaxValue(ui.maxBps);
-            ui.chart->appendSample(rxBps + txBps);
+            if (!ui.dockerMultiSeries)
+                ui.chart->appendSample(rxBps + txBps);
         }
         if (ui.textDecal) {
             ui.textDecal->setText(QStringLiteral("RX %1  TX %2")
@@ -191,4 +223,22 @@ void NetMonitor::tick()
         m_prevSamples.insert(s.name, s);
     }
     m_havePrev = true;
+}
+
+void NetMonitor::setupDockerMultiSeries(IfaceUI &ui,
+                                        const QList<NetSample> &samples)
+{
+    // Pull every bridge that the daemon has tagged with a friendly
+    // alias (i.e. every network Docker knows about) — except docker0
+    // itself, which is the synthetic combined view. Each surviving
+    // bridge gets its own colored series in docker0's chart.
+    for (const NetSample &b : samples) {
+        if (b.alias.isEmpty()) continue;
+        if (b.name == QLatin1String("docker0")) continue;
+        ui.dockerBridges.append(b.name);
+        ui.dockerPrev.insert(b.name, b);
+    }
+    if (ui.dockerBridges.isEmpty()) return;
+    ui.dockerMultiSeries = true;
+    if (ui.chart) ui.chart->setRainbowSeries(ui.dockerBridges.size());
 }
