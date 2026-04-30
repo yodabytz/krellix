@@ -127,19 +127,21 @@ void Panel::mouseReleaseEvent(QMouseEvent *event)
 void Panel::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
+    p.setRenderHint(QPainter::SmoothPixmapTransform, true);
     const QRect r = rect();
 
-    // Background image rendering follows the GKrellM convention: scale
-    // vertically so the image's gradient/3D shading exactly matches the
-    // panel height, then tile horizontally across the panel width. This
-    // preserves the artist's intended top-to-bottom shading while letting
-    // the panel be any width without distortion.
+    // Stretch the panel_bg image to fill the panel rect in both
+    // dimensions. Earlier behavior was scale-to-height + tile-X (the
+    // GKrellM convention), which made the image render at noticeably
+    // different scales between a short CPU panel (~30 px tall) and a
+    // taller Net panel (~70 px tall) — same texture, different visual
+    // size, jarring across the stack. Plain stretch keeps every panel
+    // looking like the same surface; theme authors who want lossless
+    // 1:1 tiles still get pixel-accurate rendering when the panel
+    // size happens to match the source image size.
     const QPixmap bgPix = m_theme->pixmap(QStringLiteral("panel_bg"));
-    if (!bgPix.isNull() && r.height() > 0) {
-        const QPixmap scaled = (bgPix.height() == r.height())
-            ? bgPix
-            : bgPix.scaledToHeight(r.height(), Qt::SmoothTransformation);
-        p.drawTiledPixmap(r, scaled);
+    if (!bgPix.isNull() && r.width() > 0 && r.height() > 0) {
+        p.drawPixmap(r, bgPix);
     } else {
         p.fillRect(r, m_theme->color(QStringLiteral("panel_bg")));
     }

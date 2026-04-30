@@ -381,28 +381,25 @@ void MainWindow::paintEvent(QPaintEvent *)
     if (!bottomPix.isNull())
         p.drawPixmap(QRect(0, height() - bottomH, width(), bottomH), bottomPix);
 
-    // Side frames: scale the strip to match its native aspect ratio at
-    // the requested width, then tile vertically. This avoids the
-    // alien-creature stretching pixelation and the repeating-creature
-    // artifact at the same time — the small gradient pattern repeats
-    // smoothly down the column at intended scale.
+    // Side frames stretch to fill the side strip in both dimensions
+    // (was: scale-to-width then tile-Y). Stretching keeps the visual
+    // language consistent with the new Panel rendering — every theme
+    // image scales to its target rect — and avoids the obvious tile
+    // seam that appeared at the repeat boundary on tall windows.
+    // Theme authors who want a tileable side-strip can supply a
+    // tall-enough source image; krellix will scale it without
+    // chopping it into a repeating creature column.
     const int sideTop    = topH;
     const int sideBottom = height() - bottomH;
     if (sideBottom > sideTop) {
         if (!leftPix.isNull()) {
-            const QPixmap scaled = (leftPix.width() == leftW)
-                ? leftPix
-                : leftPix.scaledToWidth(leftW, Qt::SmoothTransformation);
-            p.drawTiledPixmap(QRect(0, sideTop, leftW, sideBottom - sideTop),
-                              scaled);
+            p.drawPixmap(QRect(0, sideTop, leftW, sideBottom - sideTop),
+                         leftPix);
         }
         if (!rightPix.isNull()) {
-            const QPixmap scaled = (rightPix.width() == rightW)
-                ? rightPix
-                : rightPix.scaledToWidth(rightW, Qt::SmoothTransformation);
-            p.drawTiledPixmap(QRect(width() - rightW, sideTop, rightW,
-                                    sideBottom - sideTop),
-                              scaled);
+            p.drawPixmap(QRect(width() - rightW, sideTop, rightW,
+                               sideBottom - sideTop),
+                         rightPix);
         }
     }
 }

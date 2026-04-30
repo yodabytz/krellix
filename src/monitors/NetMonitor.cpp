@@ -77,7 +77,15 @@ QWidget *NetMonitor::createWidget(QWidget *parent)
     const QList<NetSample> samples = NetStat::read();
 
     for (const NetSample &s : samples) {
-        const bool defaultEnabled = NetStat::isMainInterface(s.name);
+        // Default-enable real interfaces (eth*, en*, wlan*, ...) and
+        // any bridge that Docker has named for us — those carry an
+        // alias from the daemon. Hosts running Docker therefore get
+        // their named networks ("internal", "matrix_internal", ...)
+        // visible by default without the user having to know the
+        // br-<hash> mapping. veth*, wg*, virbr*, manual br0, etc.
+        // remain default-disabled.
+        const bool defaultEnabled = !s.alias.isEmpty()
+                                  || NetStat::isMainInterface(s.name);
         const bool enabled = settings.value(
             QStringLiteral("monitors/net/") + s.name, defaultEnabled).toBool();
         if (!enabled) continue;
@@ -127,7 +135,8 @@ void NetMonitor::tick()
             // the monitor was constructed, OR when a fresh setting just
             // enabled this iface. Build its panel now so the user sees
             // their toggle take effect without another rebuild.
-            const bool defaultEnabled = NetStat::isMainInterface(s.name);
+            const bool defaultEnabled = !s.alias.isEmpty()
+                                      || NetStat::isMainInterface(s.name);
             const bool enabled = settings.value(
                 QStringLiteral("monitors/net/") + s.name, defaultEnabled).toBool();
             if (!enabled || !m_container || !m_containerLayout) continue;
