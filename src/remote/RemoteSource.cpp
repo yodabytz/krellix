@@ -191,16 +191,20 @@ void RemoteSource::parseLine(const QByteArray &line)
     for (const QJsonValue &v : obj.value(QStringLiteral("cpu")).toArray()) {
         const QJsonObject c = v.toObject();
         CpuSample s;
-        s.name    = c.value(QStringLiteral("name")).toString();
-        s.index   = c.value(QStringLiteral("i")).toInt(-1);
-        s.user    = quint64(c.value(QStringLiteral("user")).toDouble());
-        s.nice    = quint64(c.value(QStringLiteral("nice")).toDouble());
-        s.sys     = quint64(c.value(QStringLiteral("sys")).toDouble());
-        s.idle    = quint64(c.value(QStringLiteral("idle")).toDouble());
-        s.iowait  = quint64(c.value(QStringLiteral("iowait")).toDouble());
-        s.irq     = quint64(c.value(QStringLiteral("irq")).toDouble());
-        s.softirq = quint64(c.value(QStringLiteral("softirq")).toDouble());
-        s.steal   = quint64(c.value(QStringLiteral("steal")).toDouble());
+        s.name      = c.value(QStringLiteral("name")).toString();
+        s.index     = c.value(QStringLiteral("i")).toInt(-1);
+        // Daemon already sends effective user/nice (guest backed out)
+        // for old-client compatibility. Leaving guest/guestNice at 0 in
+        // the parsed sample keeps effectiveUser()/effectiveNice() a
+        // no-op so we don't double-subtract on the client side.
+        s.user      = quint64(c.value(QStringLiteral("user")).toDouble());
+        s.nice      = quint64(c.value(QStringLiteral("nice")).toDouble());
+        s.sys       = quint64(c.value(QStringLiteral("sys")).toDouble());
+        s.idle      = quint64(c.value(QStringLiteral("idle")).toDouble());
+        s.iowait    = quint64(c.value(QStringLiteral("iowait")).toDouble());
+        s.irq       = quint64(c.value(QStringLiteral("irq")).toDouble());
+        s.softirq   = quint64(c.value(QStringLiteral("softirq")).toDouble());
+        s.steal     = quint64(c.value(QStringLiteral("steal")).toDouble());
         cpu.append(s);
     }
     m_cpu = cpu;

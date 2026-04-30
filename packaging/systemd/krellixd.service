@@ -1,0 +1,47 @@
+[Unit]
+Description=krellix remote monitoring daemon
+Documentation=https://github.com/yodabytz/krellix
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/krellixd --config /etc/krellixd/krellixd.conf
+Restart=on-failure
+RestartSec=3s
+
+# --- sandboxing ---
+# Notably absent: ProtectSystem, ProtectHome, PrivateTmp, PrivateDevices,
+# ProtectKernelTunables, ProtectKernelModules, ProtectKernelLogs,
+# ProtectControlGroups, ProtectClock, ProtectHostname.
+#
+# Those options put the unit into a private mount namespace, which on
+# many VPS / container hosts (LXC, OpenVZ, some KVM-with-overlay-/proc
+# setups) causes /proc to be re-mounted from the underlying host's
+# procfs. The daemon then reports the host's CPU count and memory
+# instead of the container's view (e.g. 8 cores / 32 GB of host shown
+# instead of 4 cores / 8 GB of VPS). The daemon only ever reads /proc
+# read-only and writes nothing to disk, so the threat-model cost of
+# dropping these is small. For bare-metal hosts that want the extra
+# hardening, drop in packaging/systemd/krellixd.service.d/bare-metal-
+# hardening.conf — see that file for details.
+DynamicUser=yes
+NoNewPrivileges=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+AmbientCapabilities=
+RemoveIPC=yes
+UMask=0077
+
+# --- resource limits ---
+LimitNOFILE=256
+TasksMax=32
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target

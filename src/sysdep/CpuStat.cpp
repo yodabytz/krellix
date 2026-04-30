@@ -45,14 +45,20 @@ bool parseCpuLine(const QByteArray &line, CpuSample &out)
         return ok ? v : 0;
     };
 
-    out.user    = field(0);
-    out.nice    = field(1);
-    out.sys     = field(2);
-    out.idle    = field(3);
-    out.iowait  = field(4);
-    out.irq     = field(5);
-    out.softirq = field(6);
-    out.steal   = field(7);
+    out.user      = field(0);
+    out.nice      = field(1);
+    out.sys       = field(2);
+    out.idle      = field(3);
+    out.iowait    = field(4);
+    out.irq       = field(5);
+    out.softirq   = field(6);
+    out.steal     = field(7);
+    // Linux 2.6.24+ adds guest after steal; 2.6.33+ adds guest_nice.
+    // field() returns 0 for missing fields on older kernels, which is
+    // exactly what we want — pre-virtualization counters never had any
+    // guest time to subtract.
+    out.guest     = field(8);
+    out.guestNice = field(9);
     return true;
 }
 

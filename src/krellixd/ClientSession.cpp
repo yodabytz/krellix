@@ -60,14 +60,22 @@ QJsonObject sampleObject()
         QJsonObject c;
         c.insert(QStringLiteral("name"),  s.name);
         c.insert(QStringLiteral("i"),     s.index);
-        c.insert(QStringLiteral("user"),    qint64(s.user));
-        c.insert(QStringLiteral("nice"),    qint64(s.nice));
-        c.insert(QStringLiteral("sys"),     qint64(s.sys));
-        c.insert(QStringLiteral("idle"),    qint64(s.idle));
-        c.insert(QStringLiteral("iowait"),  qint64(s.iowait));
-        c.insert(QStringLiteral("irq"),     qint64(s.irq));
-        c.insert(QStringLiteral("softirq"), qint64(s.softirq));
-        c.insert(QStringLiteral("steal"),   qint64(s.steal));
+        // Send effective user / nice (raw - guest / raw - guest_nice) so
+        // clients running older krellix builds — which sum user+nice+...
+        // straight from the wire without subtracting guest — display
+        // correct CPU utilization on virtualization-aware kernels. New
+        // clients can still recover the raw figures by adding guest /
+        // guest_nice back if they need them.
+        c.insert(QStringLiteral("user"),       qint64(s.effectiveUser()));
+        c.insert(QStringLiteral("nice"),       qint64(s.effectiveNice()));
+        c.insert(QStringLiteral("sys"),        qint64(s.sys));
+        c.insert(QStringLiteral("idle"),       qint64(s.idle));
+        c.insert(QStringLiteral("iowait"),     qint64(s.iowait));
+        c.insert(QStringLiteral("irq"),        qint64(s.irq));
+        c.insert(QStringLiteral("softirq"),    qint64(s.softirq));
+        c.insert(QStringLiteral("steal"),      qint64(s.steal));
+        c.insert(QStringLiteral("guest"),      qint64(s.guest));
+        c.insert(QStringLiteral("guest_nice"), qint64(s.guestNice));
         cpuArr.append(c);
     }
     o.insert(QStringLiteral("cpu"), cpuArr);

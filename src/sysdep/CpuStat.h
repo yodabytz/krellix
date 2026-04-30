@@ -6,20 +6,41 @@
 
 // Per-CPU snapshot read from /proc/stat. Counters are jiffies since boot;
 // utilization is computed by diffing two samples.
+//
+// On kernels with virtualization the line carries two extra fields after
+// `steal`: `guest` (time spent running a guest VM in user mode) and
+// `guest_nice` (same but at niced priority). Critically, `guest` is
+// already counted inside `user`, and `guest_nice` is counted inside
+// `nice` — so naively summing user+nice+...+steal double-counts guest
+// time and inflates "user" CPU utilization on hosts that run VMs.
+// effectiveUser()/effectiveNice() back guest time out; totalAll() uses
+// the effective values.
 struct CpuSample {
-    QString  name;        // "cpu" (aggregate) or "cpu0", "cpu1", ...
-    int      index = -1;  // -1 for the aggregate; 0,1,2... for cores
-    quint64  user    = 0;
-    quint64  nice    = 0;
-    quint64  sys     = 0;
-    quint64  idle    = 0;
-    quint64  iowait  = 0;
-    quint64  irq     = 0;
-    quint64  softirq = 0;
-    quint64  steal   = 0;
+    QString  name;          // "cpu" (aggregate) or "cpu0", "cpu1", ...
+    int      index = -1;    // -1 for the aggregate; 0,1,2... for cores
+    quint64  user      = 0;
+    quint64  nice      = 0;
+    quint64  sys       = 0;
+    quint64  idle      = 0;
+    quint64  iowait    = 0;
+    quint64  irq       = 0;
+    quint64  softirq   = 0;
+    quint64  steal     = 0;
+    quint64  guest     = 0;
+    quint64  guestNice = 0;
+
+    quint64 effectiveUser() const {
+        return user > guest ? user - guest : 0;
+    }
+    quint64 effectiveNice() const {
+        return nice > guestNice ? nice - guestNice : 0;
+    }
 
     quint64 totalIdle() const { return idle + iowait; }
-    quint64 totalAll()  const { return user + nice + sys + irq + softirq + steal + idle + iowait; }
+    quint64 totalAll()  const {
+        return effectiveUser() + effectiveNice() + sys + irq + softirq
+             + steal + idle + iowait;
+    }
 };
 
 class CpuStat
