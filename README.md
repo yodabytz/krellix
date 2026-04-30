@@ -10,7 +10,7 @@ and more — driven by a clean-sheet native theme format that any user can autho
 > and the optional `krellixd` remote daemon are still to come. Expect breakages
 > while the API stabilizes.
 
-<img src="https://raw.githubusercontent.com/yodabytz/krellix/refs/heads/main/krellix-display.png" width="400">
+<img src="https://raw.githubusercontent.com/yodabytz/krellix/refs/heads/main/krellix-display2.png" width="400">
 
 ## Build
 
