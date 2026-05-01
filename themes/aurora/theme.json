@@ -2,10 +2,10 @@
   "name": "aurora",
   "version": "1.0",
   "author": "krellix",
-  "description": "Aurora — northern-lights gradients on a deep midnight base. Showcases the v2 schema: vertical panel gradient, full-rect krell sweep, gradient chart background, soft text shadows.",
+  "description": "Aurora — luminous green, cyan, violet, and rose light bands over a deep polar-night base.",
 
   "comment_v2_demo":
-    "Aurora is the reference theme for v2 features. No image assets — every surface paints from gradients. Use it as a starting point for new themes that don't want to depend on PNG textures.",
+    "Aurora is the reference theme for imageless v2 styling: monitor-specific panel gradients, bright krell sweeps, gradient charts, and soft text glow.",
 
   "surfaces": {
     "panel_bg":         { "slice": 0, "opacity": 1.0 },
@@ -29,57 +29,119 @@
   },
 
   "comment_colors":
-    "Top-level color values can be either flat strings or gradient objects ({gradient, angle, stops}). Angle 90° = top-to-bottom, 0° = left-to-right.",
+    "Panel gradients are intentionally bright enough to read as northern lights while keeping the base dark enough for dense monitor text.",
   "colors": {
     "panel_bg": {
       "gradient": "linear",
-      "angle":    90,
-      "stops":    [[0.0, "#0a1a3a"], [0.55, "#0b2444"], [1.0, "#06122a"]]
+      "angle":    115,
+      "stops":    [[0.0, "#05102a"], [0.34, "#0a3150"], [0.58, "#0a6a63"], [0.76, "#28316a"], [1.0, "#070b20"]]
     },
-    "panel_border":    "#1d3160",
-    "panel_highlight": "#102447",
+    "panel_bg_host": {
+      "gradient": "linear",
+      "angle":    105,
+      "stops":    [[0.0, "#06112e"], [0.30, "#0d766d"], [0.58, "#47e89d"], [0.78, "#654dff"], [1.0, "#080b1d"]]
+    },
+    "panel_bg_clock": {
+      "gradient": "linear",
+      "angle":    100,
+      "stops":    [[0.0, "#080c26"], [0.32, "#12357c"], [0.55, "#21d5dc"], [0.80, "#8f65ff"], [1.0, "#090a1c"]]
+    },
+    "panel_bg_cpu": {
+      "gradient": "linear",
+      "angle":    110,
+      "stops":    [[0.0, "#061329"], [0.25, "#0b5066"], [0.48, "#35f4a1"], [0.70, "#20b8ff"], [1.0, "#090b1f"]]
+    },
+    "panel_bg_mem": {
+      "gradient": "linear",
+      "angle":    112,
+      "stops":    [[0.0, "#081027"], [0.30, "#233a80"], [0.54, "#a56dff"], [0.72, "#35e9c4"], [1.0, "#090b1f"]]
+    },
+    "panel_bg_net": {
+      "gradient": "linear",
+      "angle":    108,
+      "stops":    [[0.0, "#041326"], [0.28, "#0b7362"], [0.52, "#65ff8f"], [0.73, "#36a3ff"], [1.0, "#071020"]]
+    },
+    "panel_bg_disk": {
+      "gradient": "linear",
+      "angle":    112,
+      "stops":    [[0.0, "#071126"], [0.32, "#2a3472"], [0.55, "#ff69bf"], [0.76, "#78f6ff"], [1.0, "#090b1e"]]
+    },
+    "panel_bg_uptime": {
+      "gradient": "linear",
+      "angle":    105,
+      "stops":    [[0.0, "#061126"], [0.34, "#11476d"], [0.58, "#59ffc7"], [0.82, "#6d6dff"], [1.0, "#080b1f"]]
+    },
+    "panel_bg_battery": {
+      "gradient": "linear",
+      "angle":    110,
+      "stops":    [[0.0, "#071327"], [0.28, "#356119"], [0.52, "#b9ff65"], [0.73, "#34ffd5"], [1.0, "#080d1f"]]
+    },
+    "panel_bg_sensors": {
+      "gradient": "linear",
+      "angle":    108,
+      "stops":    [[0.0, "#071126"], [0.30, "#523170"], [0.54, "#ff6bb8"], [0.76, "#68f8ff"], [1.0, "#090b1e"]]
+    },
+    "panel_border":    "#54ffe6",
+    "panel_highlight": "#93ffb9",
 
     "chart_bg": {
       "gradient": "linear",
       "angle":    90,
-      "stops":    [[0.0, "#04101e"], [1.0, "#02060c"]]
+      "stops":    [[0.0, "#021021"], [0.42, "#082345"], [0.70, "#06262f"], [1.0, "#01040b"]]
     },
-    "chart_grid": "#173065",
+    "chart_grid": "#1d587b",
 
     "krell_track": {
       "gradient": "linear",
       "angle":    90,
-      "stops":    [[0.0, "#091a36"], [1.0, "#04101e"]]
+      "stops":    [[0.0, "#071426"], [0.48, "#102b4d"], [1.0, "#02070e"]]
     },
     "krell_indicator": {
       "gradient": "linear",
       "angle":    0,
       "stops":    [
-        [0.00, "#36a3ff"],
-        [0.45, "#5fff9a"],
-        [0.80, "#9b8bff"],
-        [1.00, "#ff66b3"]
+        [0.00, "#39a6ff"],
+        [0.24, "#72fff0"],
+        [0.47, "#65ff8f"],
+        [0.70, "#b789ff"],
+        [1.00, "#ff6fbd"]
       ]
     },
 
-    "text_primary":   "#dce0ff",
-    "text_secondary": "#8e9bbf",
-    "text_accent":    "#7df5ff",
+    "text_primary":   "#f0f6ff",
+    "text_secondary": "#a9c4de",
+    "text_accent":    "#70fff1",
 
-    "chart_line_default": "#7df5ff",
+    "chart_line_default": {
+      "gradient": "linear",
+      "angle":    0,
+      "stops":    [[0.0, "#6efcff"], [0.55, "#68ff9a"], [1.0, "#b88cff"]]
+    },
     "chart_line_cpu": {
       "gradient": "linear",
       "angle":    0,
-      "stops":    [[0.0, "#36a3ff"], [1.0, "#5fff9a"]]
+      "stops":    [[0.0, "#39a6ff"], [0.45, "#70fff1"], [1.0, "#69ff93"]]
     },
-    "chart_line_mem":     "#9b8bff",
-    "chart_line_swap":    "#ff66b3",
-    "chart_line_net_rx":  "#5fff9a",
-    "chart_line_net_tx":  "#7df5ff",
-    "chart_line_disk":    "#9b8bff",
+    "chart_line_mem": {
+      "gradient": "linear",
+      "angle":    0,
+      "stops":    [[0.0, "#8d7dff"], [0.55, "#d783ff"], [1.0, "#70fff1"]]
+    },
+    "chart_line_swap":    "#ff7abd",
+    "chart_line_net_rx": {
+      "gradient": "linear",
+      "angle":    0,
+      "stops":    [[0.0, "#5cff8d"], [0.60, "#77fff0"], [1.0, "#36a3ff"]]
+    },
+    "chart_line_net_tx":  "#77fff0",
+    "chart_line_disk": {
+      "gradient": "linear",
+      "angle":    0,
+      "stops":    [[0.0, "#b88cff"], [0.52, "#ff7abd"], [1.0, "#77fff0"]]
+    },
 
-    "accent_warning":  "#ffc663",
-    "accent_critical": "#ff5c87"
+    "accent_warning":  "#ffe26a",
+    "accent_critical": "#ff4f9f"
   },
 
   "fonts": {
@@ -93,8 +155,8 @@
     "panel_spacing":    2,
     "panel_border":     1,
     "panel_min_width":  100,
-    "krell_height":     10,
-    "chart_height":     70,
+    "krell_height":     11,
+    "chart_height":     74,
     "chart_grid_lines": 4,
     "panel_bg_slice":   0
   }

@@ -73,6 +73,7 @@ private:
     void rebuildPanels();
     void applyFixedWidth();
     void applyFrameMargins();
+    void fitToPanelStack();
     void applySettingsOverridesToTheme();
     void restorePosition();
     void persistPosition();

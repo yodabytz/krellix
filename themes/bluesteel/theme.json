@@ -1,0 +1,92 @@
+{
+  "name": "bluesteel",
+  "version": "1.0",
+  "author": "krellix",
+  "description": "BlueSteel — a Krellix adaptation of Daniel Erat's classic GKrellM BlueSteel theme.",
+
+  "surfaces": {
+    "panel_bg":         { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_host":    { "image": "assets/host-panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_clock":   { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_cpu":     { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_mem":     { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_net":     { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_disk":    { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_uptime":  { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_battery": { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_sensors": { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 }
+  },
+
+  "text_styles": {
+    "text_primary":   { "color": "#ffffff", "shadow": { "x": 1, "y": 1, "color": "#000000ff" } },
+    "text_secondary": { "color": "#99e38e", "shadow": { "x": 1, "y": 1, "color": "#000000ff" } },
+    "text_accent":    { "color": "#93dbff", "shadow": { "x": 1, "y": 1, "color": "#000000ff" } },
+    "chart_line_default": { "color": "#efd097", "shadow": { "x": 1, "y": 1, "color": "#000000ff" } }
+  },
+
+  "images": {
+    "panel_bg":     { "image": "assets/panel.png", "mode": "nine-slice" },
+    "chart_bg":     { "image": "assets/chart-bg.png", "mode": "stretch" },
+    "krell_track":  { "image": "assets/krell-track.png", "mode": "stretch" },
+    "krell":        { "image": "assets/krell.png", "frames": 1 },
+    "frame_top":    "assets/frame-top.png",
+    "frame_bottom": "assets/frame-bottom.png",
+    "frame_left":   "assets/frame-left.png",
+    "frame_right":  "assets/frame-right.png"
+  },
+
+  "colors": {
+    "panel_bg":           "#252e38",
+    "panel_border":       "#55576b",
+    "panel_highlight":    "#77798f",
+    "chart_bg":           "#03070e",
+    "chart_grid":         "#05080d",
+    "text_primary":       "#ffffff",
+    "text_secondary":     "#99e38e",
+    "text_accent":        "#93dbff",
+    "krell_track":        "#071722",
+    "krell_indicator":    "#279aa1",
+    "chart_line_default": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [[0.0, "#0081c4"], [0.55, "#0081c4"], [1.0, "#00b084"]]
+    },
+    "chart_line_cpu": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [[0.0, "#0081c4"], [0.55, "#0081c4"], [1.0, "#00b084"]]
+    },
+    "chart_line_mem": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [[0.0, "#0081c4"], [1.0, "#00b084"]]
+    },
+    "chart_line_swap":    "#743544",
+    "chart_line_net_rx": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [[0.0, "#0081c4"], [1.0, "#00b084"]]
+    },
+    "chart_line_net_tx":  "#0081c4",
+    "chart_line_disk":    "#9aa8b5",
+    "accent_warning":     "#d6bf69",
+    "accent_critical":    "#d86a6a"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 8, "bold": false },
+    "value": { "family": "Monospace", "size": 9, "bold": false },
+    "time":  { "family": "Monospace", "size": 9, "bold": false }
+  },
+
+  "metrics": {
+    "panel_padding":    3,
+    "panel_spacing":    1,
+    "panel_border":     0,
+    "panel_min_width":  80,
+    "krell_height":     8,
+    "chart_height":     48,
+    "chart_grid_lines": 6,
+    "panel_bg_slice":   5
+  }
+}

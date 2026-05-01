@@ -52,14 +52,13 @@ static NetMonitor::IfaceUI buildIfacePanel(Theme *theme, QWidget *parent,
     p->setSurfaceKey(QStringLiteral("panel_bg_net"));
     p->setTitle(alias.isEmpty() ? name : alias);
     NetMonitor::IfaceUI ui;
-    ui.textDecal = p->addDecal(QStringLiteral("label"),
-                               QStringLiteral("text_primary"));
-    ui.textDecal->setAlignment(Qt::AlignHCenter);
-    ui.textDecal->setText(QStringLiteral("RX 0  TX 0"));
     ui.rxKrell = p->addKrell();
     ui.txKrell = p->addKrell();
     ui.chart   = p->addChart(QStringLiteral("chart_line_net_rx"));
-    if (ui.chart) ui.chart->setMaxValue(ui.maxBps);
+    if (ui.chart) {
+        ui.chart->setMaxValue(ui.maxBps);
+        ui.chart->setOverlayText(QStringLiteral("RX 0  TX 0"));
+    }
     into->addWidget(p);
     return ui;
 }
@@ -217,9 +216,9 @@ void NetMonitor::tick()
             if (!ui.dockerMultiSeries)
                 ui.chart->appendSample(rxBps + txBps);
         }
-        if (ui.textDecal) {
-            ui.textDecal->setText(QStringLiteral("RX %1  TX %2")
-                                  .arg(humanBps(rxBps), humanBps(txBps)));
+        if (ui.chart) {
+            ui.chart->setOverlayText(QStringLiteral("RX %1  TX %2")
+                                     .arg(humanBps(rxBps), humanBps(txBps)));
         }
 
         m_prevSamples.insert(s.name, s);

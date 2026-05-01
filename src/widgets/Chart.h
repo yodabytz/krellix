@@ -55,6 +55,7 @@ private slots:
 
 private:
     void rebuildCapacityForWidth();
+    double visiblePeak() const;
 
     Theme  *m_theme;
     QString m_colorKey;

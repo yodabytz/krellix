@@ -23,9 +23,9 @@
   "comment_v2_text_styles":
     "v2 text_styles: color + optional drop shadow. Keys not listed here fall back to the matching color in the colors block. Shadow color is RGBA — use #00000080 (50% black) for a soft drop, omit shadow entirely to render flat.",
   "text_styles": {
-    "text_primary":   { "color": "#534972", "shadow": { "x": 1, "y": 1, "color": "#00000060" } },
-    "text_secondary": { "color": "#565f89" },
-    "text_accent":    { "color": "#bb9af7", "shadow": { "x": 1, "y": 1, "color": "#00000080" } }
+    "text_primary":   { "color": "#8d82b5", "shadow": { "x": 1, "y": 1, "color": "#00000080" } },
+    "text_secondary": { "color": "#8a92bd", "shadow": { "x": 1, "y": 1, "color": "#00000070" } },
+    "text_accent":    { "color": "#d2b7ff", "shadow": { "x": 1, "y": 1, "color": "#00000090" } }
   },
 
   "images": {
@@ -39,9 +39,9 @@
     "panel_highlight":    "#111011",
     "chart_bg":           "#0c0c0e",
     "chart_grid":         "#292e42",
-    "text_primary":       "#534972",
-    "text_secondary":     "#565f89",
-    "text_accent":        "#bb9af7",
+    "text_primary":       "#8d82b5",
+    "text_secondary":     "#8a92bd",
+    "text_accent":        "#d2b7ff",
     "krell_track":        "#54515c",
     "krell_indicator":    "#333d2e",
     "chart_line_default": "#333d2e",

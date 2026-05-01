@@ -1,7 +1,7 @@
 #include "UptimeMonitor.h"
 
 #include "sysdep/UptimeStat.h"
-#include "widgets/Decal.h"
+#include "widgets/Meter.h"
 #include "widgets/Panel.h"
 
 UptimeMonitor::UptimeMonitor(Theme *theme, QObject *parent)
@@ -15,10 +15,8 @@ QWidget *UptimeMonitor::createWidget(QWidget *parent)
 {
     auto *p = new Panel(theme(), parent);
     p->setSurfaceKey(QStringLiteral("panel_bg_uptime"));
-    p->setTitle(QStringLiteral("Uptime"));
-    m_decal = p->addDecal(QStringLiteral("label"),
-                          QStringLiteral("text_primary"));
-    if (m_decal) m_decal->setAlignment(Qt::AlignHCenter);
+    m_decal = p->addMeter(QStringLiteral("text_primary"));
+    if (m_decal) m_decal->setFillVisible(false);
     tick();
     return p;
 }

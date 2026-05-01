@@ -13,8 +13,8 @@ class Chart;
 class Decal;
 class Krell;
 
-// One panel per non-loopback interface: text decal "RX 1.2K  TX 0.4K",
-// RX krell, TX krell, and a combined-throughput chart.
+// One panel per non-loopback interface: RX/TX krells and a combined
+// throughput chart with the RX/TX text overlaid in the chart heading.
 class NetMonitor : public MonitorBase
 {
     Q_OBJECT
@@ -31,7 +31,6 @@ public:
     void     tick() override;
 
     struct IfaceUI {
-        QPointer<Decal> textDecal;
         QPointer<Krell> rxKrell;
         QPointer<Krell> txKrell;
         QPointer<Chart> chart;

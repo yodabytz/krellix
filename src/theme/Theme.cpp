@@ -225,8 +225,9 @@ void Theme::loadDefaults()
     m_metrics.insert(QStringLiteral("panel_border"),     1);
     m_metrics.insert(QStringLiteral("panel_min_width"),  100);
     m_metrics.insert(QStringLiteral("krell_height"),     8);
+    m_metrics.insert(QStringLiteral("meter_height"),     0);
     m_metrics.insert(QStringLiteral("chart_height"),     32);
-    m_metrics.insert(QStringLiteral("chart_grid_lines"), 4);
+    m_metrics.insert(QStringLiteral("chart_grid_lines"), 6);
 }
 
 bool Theme::parseJsonFile(const QString &path)

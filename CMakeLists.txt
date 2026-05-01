@@ -61,6 +61,8 @@ set(KRELLIX_SOURCES
     src/widgets/Decal.h
     src/widgets/Krell.cpp
     src/widgets/Krell.h
+    src/widgets/Meter.cpp
+    src/widgets/Meter.h
     src/widgets/Chart.cpp
     src/widgets/Chart.h
     src/widgets/AlertBanner.cpp

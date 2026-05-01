@@ -4,7 +4,7 @@
 
 #include <QPointer>
 
-class Decal;
+class Meter;
 
 class UptimeMonitor : public MonitorBase
 {
@@ -22,7 +22,7 @@ public:
     void     tick() override;
 
 private:
-    QPointer<Decal> m_decal;
+    QPointer<Meter> m_decal;
 
     Q_DISABLE_COPY_MOVE(UptimeMonitor)
 };

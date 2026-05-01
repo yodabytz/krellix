@@ -4,9 +4,9 @@
 
 #include <QPointer>
 
-class Chart;
 class Decal;
 class Krell;
+class Meter;
 
 // Memory + swap in one panel: text "used / total" plus a krell each.
 class MemMonitor : public MonitorBase
@@ -26,10 +26,9 @@ public:
 
 private:
     QPointer<Decal> m_memText;
-    QPointer<Krell> m_memKrell;
-    QPointer<Chart> m_memChart;
+    QPointer<Meter> m_memMeter;
     QPointer<Decal> m_swapText;
-    QPointer<Krell> m_swapKrell;
+    QPointer<Meter> m_swapMeter;
 
     Q_DISABLE_COPY_MOVE(MemMonitor)
 };

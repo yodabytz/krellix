@@ -70,7 +70,12 @@ void Krell::paintEvent(QPaintEvent *)
     // needing a sprite.
     const QPixmap trackPix = m_theme->pixmap(QStringLiteral("krell_track"));
     if (!trackPix.isNull()) {
-        p.drawTiledPixmap(r, trackPix);
+        const QString mode = m_theme->imageMode(QStringLiteral("krell_track"),
+                                                QStringLiteral("tile"));
+        if (mode == QStringLiteral("stretch"))
+            p.drawPixmap(r, trackPix);
+        else
+            p.drawTiledPixmap(r, trackPix);
     } else {
         p.fillRect(r, m_theme->brush(QStringLiteral("krell_track"), r));
     }

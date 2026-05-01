@@ -11,6 +11,7 @@
 #include <QtGlobal>
 
 #include <algorithm>
+#include <cmath>
 
 Chart::Chart(Theme *theme, const QString &colorKey, QWidget *parent)
     : QWidget(parent)
@@ -140,6 +141,20 @@ void Chart::rebuildCapacityForWidth()
     setCapacity(target);
 }
 
+double Chart::visiblePeak() const
+{
+    double peak = 0.0;
+    if (m_multiSamples.empty()) {
+        for (double v : m_samples)
+            peak = qMax(peak, v);
+    } else {
+        for (const auto &ring : m_multiSamples)
+            for (double v : ring)
+                peak = qMax(peak, v);
+    }
+    return peak;
+}
+
 void Chart::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
@@ -165,32 +180,50 @@ void Chart::paintEvent(QPaintEvent *)
     const QColor grid = m_theme->color(QStringLiteral("chart_grid"));
     const QColor line = m_theme->color(m_colorKey,
                           m_theme->color(QStringLiteral("text_primary")));
+    const QBrush lineBrush =
+        m_theme->brush(m_colorKey, r,
+                       m_theme->color(QStringLiteral("text_primary")));
 
     // Same GKrellM convention as Panel: scale chart_bg vertically to chart
     // height, then tile horizontally. Preserves the 3D shading without
     // distortion at any chart width.
     const QPixmap bgPix = m_theme->pixmap(QStringLiteral("chart_bg"));
     if (!bgPix.isNull() && r.height() > 0) {
-        const QPixmap scaled = (bgPix.height() == r.height())
-            ? bgPix
-            : bgPix.scaledToHeight(r.height(), Qt::SmoothTransformation);
-        p.drawTiledPixmap(r, scaled);
+        const QString mode = m_theme->imageMode(QStringLiteral("chart_bg"),
+                                                QStringLiteral("tile"));
+        if (mode == QStringLiteral("stretch")) {
+            p.drawPixmap(r, bgPix);
+        } else {
+            const QPixmap scaled = (bgPix.height() == r.height())
+                ? bgPix
+                : bgPix.scaledToHeight(r.height(), Qt::SmoothTransformation);
+            p.drawTiledPixmap(r, scaled);
+        }
     } else {
         // No image — fill with the chart_bg solid OR gradient brush.
         p.fillRect(r, m_theme->brush(QStringLiteral("chart_bg"), r, bg));
     }
 
-    const int gridLines = qMax(0, m_theme->metric(QStringLiteral("chart_grid_lines"), 4));
+    const int maxGridLines = qMax(0, m_theme->metric(QStringLiteral("chart_grid_lines"), 6));
+    const double peakRatio = (m_max > 0.0)
+        ? std::clamp(visiblePeak() / m_max, 0.0, 1.0)
+        : 0.0;
+    const int gridLines = qBound(0,
+                                 static_cast<int>(std::ceil(peakRatio * maxGridLines)),
+                                 maxGridLines);
     if (gridLines > 0 && r.height() > 1) {
         p.setPen(grid);
-        for (int i = 1; i < gridLines; ++i) {
-            const int y = r.y() + (r.height() * i) / gridLines;
+        for (int i = 1; i <= gridLines; ++i) {
+            const double value = static_cast<double>(i) / maxGridLines;
+            const int y = r.bottom() - static_cast<int>(value * (r.height() - 1) + 0.5);
             p.drawLine(r.left(), y, r.right(), y);
         }
     }
 
     auto drawSeries = [&](const std::vector<double> &ring,
-                          const QColor &lineColor, bool fillBelow) {
+                          const QBrush &linePaint,
+                          const QColor &fillColor,
+                          bool fillBelow) {
         const int n = static_cast<int>(ring.size());
         if (n < 2 || r.width() < 2) return;
 
@@ -212,7 +245,7 @@ void Chart::paintEvent(QPaintEvent *)
                             static_cast<double>(r.bottom()))
                  << QPointF(static_cast<double>(r.left()),
                             static_cast<double>(r.bottom()));
-            QColor fill = lineColor;
+            QColor fill = fillColor;
             fill.setAlpha(110);
             p.setRenderHint(QPainter::Antialiasing, false);
             p.setPen(Qt::NoPen);
@@ -223,7 +256,8 @@ void Chart::paintEvent(QPaintEvent *)
         QPolygon intPoly;
         intPoly.reserve(static_cast<int>(poly.size()));
         for (const QPointF &pt : poly) intPoly << pt.toPoint();
-        QPen linePen(lineColor);
+        QPen linePen;
+        linePen.setBrush(linePaint);
         linePen.setWidth(1);
         linePen.setCosmetic(true);
         p.setPen(linePen);
@@ -232,14 +266,14 @@ void Chart::paintEvent(QPaintEvent *)
     };
 
     if (m_multiSamples.empty()) {
-        drawSeries(m_samples, line, /*fillBelow=*/true);
+        drawSeries(m_samples, lineBrush, line, /*fillBelow=*/true);
     } else {
         // Multi-series: don't fill (overlapping translucent fills become
         // muddy). Just stroke each line in its own color.
         for (std::size_t i = 0; i < m_multiSamples.size(); ++i) {
             const QColor c = (i < static_cast<std::size_t>(m_seriesColors.size()))
                 ? m_seriesColors.at(static_cast<int>(i)) : line;
-            drawSeries(m_multiSamples[i], c, /*fillBelow=*/false);
+            drawSeries(m_multiSamples[i], QBrush(c), c, /*fillBelow=*/false);
         }
     }
 
@@ -250,8 +284,15 @@ void Chart::paintEvent(QPaintEvent *)
         p.setRenderHint(QPainter::TextAntialiasing, true);
         QFont f = m_theme->font(QStringLiteral("label"));
         p.setFont(f);
-        p.setPen(m_theme->color(QStringLiteral("text_primary")));
-        p.drawText(r.adjusted(4, 1, -4, -1),
-                   Qt::AlignTop | Qt::AlignLeft, m_overlayText);
+        const Theme::TextStyle ts = m_theme->textStyle(QStringLiteral("text_primary"));
+        const QRect textRect = r.adjusted(4, 1, -4, -1);
+        if (ts.shadow.present) {
+            p.setPen(ts.shadow.color);
+            p.drawText(textRect.translated(ts.shadow.offsetX, ts.shadow.offsetY),
+                       Qt::AlignTop | Qt::AlignLeft, m_overlayText);
+        }
+        p.setPen(ts.color.isValid() ? ts.color
+                                    : m_theme->color(QStringLiteral("text_primary")));
+        p.drawText(textRect, Qt::AlignTop | Qt::AlignLeft, m_overlayText);
     }
 }

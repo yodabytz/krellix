@@ -77,6 +77,7 @@ MainWindow::MainWindow(Theme *theme,
 
     applyFrameMargins();
     applyFixedWidth();
+    fitToPanelStack();
     restorePosition();
     connect(m_theme, &Theme::themeChanged, this, &MainWindow::onThemeChanged);
 
@@ -243,7 +244,7 @@ void MainWindow::buildPanelStack(const QStringList &enabledIds)
     if (!clockAtTop)
         buildBuiltins(enabledIds, /*clockOnly=*/true);
 
-    m_layout->addStretch(1);
+    fitToPanelStack();
 }
 
 static void deleteLayoutContents(QLayout *layout)
@@ -279,7 +280,6 @@ void MainWindow::clearPanelStack()
     }
     m_monitors.clear();
 
-    // Drop the trailing stretch too — buildPanelStack re-adds it.
     deleteLayoutContents(m_layout);
 }
 
@@ -289,6 +289,7 @@ void MainWindow::rebuildPanels()
     buildPanelStack(m_cliEnabledIds);
     applyFrameMargins();
     applyFixedWidth();
+    fitToPanelStack();
     update();
 }
 
@@ -312,6 +313,17 @@ void MainWindow::applyFrameMargins()
     const int left   = m_theme->pixmap(QStringLiteral("frame_left")).width();
     const int right  = m_theme->pixmap(QStringLiteral("frame_right")).width();
     m_layout->setContentsMargins(left, top, right, bottom);
+}
+
+void MainWindow::fitToPanelStack()
+{
+    if (!m_layout) return;
+    setMinimumHeight(0);
+    setMaximumHeight(QWIDGETSIZE_MAX);
+    m_layout->activate();
+    updateGeometry();
+    const int h = m_layout->sizeHint().height();
+    if (h > 0) resize(width(), h);
 }
 
 void MainWindow::applySettingsOverridesToTheme()
@@ -347,6 +359,7 @@ void MainWindow::onThemeChanged()
 {
     applyFrameMargins();
     applyFixedWidth();
+    fitToPanelStack();
     update();
 }
 
@@ -376,30 +389,25 @@ void MainWindow::paintEvent(QPaintEvent *)
     const int leftW   = leftPix.isNull()   ? 0 : leftPix.width();
     const int rightW  = rightPix.isNull()  ? 0 : rightPix.width();
 
-    if (!topPix.isNull())
-        p.drawPixmap(QRect(0, 0, width(), topH), topPix);
-    if (!bottomPix.isNull())
-        p.drawPixmap(QRect(0, height() - bottomH, width(), bottomH), bottomPix);
+    p.fillRect(rect(), m_theme->color(QStringLiteral("panel_bg"),
+                                      QColor(0, 0, 0)));
 
-    // Side frames stretch to fill the side strip in both dimensions
-    // (was: scale-to-width then tile-Y). Stretching keeps the visual
-    // language consistent with the new Panel rendering — every theme
-    // image scales to its target rect — and avoids the obvious tile
-    // seam that appeared at the repeat boundary on tall windows.
-    // Theme authors who want a tileable side-strip can supply a
-    // tall-enough source image; krellix will scale it without
-    // chopping it into a repeating creature column.
+    if (!topPix.isNull())
+        p.drawTiledPixmap(QRect(0, 0, width(), topH), topPix);
+    if (!bottomPix.isNull())
+        p.drawTiledPixmap(QRect(0, height() - bottomH, width(), bottomH), bottomPix);
+
     const int sideTop    = topH;
     const int sideBottom = height() - bottomH;
     if (sideBottom > sideTop) {
         if (!leftPix.isNull()) {
-            p.drawPixmap(QRect(0, sideTop, leftW, sideBottom - sideTop),
-                         leftPix);
+            p.drawTiledPixmap(QRect(0, sideTop, leftW, sideBottom - sideTop),
+                              leftPix);
         }
         if (!rightPix.isNull()) {
-            p.drawPixmap(QRect(width() - rightW, sideTop, rightW,
-                               sideBottom - sideTop),
-                         rightPix);
+            p.drawTiledPixmap(QRect(width() - rightW, sideTop, rightW,
+                                    sideBottom - sideTop),
+                              rightPix);
         }
     }
 }

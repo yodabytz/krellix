@@ -8,6 +8,7 @@ class Theme;
 class Decal;
 class Krell;
 class Chart;
+class Meter;
 class QVBoxLayout;
 class QMouseEvent;
 
@@ -33,6 +34,7 @@ public:
                     const QString &colorKey  = QStringLiteral("text_primary"));
     Krell *addKrell();
     Chart *addChart(const QString &colorKey = QStringLiteral("chart_line_default"));
+    Meter *addMeter(const QString &colorKey = QStringLiteral("krell_indicator"));
 
     Theme *theme() const { return m_theme; }
 

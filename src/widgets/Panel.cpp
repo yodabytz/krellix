@@ -4,6 +4,7 @@
 #include "widgets/Chart.h"
 #include "widgets/Decal.h"
 #include "widgets/Krell.h"
+#include "widgets/Meter.h"
 
 #include <QMouseEvent>
 #include <QPaintEvent>
@@ -141,6 +142,13 @@ Chart *Panel::addChart(const QString &colorKey)
     return c;
 }
 
+Meter *Panel::addMeter(const QString &colorKey)
+{
+    auto *m = new Meter(m_theme, colorKey, this);
+    m_layout->addWidget(m);
+    return m;
+}
+
 void Panel::onThemeChanged()
 {
     const int pad = m_theme->metric(QStringLiteral("panel_padding"), 4);
@@ -212,7 +220,13 @@ void Panel::paintEvent(QPaintEvent *)
     if (!surf.image.isNull() && r.width() > 0 && r.height() > 0) {
         const qreal prevOpacity = p.opacity();
         if (surf.opacity < 1.0) p.setOpacity(prevOpacity * surf.opacity);
-        drawNineSlice(p, surf.image, r, surf.slice);
+        const QString mode = m_theme->imageMode(m_surfaceKey,
+                                                m_theme->imageMode(QStringLiteral("panel_bg"),
+                                                                   QStringLiteral("nine-slice")));
+        if (mode == QStringLiteral("stretch"))
+            p.drawPixmap(r, surf.image);
+        else
+            drawNineSlice(p, surf.image, r, surf.slice);
         if (surf.tint.isValid()) {
             // Tint = a translucent color overlay using the tint's alpha
             // as the strength. Source-over for natural blending; pure
@@ -222,9 +236,10 @@ void Panel::paintEvent(QPaintEvent *)
         }
         if (surf.opacity < 1.0) p.setOpacity(prevOpacity);
     } else {
-        // Fall back to color OR gradient when no image is bound — lets
-        // imageless themes still paint a subtle vertical gradient.
-        p.fillRect(r, m_theme->brush(QStringLiteral("panel_bg"), r,
+        // Fall back to color OR gradient when no image is bound. Use the
+        // monitor-specific surface key first so imageless themes can give
+        // CPU, memory, network, etc. distinct gradient bands.
+        p.fillRect(r, m_theme->brush(m_surfaceKey, r,
                                      m_theme->color(QStringLiteral("panel_bg"))));
     }
 
