@@ -149,22 +149,44 @@ void Decal::paintEvent(QPaintEvent *)
     QPainter p(this);
     p.setRenderHint(QPainter::TextAntialiasing, true);
     p.setFont(m_theme->font(m_fontKey));
-    p.setPen(m_theme->color(m_colorKey, QColor(Qt::white)));
+
+    // v2 text style: color + optional drop shadow. Falls back to a bare
+    // color (no shadow) when the theme uses the v1 flat colors block.
+    const Theme::TextStyle ts = m_theme->textStyle(m_colorKey);
+    const QColor fg = ts.color.isValid() ? ts.color : QColor(Qt::white);
 
     const QRect r = rect();
-    if (!m_scrolling) {
-        p.drawText(r, Qt::AlignVCenter | m_alignment, m_text);
-        return;
-    }
+    const QFontMetrics fm(p.font());
+    const int yBaseline = (r.height() + fm.ascent() - fm.descent()) / 2;
 
-    // Marquee: draw the text twice (with a gap) starting at -offset, so as
-    // it scrolls left the second copy follows seamlessly.
+    auto drawAt = [&](int x, int y, bool shadowPass) {
+        if (shadowPass) {
+            p.setPen(ts.shadow.color);
+        } else {
+            p.setPen(fg);
+        }
+        if (m_scrolling) {
+            p.drawText(x, y, m_text);
+        } else {
+            p.drawText(QRect(x, 0, r.width() - x, r.height()),
+                       Qt::AlignVCenter | m_alignment, m_text);
+        }
+    };
+
+    // Marquee mode draws the text twice with a gap so it scrolls
+    // seamlessly. Static mode draws once, aligned. Either way: shadow
+    // first underneath, then the foreground on top.
     const int tw   = textPixelWidth();
     const int loop = tw + kScrollGapPx;
-    const int x1   = -m_scrollOffset;
+    const int x1   = m_scrolling ? -m_scrollOffset : 0;
     const int x2   = x1 + loop;
-    const QFontMetrics fm(p.font());
-    const int y    = (r.height() + fm.ascent() - fm.descent()) / 2;
-    p.drawText(x1, y, m_text);
-    p.drawText(x2, y, m_text);
+    const int yPos = m_scrolling ? yBaseline : 0;
+
+    if (ts.shadow.present) {
+        drawAt(x1 + ts.shadow.offsetX, yPos + ts.shadow.offsetY, true);
+        if (m_scrolling)
+            drawAt(x2 + ts.shadow.offsetX, yPos + ts.shadow.offsetY, true);
+    }
+    drawAt(x1, yPos, false);
+    if (m_scrolling) drawAt(x2, yPos, false);
 }

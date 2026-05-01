@@ -17,6 +17,7 @@ ClockMonitor::~ClockMonitor() = default;
 QWidget *ClockMonitor::createWidget(QWidget *parent)
 {
     auto *p = new Panel(theme(), parent);
+    p->setSurfaceKey(QStringLiteral("panel_bg_clock"));
     // Larger but not bold — the "time" font key is tuned for the clock
     // display (defaults to Monospace 10 / not bold; themes may override).
     m_timeDecal = p->addDecal(QStringLiteral("time"),

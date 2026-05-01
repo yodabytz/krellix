@@ -1,0 +1,43 @@
+{
+  "name": "Prime23",
+  "version": "1.1",
+  "author": "krellix",
+  "description": "Prime23 a white and blue theme, in the spirit of GKrellM, with vivid per-series accents.",
+
+  "colors": {
+    "panel_bg":           "#f9f9f9",
+    "panel_border":       "#f9f9f9",
+    "panel_highlight":    "#d2d2d2",
+    "chart_bg":           "#e0e6ec",
+    "chart_grid":         "#ffffff",
+    "text_primary":       "#1f2428",
+    "text_secondary":     "#1f2428",
+    "text_accent":        "#ffffff",
+    "krell_track":        "#858585",
+    "krell_indicator":    "#39bffd",
+    "chart_line_default": "#366186",
+    "chart_line_cpu":     "#366186",
+    "chart_line_mem":     "#366186",
+    "chart_line_swap":    "#558dbe",
+    "chart_line_net_rx":  "#366186",
+    "chart_line_net_tx":  "#7BB438",
+    "chart_line_disk":    "#cc88ff",
+    "accent_warning":     "#ffaa00",
+    "accent_critical":    "#ff3333"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  100,
+    "krell_height":     8,
+    "chart_height":     32,
+    "chart_grid_lines": 4
+  }
+}

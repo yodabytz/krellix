@@ -1,0 +1,60 @@
+# Maintainer: yodabytz <yodabytz@gmail.com>
+
+pkgname=krellix
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='A themeable Qt 6 system monitor in the spirit of GKrellM'
+arch=('x86_64' 'aarch64')
+url='https://github.com/yodabytz/krellix'
+license=('GPL-3.0-or-later')
+depends=('qt6-base')
+makedepends=('cmake' 'ninja' 'qt6-tools')
+backup=('etc/krellixd/krellixd.conf')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cd "$pkgname-$pkgver"
+    cmake -GNinja -B build -S . \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr
+    cmake --build build
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+
+    DESTDIR="$pkgdir" cmake --install build
+
+    # The CMake install puts the daemon in /usr/sbin and the GUI in
+    # /usr/bin. Drop the systemd unit + bare-metal hardening drop-in
+    # alongside; the daemon stays disabled by default — admin enables
+    # via `systemctl enable --now krellixd`.
+    install -Dm644 packaging/systemd/krellixd.service \
+        "$pkgdir/usr/lib/systemd/system/krellixd.service"
+    install -Dm644 packaging/systemd/krellixd.service.d/bare-metal-hardening.conf \
+        "$pkgdir/usr/share/doc/$pkgname/krellixd.service.d/bare-metal-hardening.conf"
+    install -Dm644 packaging/systemd/krellixd.service.d/docker-aliases.conf \
+        "$pkgdir/usr/share/doc/$pkgname/krellixd.service.d/docker-aliases.conf"
+
+    # Sample config, marked as a backup file so pacman preserves
+    # admin edits across upgrades. The empty allow-list deliberately
+    # refuses to listen until the admin sets one.
+    install -dm755 "$pkgdir/etc/krellixd"
+    cat > "$pkgdir/etc/krellixd/krellixd.conf" <<'CONF'
+[server]
+listen=127.0.0.1
+port=19150
+update_hz=1
+max_clients=4
+io_timeout=300
+
+[security]
+# Allow-list is empty by default — krellixd will refuse to listen.
+# Add IPs that should be allowed to connect, comma- or space-separated.
+allow_hosts=
+CONF
+
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

@@ -1,15 +1,15 @@
 {
-  "name": "tokyo-night",
-  "version": "1.0",
+  "name": "tokyo-night-storm",
+  "version": "1.1",
   "author": "krellix",
-  "description": "Tokyo Night — clean, balanced dark theme using official palette.",
+  "description": "Tokyo Night Storm — balanced cool-tone graph mapping, no red dominance.",
 
   "colors": {
-    "panel_bg":           "#1a1b26",
-    "panel_border":       "#283457",
+    "panel_bg":           "#24283b",
+    "panel_border":       "#2e3c64",
     "panel_highlight":    "#414868",
 
-    "chart_bg":           "#1a1b26",
+    "chart_bg":           "#24283b",
     "chart_grid":         "#414868",
 
     "text_primary":       "#c0caf5",
@@ -21,10 +21,10 @@
 
     "chart_line_default": "#7aa2f7",
 
-    "chart_line_cpu":     "#f7768e",
+    "chart_line_cpu":     "#7dcfff",
     "chart_line_mem":     "#9ece6a",
     "chart_line_swap":    "#e0af68",
-    "chart_line_net_rx":  "#7dcfff",
+    "chart_line_net_rx":  "#7aa2f7",
     "chart_line_net_tx":  "#bb9af7",
     "chart_line_disk":    "#a9b1d6",
 

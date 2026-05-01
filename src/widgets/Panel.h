@@ -21,6 +21,13 @@ public:
     explicit Panel(Theme *theme, QWidget *parent = nullptr);
     ~Panel() override;
 
+    // Override the theme key the panel uses to look up its background
+    // surface. Defaults to "panel_bg" — monitors that want their own
+    // tinted bg pass e.g. "panel_bg_cpu" / "panel_bg_mem". The lookup
+    // chain falls back to "panel_bg" when the specific key is absent,
+    // so themes can provide one or many.
+    void setSurfaceKey(const QString &key);
+
     void   setTitle(const QString &title);
     Decal *addDecal(const QString &fontKey   = QStringLiteral("label"),
                     const QString &colorKey  = QStringLiteral("text_primary"));
@@ -42,6 +49,7 @@ private:
     Theme       *m_theme;
     QVBoxLayout *m_layout       = nullptr;
     Decal       *m_titleDecal   = nullptr;
+    QString      m_surfaceKey   = QStringLiteral("panel_bg");
     bool         m_dragging     = false;
     QPoint       m_dragOffset;
 

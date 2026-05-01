@@ -11,6 +11,72 @@
 #include <QVBoxLayout>
 #include <QWindow>
 
+namespace {
+
+// Render `src` into `target` with 9-slice (border-image) scaling:
+// corner squares of `slice` pixels stay 1:1 native size, the four
+// edge bands stretch only along their long axis, and the center
+// rectangle stretches both ways. This is what we want for theme
+// background images that have a *frame* baked in — the user's
+// cthulhain panel.png, for example, has a 3-4 px highlighted border
+// around a flat dark interior. Plain stretch makes the border
+// thickness scale with panel height, so taller panels (memory,
+// network) end up with comically large bright top edges. 9-slice
+// fixes that: the border is always exactly `slice` pixels tall on
+// every panel, and the flat interior absorbs the height variance.
+//
+// Falls back to plain stretch when the slice is non-positive or when
+// either source or target is smaller than 2*slice in either dimension
+// (no room for both corners + a stretchable middle).
+void drawNineSlice(QPainter &p, const QPixmap &src,
+                   const QRect &target, int slice)
+{
+    const int sw = src.width(), sh = src.height();
+    const int tw = target.width(), th = target.height();
+    if (slice <= 0
+        || sw < 2 * slice || sh < 2 * slice
+        || tw < 2 * slice || th < 2 * slice) {
+        p.drawPixmap(target, src);
+        return;
+    }
+    const int s     = slice;
+    const int sMidW = sw - 2 * s;
+    const int sMidH = sh - 2 * s;
+    const int tMidW = tw - 2 * s;
+    const int tMidH = th - 2 * s;
+    const int tx    = target.x();
+    const int ty    = target.y();
+
+    // Four corners — drawn from (0,0), (sw-s,0), (0,sh-s), (sw-s,sh-s)
+    // at native size into the matching target corners.
+    p.drawPixmap(QRect(tx,             ty,             s, s),
+                 src, QRect(0,         0,             s, s));
+    p.drawPixmap(QRect(tx + tw - s,    ty,             s, s),
+                 src, QRect(sw - s,    0,             s, s));
+    p.drawPixmap(QRect(tx,             ty + th - s,    s, s),
+                 src, QRect(0,         sh - s,        s, s));
+    p.drawPixmap(QRect(tx + tw - s,    ty + th - s,    s, s),
+                 src, QRect(sw - s,    sh - s,        s, s));
+
+    // Four edges — top/bottom stretch horizontally only, left/right
+    // stretch vertically only. Corner thickness preserved.
+    p.drawPixmap(QRect(tx + s,         ty,             tMidW, s),
+                 src, QRect(s,         0,             sMidW, s));
+    p.drawPixmap(QRect(tx + s,         ty + th - s,    tMidW, s),
+                 src, QRect(s,         sh - s,        sMidW, s));
+    p.drawPixmap(QRect(tx,             ty + s,         s, tMidH),
+                 src, QRect(0,         s,             s, sMidH));
+    p.drawPixmap(QRect(tx + tw - s,    ty + s,         s, tMidH),
+                 src, QRect(sw - s,    s,             s, sMidH));
+
+    // Center stretches both axes — picks up flat interior color so
+    // visible distortion is minimal even at strong stretch ratios.
+    p.drawPixmap(QRect(tx + s,         ty + s,         tMidW, tMidH),
+                 src, QRect(s,         s,             sMidW, sMidH));
+}
+
+} // namespace
+
 Panel::Panel(Theme *theme, QWidget *parent)
     : QWidget(parent)
     , m_theme(theme)
@@ -31,6 +97,13 @@ Panel::Panel(Theme *theme, QWidget *parent)
 }
 
 Panel::~Panel() = default;
+
+void Panel::setSurfaceKey(const QString &key)
+{
+    if (m_surfaceKey == key || key.isEmpty()) return;
+    m_surfaceKey = key;
+    update();
+}
 
 void Panel::setTitle(const QString &title)
 {
@@ -130,16 +203,24 @@ void Panel::paintEvent(QPaintEvent *)
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
     const QRect r = rect();
 
-    // Stretch panel_bg to fill the panel rect exactly — both dimensions.
-    // The theme is responsible for supplying source images that look
-    // right under stretch (e.g. a roughly panel-shaped texture without
-    // hard horizontal banding that would look smeared at non-1:1 vertical
-    // scale). Earlier scale-to-height-and-tile and aspect-preserving
-    // variants both produced inconsistent visual size across panels of
-    // different content heights.
-    const QPixmap bgPix = m_theme->pixmap(QStringLiteral("panel_bg"));
-    if (!bgPix.isNull() && r.width() > 0 && r.height() > 0) {
-        p.drawPixmap(r, bgPix);
+    // Background via the v2 Surface API — image, 9-slice border, opacity,
+    // and tint all in one lookup. Lookup chain: m_surfaceKey (e.g.
+    // "panel_bg_cpu" for the CPU monitor) → "panel_bg" → empty. When
+    // there's no image, fall back to the panel_bg color.
+    const Theme::Surface surf =
+        m_theme->surface(m_surfaceKey, QStringLiteral("panel_bg"));
+    if (!surf.image.isNull() && r.width() > 0 && r.height() > 0) {
+        const qreal prevOpacity = p.opacity();
+        if (surf.opacity < 1.0) p.setOpacity(prevOpacity * surf.opacity);
+        drawNineSlice(p, surf.image, r, surf.slice);
+        if (surf.tint.isValid()) {
+            // Tint = a translucent color overlay using the tint's alpha
+            // as the strength. Source-over for natural blending; pure
+            // opaque tints would obliterate the image, so the theme is
+            // expected to set the alpha (e.g. #1a203080).
+            p.fillRect(r, surf.tint);
+        }
+        if (surf.opacity < 1.0) p.setOpacity(prevOpacity);
     } else {
         p.fillRect(r, m_theme->color(QStringLiteral("panel_bg")));
     }

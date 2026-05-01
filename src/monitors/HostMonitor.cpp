@@ -53,6 +53,7 @@ HostMonitor::~HostMonitor() = default;
 QWidget *HostMonitor::createWidget(QWidget *parent)
 {
     auto *p = new Panel(theme(), parent);
+    p->setSurfaceKey(QStringLiteral("panel_bg_host"));
     // Hostname uses the lighter "label" font (was overpowering as "value")
     // and centers under the panel — matches the clock+date below it.
     m_hostnameDecal = p->addDecal(QStringLiteral("label"),

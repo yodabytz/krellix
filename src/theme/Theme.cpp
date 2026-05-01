@@ -189,6 +189,8 @@ void Theme::loadDefaults()
     m_imageInts.clear();
     m_imageStrings.clear();
     m_pixmapCache.clear();
+    m_surfaces.clear();
+    m_textStyles.clear();
 
     m_colors.clear();
     m_colors.insert(QStringLiteral("panel_bg"),        QColor( 10,  14,  10));
@@ -272,6 +274,16 @@ bool Theme::parseJsonFile(const QString &path)
             m_metrics.insert(it.key(), qBound(0, v, 4096));
         }
     }
+
+    // v2 surface dictionary (image + slice + opacity + tint per key).
+    // Parsed before the legacy "images" block so a key explicitly
+    // declared under "surfaces" wins over the v1 path-only entry.
+    const QJsonValue surfacesVal = root.value(QStringLiteral("surfaces"));
+    if (surfacesVal.isObject()) parseSurfaces(surfacesVal.toObject());
+
+    // v2 text styles dictionary (color + drop shadow per key).
+    const QJsonValue textStylesVal = root.value(QStringLiteral("text_styles"));
+    if (textStylesVal.isObject()) parseTextStyles(textStylesVal.toObject());
 
     // Image assets. Each entry is either a bare string filename or an
     // object with at least { "image": "...", ... } and optional integer
@@ -386,4 +398,123 @@ QString Theme::imageMode(const QString &key, const QString &fallback) const
     if (mode == QStringLiteral("stretch") || mode == QStringLiteral("tile"))
         return mode;
     return fallback;
+}
+
+// ---- v2 parsers + lookup ---------------------------------------------
+
+void Theme::parseSurfaces(const QJsonObject &obj)
+{
+    for (auto it = obj.constBegin(); it != obj.constEnd(); ++it) {
+        if (!it.value().isObject()) continue;
+        const QJsonObject s = it.value().toObject();
+        SurfaceSpec spec;
+        const QJsonValue imgVal = s.value(QStringLiteral("image"));
+        if (imgVal.isString()) spec.relImage = imgVal.toString();
+        const QJsonValue slVal = s.value(QStringLiteral("slice"));
+        if (slVal.isDouble())
+            spec.slice = qBound(0, static_cast<int>(slVal.toDouble()), 256);
+        const QJsonValue opVal = s.value(QStringLiteral("opacity"));
+        if (opVal.isDouble())
+            spec.opacity = qBound(0.0, opVal.toDouble(), 1.0);
+        const QJsonValue tnVal = s.value(QStringLiteral("tint"));
+        if (tnVal.isString()) spec.tint = QColor(tnVal.toString());
+        m_surfaces.insert(it.key(), spec);
+    }
+}
+
+void Theme::parseTextStyles(const QJsonObject &obj)
+{
+    for (auto it = obj.constBegin(); it != obj.constEnd(); ++it) {
+        if (!it.value().isObject()) continue;
+        const QJsonObject s = it.value().toObject();
+        TextStyle ts;
+        const QJsonValue colVal = s.value(QStringLiteral("color"));
+        if (colVal.isString()) ts.color = QColor(colVal.toString());
+        const QJsonValue shVal = s.value(QStringLiteral("shadow"));
+        if (shVal.isObject()) {
+            const QJsonObject sh = shVal.toObject();
+            const QJsonValue x = sh.value(QStringLiteral("x"));
+            const QJsonValue y = sh.value(QStringLiteral("y"));
+            const QJsonValue b = sh.value(QStringLiteral("blur"));
+            const QJsonValue c = sh.value(QStringLiteral("color"));
+            if (x.isDouble())
+                ts.shadow.offsetX = qBound(-32, static_cast<int>(x.toDouble()), 32);
+            if (y.isDouble())
+                ts.shadow.offsetY = qBound(-32, static_cast<int>(y.toDouble()), 32);
+            if (b.isDouble())
+                ts.shadow.blur = qBound(0, static_cast<int>(b.toDouble()), 32);
+            if (c.isString()) ts.shadow.color = QColor(c.toString());
+            ts.shadow.present = ts.shadow.color.isValid()
+                              && (ts.shadow.offsetX != 0
+                                  || ts.shadow.offsetY != 0
+                                  || ts.shadow.blur > 0);
+        }
+        m_textStyles.insert(it.key(), ts);
+    }
+}
+
+Theme::TextStyle Theme::textStyle(const QString &key) const
+{
+    const auto it = m_textStyles.constFind(key);
+    if (it != m_textStyles.constEnd()) {
+        TextStyle ts = it.value();
+        if (!ts.color.isValid())
+            ts.color = m_colors.value(key, QColor(Qt::white));
+        return ts;
+    }
+    // v1 fallback: bare color from m_colors, no shadow.
+    TextStyle ts;
+    ts.color = m_colors.value(key, QColor(Qt::white));
+    return ts;
+}
+
+Theme::Surface Theme::surface(const QString &key,
+                              const QString &fallbackKey) const
+{
+    // Lookup chain: requested key, then caller-supplied fallback, then
+    // the universal "panel_bg" base. First match wins; missing image
+    // falls through to the next entry in the chain.
+    QStringList chain;
+    chain << key;
+    if (!fallbackKey.isEmpty() && fallbackKey != key) chain << fallbackKey;
+    if (key != QStringLiteral("panel_bg")
+        && fallbackKey != QStringLiteral("panel_bg"))
+        chain << QStringLiteral("panel_bg");
+
+    Surface out;
+    bool foundSpec = false;
+    for (const QString &k : chain) {
+        // Prefer v2 surface entry.
+        const auto sIt = m_surfaces.constFind(k);
+        if (sIt != m_surfaces.constEnd()) {
+            const SurfaceSpec &sp = sIt.value();
+            out.slice   = sp.slice;
+            out.opacity = sp.opacity;
+            out.tint    = sp.tint;
+            if (!sp.relImage.isEmpty()) {
+                // Inline-resolve through the same hardened path-loader
+                // that pixmap() uses so the v2 entry doesn't bypass
+                // sandboxing.
+                const QString full = assetPath(sp.relImage);
+                if (!full.isEmpty() && out.image.load(full)) {
+                    foundSpec = true;
+                    break;
+                }
+            } else {
+                foundSpec = true;
+                break;        // explicit no-image surface (color fallback)
+            }
+        }
+        // v1 fallback: the legacy "images" entry.
+        const QString rel = m_imagePaths.value(k);
+        if (!rel.isEmpty()) {
+            const QString full = assetPath(rel);
+            if (!full.isEmpty() && out.image.load(full)) {
+                foundSpec = true;
+                break;
+            }
+        }
+    }
+    if (!foundSpec) return Surface{};   // truly nothing — caller uses color
+    return out;
 }

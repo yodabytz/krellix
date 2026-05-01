@@ -1,0 +1,48 @@
+{
+  "name": "duskfox",
+  "version": "1.1",
+  "author": "krellix",
+  "description": "Duskfox — deep violet base with soft neon accents.",
+
+  "colors": {
+    "panel_bg":           "#232136",
+    "panel_border":       "#433c59",
+    "panel_highlight":    "#e0def4",
+
+    "chart_bg":           "#232136",
+    "chart_grid":         "#393552",
+
+    "text_primary":       "#e0def4",
+    "text_secondary":     "#9ccfd8",
+    "text_accent":        "#c4a7e7",
+
+    "krell_track":        "#393552",
+    "krell_indicator":    "#a3be8c",
+
+    "chart_line_default": "#569fba",
+    "chart_line_cpu":     "#eb6f92",
+    "chart_line_mem":     "#9ccfd8",
+    "chart_line_swap":    "#f6c177",
+    "chart_line_net_rx":  "#65b1cd",
+    "chart_line_net_tx":  "#f083a2",
+    "chart_line_disk":    "#c4a7e7",
+
+    "accent_warning":     "#f6c177",
+    "accent_critical":    "#ea9a97"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  100,
+    "krell_height":     8,
+    "chart_height":     32,
+    "chart_grid_lines": 4
+  }
+}

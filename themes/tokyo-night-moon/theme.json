@@ -1,29 +1,35 @@
 {
   "name": "tokyo-night-moon",
-  "version": "1.1",
+  "version": "1.2",
   "author": "krellix",
-  "description": "Tokyo Night Moon — soft purple/blue palette with vivid per-series accents.",
+  "description": "Tokyo Night Moon — muted blue-purple tones with soft moonlight contrast.",
 
   "colors": {
-    "panel_bg":           "#222436",
-    "panel_border":       "#3b4261",
-    "panel_highlight":    "#2f334d",
-    "chart_bg":           "#1e2030",
-    "chart_grid":         "#3b4261",
-    "text_primary":       "#c8d3f5",
-    "text_secondary":     "#828bb8",
-    "text_accent":        "#c099ff",
-    "krell_track":        "#2f334d",
-    "krell_indicator":    "#82aaff",
-    "chart_line_default": "#82aaff",
-    "chart_line_cpu":     "#c3e88d",
-    "chart_line_mem":     "#c3e88d",
-    "chart_line_swap":    "#ffc777",
-    "chart_line_net_rx":  "#86e1fc",
-    "chart_line_net_tx":  "#ffc777",
-    "chart_line_disk":    "#c099ff",
-    "accent_warning":     "#ff966c",
-    "accent_critical":    "#ff757f"
+    "panel_bg":           "#1a1b26",
+    "panel_border":       "#2a2e42",
+    "panel_highlight":    "#24283b",
+
+    "chart_bg":           "#1a1b26",
+    "chart_grid":         "#2a2e42",
+
+    "text_primary":       "#c0caf5",
+    "text_secondary":     "#9aa5ce",
+    "text_accent":        "#bb9af7",
+
+    "krell_track":        "#24283b",
+    "krell_indicator":    "#7aa2f7",
+
+    "chart_line_default": "#7aa2f7",
+
+    "chart_line_cpu":     "#7dcfff",
+    "chart_line_mem":     "#9ece6a",
+    "chart_line_swap":    "#e0af68",
+    "chart_line_net_rx":  "#73daca",
+    "chart_line_net_tx":  "#bb9af7",
+    "chart_line_disk":    "#7aa2f7",
+
+    "accent_warning":     "#e0af68",
+    "accent_critical":    "#f7768e"
   },
 
   "fonts": {
@@ -37,7 +43,7 @@
     "panel_border":     1,
     "panel_min_width":  100,
     "krell_height":     8,
-    "chart_height":     32,
+    "chart_height":     70,
     "chart_grid_lines": 4
   }
 }

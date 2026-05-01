@@ -1,0 +1,49 @@
+{
+  "name": "cobalt2",
+  "version": "1.0",
+  "author": "krellix",
+  "description": "Cobalt2 — bold, high-contrast blues with vibrant accents.",
+
+  "colors": {
+    "panel_bg":           "#193549",
+    "panel_border":       "#1f4662",
+    "panel_highlight":    "#234e70",
+
+    "chart_bg":           "#193549",
+    "chart_grid":         "#234e70",
+
+    "text_primary":       "#ffffff",
+    "text_secondary":     "#9effff",
+    "text_accent":        "#ffc600",
+
+    "krell_track":        "#234e70",
+    "krell_indicator":    "#00aaff",
+
+    "chart_line_default": "#00aaff",
+
+    "chart_line_cpu":     "#ff9d00",
+    "chart_line_mem":     "#00ff9c",
+    "chart_line_swap":    "#ffc600",
+    "chart_line_net_rx":  "#00aaff",
+    "chart_line_net_tx":  "#ff628c",
+    "chart_line_disk":    "#c792ea",
+
+    "accent_warning":     "#ffc600",
+    "accent_critical":    "#ff628c"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  100,
+    "krell_height":     8,
+    "chart_height":     70,
+    "chart_grid_lines": 4
+  }
+}

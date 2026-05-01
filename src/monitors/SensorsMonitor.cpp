@@ -16,6 +16,7 @@ SensorsMonitor::~SensorsMonitor() = default;
 QWidget *SensorsMonitor::createWidget(QWidget *parent)
 {
     auto *p = new Panel(theme(), parent);
+    p->setSurfaceKey(QStringLiteral("panel_bg_sensors"));
     p->setTitle(QStringLiteral("Sensors"));
 
     const QList<SensorReading> readings = SensorStat::read();

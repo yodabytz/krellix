@@ -17,6 +17,7 @@ BatteryMonitor::~BatteryMonitor() = default;
 QWidget *BatteryMonitor::createWidget(QWidget *parent)
 {
     auto *p = new Panel(theme(), parent);
+    p->setSurfaceKey(QStringLiteral("panel_bg_battery"));
     p->setTitle(QStringLiteral("Battery"));
 
     m_textDecal = p->addDecal(QStringLiteral("label"),

@@ -44,6 +44,7 @@ QWidget *DiskMonitor::createWidget(QWidget *parent)
     const QList<DiskSample> samples = DiskStat::read();
     if (samples.isEmpty()) {
         auto *p = new Panel(theme(), container);
+        p->setSurfaceKey(QStringLiteral("panel_bg_disk"));
         p->setTitle(QStringLiteral("Disk"));
         Decal *d = p->addDecal(QStringLiteral("label"),
                                QStringLiteral("text_secondary"));
@@ -54,6 +55,7 @@ QWidget *DiskMonitor::createWidget(QWidget *parent)
 
     for (const DiskSample &s : samples) {
         auto *p = new Panel(theme(), container);
+        p->setSurfaceKey(QStringLiteral("panel_bg_disk"));
         p->setTitle(s.name);
 
         DiskUI ui;

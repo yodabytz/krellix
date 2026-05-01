@@ -1,0 +1,49 @@
+{
+  "name": "nightfox",
+  "version": "1.1",
+  "author": "krellix",
+  "description": "Nightfox — deep blue-gray base with balanced cool/warm accents.",
+
+  "colors": {
+    "panel_bg":           "#192330",
+    "panel_border":       "#2b3b51",
+    "panel_highlight":    "#cdcecf",
+
+    "chart_bg":           "#192330",
+    "chart_grid":         "#393b44",
+
+    "text_primary":       "#cdcecf",
+    "text_secondary":     "#63cdcf",
+    "text_accent":        "#9d79d6",
+
+    "krell_track":        "#393b44",
+    "krell_indicator":    "#81b29a",
+
+    "chart_line_default": "#86abdc",
+
+    "chart_line_cpu":     "#d16983",
+    "chart_line_mem":     "#63cdcf",
+    "chart_line_swap":    "#dbc074",
+    "chart_line_net_rx":  "#7ad5d6",
+    "chart_line_net_tx":  "#c94f6d",
+    "chart_line_disk":    "#baa1e2",
+
+    "accent_warning":     "#dbc074",
+    "accent_critical":    "#c94f6d"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  100,
+    "krell_height":     8,
+    "chart_height":     32,
+    "chart_grid_lines": 4
+  }
+}

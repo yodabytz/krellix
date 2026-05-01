@@ -1,0 +1,44 @@
+{
+  "name": "everforest",
+  "version": "1.0",
+  "author": "krellix",
+  "description": "Everforest - A green based, warm, and soft colorscheme designed to reduce eyestrain",
+
+  "colors": {
+    "panel_bg":           "#2E383C",
+    "panel_border":       "#1e2326",
+    "panel_highlight":    "#245361",
+    "chart_bg":           "#1E2326",
+    "chart_grid":         "#245361",
+    "text_primary":       "#99d1ce",
+    "text_secondary":     "#599cab",
+    "text_accent":        "#edb443",
+    "krell_track":        "#1e2326",
+    "krell_indicator":    "#43c743",
+    "chart_line_default": "#99d1ce",
+    "chart_line_cpu":     "#7EBBB3",
+    "chart_line_mem":     "#E57E81",
+    "chart_line_swap":    "#edb443",
+    "chart_line_net_rx":  "#A7C07F",
+    "chart_line_net_tx":  "#d26937",
+    "chart_line_disk":    "#888ca6",
+    "accent_warning":     "#d26937",
+    "accent_critical":    "#c23127"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  },
+    "time":  { "family": "Monospace", "size": 11, "bold": false }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    1,
+    "panel_border":     1,
+    "panel_min_width":  100,
+    "krell_height":     8,
+    "chart_height":     32,
+    "chart_grid_lines": 4
+  }
+}

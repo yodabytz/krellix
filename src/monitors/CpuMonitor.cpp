@@ -34,6 +34,7 @@ QWidget *CpuMonitor::createWidget(QWidget *parent)
         // sample arrives a tick after createWidget(). Drop a placeholder
         // and rebuild the real panels in tick() when samples land.
         auto *p = new Panel(theme(), container);
+        p->setSurfaceKey(QStringLiteral("panel_bg_cpu"));
         p->setTitle(QStringLiteral("CPU"));
         Decal *d = p->addDecal(QStringLiteral("label"),
                                QStringLiteral("text_secondary"));
@@ -76,6 +77,7 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
     // on many-core boxes while still showing every core individually.
     if (m_mode == Mode::Combined) {
         auto *p = new Panel(theme(), container);
+        p->setSurfaceKey(QStringLiteral("panel_bg_cpu"));
         Krell *aggKrell = p->addKrell();
         Chart *chart = p->addChart();
         chart->setMaxValue(1.0);
@@ -93,6 +95,7 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
         // row and a chart, with the core name + current % drawn as an
         // overlay inside the chart (top-left). Saves a decal row.
         auto *p = new Panel(theme(), container);
+        p->setSurfaceKey(QStringLiteral("panel_bg_cpu"));
         CoreUI ui;
         ui.krell = p->addKrell();
         ui.chart = p->addChart(QStringLiteral("chart_line_cpu"));
@@ -111,6 +114,7 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
             if (!enabled) continue;
 
             auto *p = new Panel(theme(), container);
+            p->setSurfaceKey(QStringLiteral("panel_bg_cpu"));
             CoreUI ui;
             ui.krell = p->addKrell();
             ui.chart = p->addChart(QStringLiteral("chart_line_cpu"));
@@ -124,6 +128,7 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
         }
         if (m_cores.isEmpty()) {
             auto *p = new Panel(theme(), container);
+            p->setSurfaceKey(QStringLiteral("panel_bg_cpu"));
             p->setTitle(QStringLiteral("CPU"));
             Decal *d = p->addDecal(QStringLiteral("label"),
                                    QStringLiteral("text_secondary"));

@@ -14,6 +14,7 @@ UptimeMonitor::~UptimeMonitor() = default;
 QWidget *UptimeMonitor::createWidget(QWidget *parent)
 {
     auto *p = new Panel(theme(), parent);
+    p->setSurfaceKey(QStringLiteral("panel_bg_uptime"));
     p->setTitle(QStringLiteral("Uptime"));
     m_decal = p->addDecal(QStringLiteral("label"),
                           QStringLiteral("text_primary"));

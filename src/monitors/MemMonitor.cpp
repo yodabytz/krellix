@@ -37,6 +37,7 @@ MemMonitor::~MemMonitor() = default;
 QWidget *MemMonitor::createWidget(QWidget *parent)
 {
     auto *p = new Panel(theme(), parent);
+    p->setSurfaceKey(QStringLiteral("panel_bg_mem"));
     p->setTitle(QStringLiteral("Memory"));
 
     m_memText  = p->addDecal(QStringLiteral("label"),

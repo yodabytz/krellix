@@ -1,0 +1,73 @@
+{
+  "name": "cthulhain",
+  "version": "1.2",
+  "author": "krellix",
+  "description": "Cthulhain — the classic dark variant with vivid per-series accents.",
+
+  "comment_v2_surfaces":
+    "v2 surface dictionary: image + 9-slice border + opacity + tint per key. Per-monitor variants (panel_bg_cpu, panel_bg_mem, ...) all reference the same source image so every panel gets the bg consistently. Add a tint per monitor type for subtle differentiation, or remove individual keys to fall back to panel_bg.",
+  "surfaces": {
+    "panel_bg":          { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
+    "panel_bg_host":     { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
+    "panel_bg_clock":    { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
+    "panel_bg_cpu":      { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
+    "panel_bg_mem":      { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
+    "panel_bg_net":      { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
+    "panel_bg_disk":     { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
+    "panel_bg_uptime":   { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
+    "panel_bg_battery":  { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
+    "panel_bg_sensors":  { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
+    "chart_bg":          { "image": "assets/chart-bg.png", "slice": 6 }
+  },
+
+  "comment_v2_text_styles":
+    "v2 text_styles: color + optional drop shadow. Keys not listed here fall back to the matching color in the colors block. Shadow color is RGBA — use #00000080 (50% black) for a soft drop, omit shadow entirely to render flat.",
+  "text_styles": {
+    "text_primary":   { "color": "#534972", "shadow": { "x": 1, "y": 1, "color": "#00000060" } },
+    "text_secondary": { "color": "#565f89" },
+    "text_accent":    { "color": "#bb9af7", "shadow": { "x": 1, "y": 1, "color": "#00000080" } }
+  },
+
+  "images": {
+    "panel_bg": "assets/panel.png",
+    "chart_bg": "assets/chart-bg.png"
+  },
+
+  "colors": {
+    "panel_bg":           "#19181e",
+    "panel_border":       "#414868",
+    "panel_highlight":    "#111011",
+    "chart_bg":           "#0c0c0e",
+    "chart_grid":         "#292e42",
+    "text_primary":       "#534972",
+    "text_secondary":     "#565f89",
+    "text_accent":        "#bb9af7",
+    "krell_track":        "#54515c",
+    "krell_indicator":    "#333d2e",
+    "chart_line_default": "#333d2e",
+    "chart_line_cpu":     "#a395d3",
+    "chart_line_mem":     "#566f99",
+    "chart_line_swap":    "#e0af68",
+    "chart_line_net_rx":  "#709775",
+    "chart_line_net_tx":  "#e0af68",
+    "chart_line_disk":    "#bb9af7",
+    "accent_warning":     "#ff9e64",
+    "accent_critical":    "#f7768e"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  100,
+    "krell_height":     8,
+    "chart_height":     70,
+    "chart_grid_lines": 4,
+    "panel_bg_slice":   4
+  }
+}

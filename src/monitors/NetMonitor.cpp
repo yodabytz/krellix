@@ -49,6 +49,7 @@ static NetMonitor::IfaceUI buildIfacePanel(Theme *theme, QWidget *parent,
                                            const QString &alias)
 {
     auto *p = new Panel(theme, parent);
+    p->setSurfaceKey(QStringLiteral("panel_bg_net"));
     p->setTitle(alias.isEmpty() ? name : alias);
     NetMonitor::IfaceUI ui;
     ui.textDecal = p->addDecal(QStringLiteral("label"),
@@ -102,6 +103,7 @@ QWidget *NetMonitor::createWidget(QWidget *parent)
 
     if (m_ifaces.isEmpty()) {
         auto *p = new Panel(theme(), container);
+        p->setSurfaceKey(QStringLiteral("panel_bg_net"));
         p->setTitle(QStringLiteral("Net"));
         Decal *d = p->addDecal(QStringLiteral("label"),
                                QStringLiteral("text_secondary"));

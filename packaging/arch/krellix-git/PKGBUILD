@@ -1,0 +1,63 @@
+# Maintainer: yodabytz <yodabytz@gmail.com>
+
+pkgname=krellix-git
+_pkgname=krellix
+pkgver=0.1.0.r0.g0000000
+pkgrel=1
+pkgdesc='A themeable Qt 6 system monitor in the spirit of GKrellM (git HEAD)'
+arch=('x86_64' 'aarch64')
+url='https://github.com/yodabytz/krellix'
+license=('GPL-3.0-or-later')
+depends=('qt6-base')
+makedepends=('cmake' 'ninja' 'qt6-tools' 'git')
+provides=("$_pkgname=$pkgver")
+conflicts=("$_pkgname")
+backup=('etc/krellixd/krellixd.conf')
+source=("$_pkgname::git+$url.git")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd "$_pkgname"
+    git describe --long --tags 2>/dev/null \
+        | sed 's/^v//;s/-/.r/;s/-/./' \
+        || printf "0.0.0.r%s.g%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+build() {
+    cd "$_pkgname"
+    cmake -GNinja -B build -S . \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr
+    cmake --build build
+}
+
+package() {
+    cd "$_pkgname"
+
+    DESTDIR="$pkgdir" cmake --install build
+
+    install -Dm644 packaging/systemd/krellixd.service \
+        "$pkgdir/usr/lib/systemd/system/krellixd.service"
+    install -Dm644 packaging/systemd/krellixd.service.d/bare-metal-hardening.conf \
+        "$pkgdir/usr/share/doc/$_pkgname/krellixd.service.d/bare-metal-hardening.conf"
+    install -Dm644 packaging/systemd/krellixd.service.d/docker-aliases.conf \
+        "$pkgdir/usr/share/doc/$_pkgname/krellixd.service.d/docker-aliases.conf"
+
+    install -dm755 "$pkgdir/etc/krellixd"
+    cat > "$pkgdir/etc/krellixd/krellixd.conf" <<'CONF'
+[server]
+listen=127.0.0.1
+port=19150
+update_hz=1
+max_clients=4
+io_timeout=300
+
+[security]
+# Allow-list is empty by default — krellixd will refuse to listen.
+# Add IPs that should be allowed to connect, comma- or space-separated.
+allow_hosts=
+CONF
+
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$_pkgname/LICENSE"
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$_pkgname/README.md"
+}

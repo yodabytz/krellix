@@ -1,0 +1,49 @@
+{
+  "name": "onedark",
+  "version": "1.0",
+  "author": "krellix",
+  "description": "One Dark — balanced dark theme with soft contrast and classic Atom colors.",
+
+  "colors": {
+    "panel_bg":           "#282c34",
+    "panel_border":       "#4b5263",
+    "panel_highlight":    "#353b45",
+
+    "chart_bg":           "#282c34",
+    "chart_grid":         "#4b5263",
+
+    "text_primary":       "#abb2bf",
+    "text_secondary":     "#5c6370",
+    "text_accent":        "#61afef",
+
+    "krell_track":        "#353b45",
+    "krell_indicator":    "#61afef",
+
+    "chart_line_default": "#61afef",
+
+    "chart_line_cpu":     "#e06c75",
+    "chart_line_mem":     "#98c379",
+    "chart_line_swap":    "#e5c07b",
+    "chart_line_net_rx":  "#56b6c2",
+    "chart_line_net_tx":  "#c678dd",
+    "chart_line_disk":    "#d19a66",
+
+    "accent_warning":     "#e5c07b",
+    "accent_critical":    "#be5046"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  100,
+    "krell_height":     8,
+    "chart_height":     70,
+    "chart_grid_lines": 4
+  }
+}
