@@ -1,10 +1,14 @@
 #pragma once
 
+#include <QBrush>
 #include <QColor>
 #include <QFont>
 #include <QHash>
+#include <QList>
 #include <QObject>
+#include <QPair>
 #include <QPixmap>
+#include <QRectF>
 #include <QString>
 #include <QStringList>
 
@@ -73,6 +77,22 @@ public:
         QColor  tint;            // invalid = no tint overlay
     };
 
+    // A "color" key can be either a flat string (parsed to QColor) or a
+    // gradient object — { "gradient": "linear", "angle": <deg>, "stops":
+    // [[<offset>, "#rrggbb"], ...] }. Brush() resolves either form into
+    // a paint-ready QBrush configured for the target rect; widgets call
+    // it instead of color() when a fill should support gradients.
+    struct Gradient {
+        enum Type { Linear /*, Radial later */ } type = Linear;
+        // Angle convention: 0° = horizontal left→right, 90° = vertical
+        // top→bottom, 180° = horizontal right→left, 270° = vertical
+        // bottom→top. (Clockwise from positive x-axis in screen coords,
+        // i.e. y grows downward.) Default 90° matches the vertical
+        // gradients GKrellM panels traditionally use.
+        int angle = 90;
+        QList<QPair<qreal, QColor>> stops;
+    };
+
     explicit Theme(QObject *parent = nullptr);
     ~Theme() override;
 
@@ -98,6 +118,15 @@ public:
     QColor color(const QString &key, const QColor &fallback = QColor()) const;
     QFont  font (const QString &key, const QFont  &fallback = QFont())  const;
     int    metric(const QString &key, int fallback = 0) const;
+
+    // Returns a paint-ready QBrush for the key. Falls back to a solid
+    // QColor brush when no gradient is defined for the key. The rect
+    // anchors the gradient endpoints — a 90° gradient on a tall rect
+    // runs the full panel height, on a short rect it runs the short
+    // height. Pass an invalid rect for non-gradient keys (color path).
+    QBrush brush(const QString &key,
+                 const QRectF &rect    = QRectF(),
+                 const QColor &fallback = QColor()) const;
 
     // Text style — color + optional drop shadow. Falls back to color(key)
     // when no v2 text_styles block defined the key.
@@ -170,6 +199,7 @@ private:
     };
     QHash<QString, SurfaceSpec>  m_surfaces;
     QHash<QString, TextStyle>    m_textStyles;
+    QHash<QString, Gradient>     m_gradients;
 
     QFileSystemWatcher *m_watcher = nullptr;  // child QObject; parent owns
 

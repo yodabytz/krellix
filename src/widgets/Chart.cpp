@@ -176,7 +176,8 @@ void Chart::paintEvent(QPaintEvent *)
             : bgPix.scaledToHeight(r.height(), Qt::SmoothTransformation);
         p.drawTiledPixmap(r, scaled);
     } else {
-        p.fillRect(r, bg);
+        // No image — fill with the chart_bg solid OR gradient brush.
+        p.fillRect(r, m_theme->brush(QStringLiteral("chart_bg"), r, bg));
     }
 
     const int gridLines = qMax(0, m_theme->metric(QStringLiteral("chart_grid_lines"), 4));

@@ -222,7 +222,10 @@ void Panel::paintEvent(QPaintEvent *)
         }
         if (surf.opacity < 1.0) p.setOpacity(prevOpacity);
     } else {
-        p.fillRect(r, m_theme->color(QStringLiteral("panel_bg")));
+        // Fall back to color OR gradient when no image is bound — lets
+        // imageless themes still paint a subtle vertical gradient.
+        p.fillRect(r, m_theme->brush(QStringLiteral("panel_bg"), r,
+                                     m_theme->color(QStringLiteral("panel_bg"))));
     }
 
     const int bw = m_theme->metric(QStringLiteral("panel_border"), 1);

@@ -64,12 +64,15 @@ void Krell::paintEvent(QPaintEvent *)
     const QRect r = rect();
     if (r.width() <= 0 || r.height() <= 0) return;
 
-    // Track: prefer themed pixmap (tiled across width), else flat color.
+    // Track: prefer themed pixmap (tiled across width), else solid or
+    // gradient brush via Theme::brush() — lets a theme paint
+    // krell_track as a vertical gradient (e.g. metal sheen) without
+    // needing a sprite.
     const QPixmap trackPix = m_theme->pixmap(QStringLiteral("krell_track"));
     if (!trackPix.isNull()) {
         p.drawTiledPixmap(r, trackPix);
     } else {
-        p.fillRect(r, m_theme->color(QStringLiteral("krell_track")));
+        p.fillRect(r, m_theme->brush(QStringLiteral("krell_track"), r));
     }
 
     // Indicator: prefer sprite-sheet frame, else flat colored notch.
@@ -98,23 +101,28 @@ void Krell::paintEvent(QPaintEvent *)
         }
     }
 
-    QColor ind;
+    // Gradient-aware indicator. We look up via Theme::brush() against
+    // the FULL track rect (not the small notch rect) — that way a
+    // krell_indicator gradient runs the whole width of the krell, and
+    // as the notch slides right it reveals different stops. Far more
+    // useful than constraining the gradient to the notch's own width.
+    QString indKey = QStringLiteral("krell_indicator");
     switch (m_alertLevel) {
     case AlertLevel::Warning:
-        ind = m_theme->color(QStringLiteral("accent_warning"),
-                             m_theme->color(QStringLiteral("krell_indicator")));
+        indKey = QStringLiteral("accent_warning");
         break;
     case AlertLevel::Critical:
-        ind = m_theme->color(QStringLiteral("accent_critical"),
-                             m_theme->color(QStringLiteral("krell_indicator")));
+        indKey = QStringLiteral("accent_critical");
         break;
     case AlertLevel::None:
-    default:
-        ind = m_theme->color(QStringLiteral("krell_indicator"));
-        break;
+    default: break;
     }
+    const QBrush indBrush = m_theme->brush(
+        indKey, r,
+        m_theme->color(QStringLiteral("krell_indicator")));
+
     const int notchW = qMax(2, r.width() / 24);
     const int xMax   = r.width() - notchW;
     const int x      = static_cast<int>(m_value * xMax);
-    p.fillRect(QRect(x, r.y(), notchW, r.height()), ind);
+    p.fillRect(QRect(x, r.y(), notchW, r.height()), indBrush);
 }

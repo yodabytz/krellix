@@ -4,13 +4,16 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonValue>
+#include <QLinearGradient>
 #include <QLoggingCategory>
 #include <QRegularExpression>
 #include <QSet>
 #include <QStandardPaths>
+#include <QtMath>
 
 #include <algorithm>
 
@@ -191,6 +194,7 @@ void Theme::loadDefaults()
     m_pixmapCache.clear();
     m_surfaces.clear();
     m_textStyles.clear();
+    m_gradients.clear();
 
     m_colors.clear();
     m_colors.insert(QStringLiteral("panel_bg"),        QColor( 10,  14,  10));
@@ -247,10 +251,45 @@ bool Theme::parseJsonFile(const QString &path)
     if (colorsVal.isObject()) {
         const QJsonObject c = colorsVal.toObject();
         for (auto it = c.constBegin(); it != c.constEnd(); ++it) {
-            if (!it.value().isString()) continue;
-            m_colors.insert(it.key(),
-                            colorFromString(it.value().toString(),
-                                            m_colors.value(it.key())));
+            // Plain string → QColor.
+            if (it.value().isString()) {
+                m_colors.insert(it.key(),
+                                colorFromString(it.value().toString(),
+                                                m_colors.value(it.key())));
+                continue;
+            }
+            // Object → may be a gradient. Schema:
+            //   { "gradient": "linear", "angle": 90,
+            //     "stops": [[0.0, "#aaa"], [1.0, "#bbb"]] }
+            // Falls through to no-op if the object doesn't look right.
+            if (!it.value().isObject()) continue;
+            const QJsonObject obj = it.value().toObject();
+            const QJsonValue stopsVal = obj.value(QStringLiteral("stops"));
+            if (!stopsVal.isArray()) continue;
+
+            Gradient g;
+            const QJsonValue angleVal = obj.value(QStringLiteral("angle"));
+            if (angleVal.isDouble())
+                g.angle = static_cast<int>(angleVal.toDouble()) % 360;
+            // (only Linear supported for now; "type"/"gradient" string
+            // is parsed for forward-compat but ignored)
+            const QJsonArray sa = stopsVal.toArray();
+            for (const QJsonValue &sv : sa) {
+                if (!sv.isArray()) continue;
+                const QJsonArray pair = sv.toArray();
+                if (pair.size() < 2) continue;
+                const qreal off = qBound(0.0, pair[0].toDouble(), 1.0);
+                const QColor col(pair[1].toString());
+                if (!col.isValid()) continue;
+                g.stops.append({off, col});
+            }
+            if (g.stops.size() >= 2) {
+                m_gradients.insert(it.key(), g);
+                // Mirror the first stop into m_colors so callers that
+                // still use color() get a sensible flat fallback.
+                if (!m_colors.contains(it.key()))
+                    m_colors.insert(it.key(), g.stops.first().second);
+            }
         }
     }
 
@@ -321,6 +360,39 @@ bool Theme::parseJsonFile(const QString &path)
 QColor Theme::color(const QString &key, const QColor &fallback) const
 {
     return m_colors.value(key, fallback);
+}
+
+QBrush Theme::brush(const QString &key,
+                    const QRectF &rect,
+                    const QColor &fallback) const
+{
+    const auto gIt = m_gradients.constFind(key);
+    if (gIt != m_gradients.constEnd() && rect.isValid()) {
+        const Gradient &g = gIt.value();
+        // Map angle → start/end points on the rect. 0° = horizontal
+        // L→R, 90° = vertical T→B, 180° = horizontal R→L, 270° =
+        // vertical B→T. Anything in between projects onto the rect's
+        // diagonal at that angle. Cheap trig — calculated once per
+        // paint since brushes rebuild per call.
+        const double rad = qDegreesToRadians(static_cast<double>(g.angle));
+        const double dx  = std::cos(rad);
+        const double dy  = std::sin(rad);
+        const double cx  = rect.center().x();
+        const double cy  = rect.center().y();
+        // Half-extent along the gradient direction so endpoints land
+        // exactly on the rect edge, not past it.
+        const double hx  = rect.width()  * 0.5;
+        const double hy  = rect.height() * 0.5;
+        const double t   = std::abs(dx * hx) + std::abs(dy * hy);
+        QLinearGradient lg(QPointF(cx - dx * t, cy - dy * t),
+                           QPointF(cx + dx * t, cy + dy * t));
+        for (const auto &stop : g.stops)
+            lg.setColorAt(stop.first, stop.second);
+        return QBrush(lg);
+    }
+    // No gradient (or invalid rect) — solid color brush.
+    const QColor c = m_colors.value(key, fallback);
+    return c.isValid() ? QBrush(c) : QBrush();
 }
 
 QFont Theme::font(const QString &key, const QFont &fallback) const
