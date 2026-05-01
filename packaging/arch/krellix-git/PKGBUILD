@@ -1,18 +1,14 @@
 # Maintainer: yodabytz <yodabytz@gmail.com>
 
-pkgname=krellix-git
+pkgbase=krellix-git
 _pkgname=krellix
+pkgname=('krellix-git' 'krellix-server-git')
 pkgver=0.1.0.r0.g0000000
 pkgrel=1
-pkgdesc='A themeable Qt 6 system monitor in the spirit of GKrellM (git HEAD)'
 arch=('x86_64' 'aarch64')
 url='https://github.com/yodabytz/krellix'
 license=('GPL-3.0-or-later')
-depends=('qt6-base')
-makedepends=('cmake' 'ninja' 'qt6-tools' 'git')
-provides=("$_pkgname=$pkgver")
-conflicts=("$_pkgname")
-backup=('etc/krellixd/krellixd.conf')
+makedepends=('cmake' 'ninja' 'qt6-tools' 'qt6-base' 'git')
 source=("$_pkgname::git+$url.git")
 sha256sums=('SKIP')
 
@@ -31,17 +27,38 @@ build() {
     cmake --build build
 }
 
-package() {
+package_krellix-git() {
+    pkgdesc='Themeable Qt 6 system monitor in the spirit of GKrellM (GUI client, git HEAD)'
+    depends=('qt6-base')
+    optdepends=('krellix-server-git: monitor remote hosts via krellix --host')
+    provides=("$_pkgname=$pkgver")
+    conflicts=("$_pkgname")
+
+    cd "$_pkgname"
+    DESTDIR="$pkgdir" cmake --install build
+    rm -f "$pkgdir/usr/bin/krellixd"
+
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$_pkgname/LICENSE"
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$_pkgname/README.md"
+}
+
+package_krellix-server-git() {
+    pkgdesc='krellixd — remote monitoring daemon for krellix (git HEAD)'
+    depends=('qt6-base')
+    optdepends=('docker: friendly Docker bridge name resolution')
+    provides=("krellix-server=$pkgver")
+    conflicts=("krellix-server")
+    backup=('etc/krellixd/krellixd.conf')
+
     cd "$_pkgname"
 
-    DESTDIR="$pkgdir" cmake --install build
-
+    install -Dm755 build/bin/krellixd "$pkgdir/usr/bin/krellixd"
     install -Dm644 packaging/systemd/krellixd.service \
         "$pkgdir/usr/lib/systemd/system/krellixd.service"
     install -Dm644 packaging/systemd/krellixd.service.d/bare-metal-hardening.conf \
-        "$pkgdir/usr/share/doc/$_pkgname/krellixd.service.d/bare-metal-hardening.conf"
+        "$pkgdir/usr/share/doc/krellix-server/krellixd.service.d/bare-metal-hardening.conf"
     install -Dm644 packaging/systemd/krellixd.service.d/docker-aliases.conf \
-        "$pkgdir/usr/share/doc/$_pkgname/krellixd.service.d/docker-aliases.conf"
+        "$pkgdir/usr/share/doc/krellix-server/krellixd.service.d/docker-aliases.conf"
 
     install -dm755 "$pkgdir/etc/krellixd"
     cat > "$pkgdir/etc/krellixd/krellixd.conf" <<'CONF'
@@ -53,11 +70,8 @@ max_clients=4
 io_timeout=300
 
 [security]
-# Allow-list is empty by default — krellixd will refuse to listen.
-# Add IPs that should be allowed to connect, comma- or space-separated.
 allow_hosts=
 CONF
 
-    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$_pkgname/LICENSE"
-    install -Dm644 README.md "$pkgdir/usr/share/doc/$_pkgname/README.md"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/krellix-server/LICENSE"
 }
