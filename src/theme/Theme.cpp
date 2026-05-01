@@ -526,7 +526,8 @@ void Theme::parseTextStyles(const QJsonObject &obj)
     }
 }
 
-Theme::TextStyle Theme::textStyle(const QString &key) const
+Theme::TextStyle Theme::textStyle(const QString &key,
+                                  const QString &fallbackKey) const
 {
     const auto it = m_textStyles.constFind(key);
     if (it != m_textStyles.constEnd()) {
@@ -535,9 +536,19 @@ Theme::TextStyle Theme::textStyle(const QString &key) const
             ts.color = m_colors.value(key, QColor(Qt::white));
         return ts;
     }
-    // v1 fallback: bare color from m_colors, no shadow.
+    if (m_colors.contains(key)) {
+        TextStyle ts;
+        ts.color = m_colors.value(key);
+        return ts;
+    }
+    // Primary key isn't configured anywhere. Try the fallback chain
+    // before giving up to plain white. Lets widgets ask for a specific
+    // key (e.g. "chart_overlay") and gracefully degrade to a generic
+    // one ("text_primary") on themes that don't define the specific.
+    if (!fallbackKey.isEmpty() && fallbackKey != key)
+        return textStyle(fallbackKey);
     TextStyle ts;
-    ts.color = m_colors.value(key, QColor(Qt::white));
+    ts.color = QColor(Qt::white);
     return ts;
 }
 

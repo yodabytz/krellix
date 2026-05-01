@@ -284,7 +284,13 @@ void Chart::paintEvent(QPaintEvent *)
         p.setRenderHint(QPainter::TextAntialiasing, true);
         QFont f = m_theme->font(QStringLiteral("label"));
         p.setFont(f);
-        const Theme::TextStyle ts = m_theme->textStyle(QStringLiteral("text_primary"));
+        // Themes can give chart-overlay text its own color/shadow via
+        // the dedicated "chart_overlay" key (e.g. amber-on-grey on the
+        // egan-grey theme). Falls back to text_primary so themes that
+        // don't define it get the previous behavior.
+        const Theme::TextStyle ts = m_theme->textStyle(
+            QStringLiteral("chart_overlay"),
+            QStringLiteral("text_primary"));
         const QRect textRect = r.adjusted(4, 1, -4, -1);
         if (ts.shadow.present) {
             p.setPen(ts.shadow.color);

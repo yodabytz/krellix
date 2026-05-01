@@ -128,9 +128,15 @@ public:
                  const QRectF &rect    = QRectF(),
                  const QColor &fallback = QColor()) const;
 
-    // Text style — color + optional drop shadow. Falls back to color(key)
-    // when no v2 text_styles block defined the key.
-    TextStyle textStyle(const QString &key) const;
+    // Text style — color + optional drop shadow. Lookup chain: the
+    // requested key first (v2 text_styles, then v1 flat colors), then
+    // optionally a fallback key. When neither is configured, returns
+    // a plain-white style with no shadow. The fallback lets widgets
+    // request a specific key (e.g. "chart_overlay") and fall back to
+    // a generic one ("text_primary") so themes can opt in to a tighter
+    // styling without breaking themes that don't.
+    TextStyle textStyle(const QString &key,
+                        const QString &fallbackKey = QString()) const;
 
     // Surface — image (with 9-slice/opacity/tint) for backgrounds.
     // Lookup chain: requested key, then any "fallbackKey" caller passes,
