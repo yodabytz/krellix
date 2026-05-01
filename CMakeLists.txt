@@ -173,4 +173,10 @@ set_target_properties(krellixd PROPERTIES
     WIN32_EXECUTABLE OFF
     MACOSX_BUNDLE OFF
 )
-install(TARGETS krellixd RUNTIME DESTINATION sbin)
+# Install the daemon under bin/, not sbin/. On modern Arch (and most
+# usrmerged distros) /usr/sbin is a symlink to /usr/bin owned by the
+# `filesystem` package — installing into sbin/ created a directory
+# inside the package that conflicted with that symlink, so `pacman -S
+# krellix` aborted with "/usr/sbin exists in filesystem". Living in
+# /usr/bin avoids the conflict and is consistent with current FHS.
+install(TARGETS krellixd RUNTIME DESTINATION bin)

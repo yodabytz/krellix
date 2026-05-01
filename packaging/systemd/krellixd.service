@@ -6,7 +6,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/local/sbin/krellixd --config /etc/krellixd/krellixd.conf
+ExecStart=/usr/bin/krellixd --config /etc/krellixd/krellixd.conf
 Restart=on-failure
 RestartSec=3s
 
