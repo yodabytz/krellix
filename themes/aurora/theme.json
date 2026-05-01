@@ -1,0 +1,101 @@
+{
+  "name": "aurora",
+  "version": "1.0",
+  "author": "krellix",
+  "description": "Aurora — northern-lights gradients on a deep midnight base. Showcases the v2 schema: vertical panel gradient, full-rect krell sweep, gradient chart background, soft text shadows.",
+
+  "comment_v2_demo":
+    "Aurora is the reference theme for v2 features. No image assets — every surface paints from gradients. Use it as a starting point for new themes that don't want to depend on PNG textures.",
+
+  "surfaces": {
+    "panel_bg":         { "slice": 0, "opacity": 1.0 },
+    "panel_bg_host":    { "slice": 0, "opacity": 1.0 },
+    "panel_bg_clock":   { "slice": 0, "opacity": 1.0 },
+    "panel_bg_cpu":     { "slice": 0, "opacity": 1.0 },
+    "panel_bg_mem":     { "slice": 0, "opacity": 1.0 },
+    "panel_bg_net":     { "slice": 0, "opacity": 1.0 },
+    "panel_bg_disk":    { "slice": 0, "opacity": 1.0 },
+    "panel_bg_uptime":  { "slice": 0, "opacity": 1.0 },
+    "panel_bg_battery": { "slice": 0, "opacity": 1.0 },
+    "panel_bg_sensors": { "slice": 0, "opacity": 1.0 }
+  },
+
+  "comment_text_styles":
+    "Subtle 1px shadow on the primary text gives it a soft glow without obscuring at small sizes. Accent text uses a slightly stronger shadow to pop against busy gradient backgrounds.",
+  "text_styles": {
+    "text_primary":   { "color": "#dce0ff", "shadow": { "x": 1, "y": 1, "color": "#0010204d" } },
+    "text_secondary": { "color": "#8e9bbf" },
+    "text_accent":    { "color": "#7df5ff", "shadow": { "x": 1, "y": 1, "color": "#001a2a99" } }
+  },
+
+  "comment_colors":
+    "Top-level color values can be either flat strings or gradient objects ({gradient, angle, stops}). Angle 90° = top-to-bottom, 0° = left-to-right.",
+  "colors": {
+    "panel_bg": {
+      "gradient": "linear",
+      "angle":    90,
+      "stops":    [[0.0, "#0a1a3a"], [0.55, "#0b2444"], [1.0, "#06122a"]]
+    },
+    "panel_border":    "#1d3160",
+    "panel_highlight": "#102447",
+
+    "chart_bg": {
+      "gradient": "linear",
+      "angle":    90,
+      "stops":    [[0.0, "#04101e"], [1.0, "#02060c"]]
+    },
+    "chart_grid": "#173065",
+
+    "krell_track": {
+      "gradient": "linear",
+      "angle":    90,
+      "stops":    [[0.0, "#091a36"], [1.0, "#04101e"]]
+    },
+    "krell_indicator": {
+      "gradient": "linear",
+      "angle":    0,
+      "stops":    [
+        [0.00, "#36a3ff"],
+        [0.45, "#5fff9a"],
+        [0.80, "#9b8bff"],
+        [1.00, "#ff66b3"]
+      ]
+    },
+
+    "text_primary":   "#dce0ff",
+    "text_secondary": "#8e9bbf",
+    "text_accent":    "#7df5ff",
+
+    "chart_line_default": "#7df5ff",
+    "chart_line_cpu": {
+      "gradient": "linear",
+      "angle":    0,
+      "stops":    [[0.0, "#36a3ff"], [1.0, "#5fff9a"]]
+    },
+    "chart_line_mem":     "#9b8bff",
+    "chart_line_swap":    "#ff66b3",
+    "chart_line_net_rx":  "#5fff9a",
+    "chart_line_net_tx":  "#7df5ff",
+    "chart_line_disk":    "#9b8bff",
+
+    "accent_warning":  "#ffc663",
+    "accent_critical": "#ff5c87"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  },
+    "time":  { "family": "Monospace", "size": 11, "bold": false }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  100,
+    "krell_height":     10,
+    "chart_height":     70,
+    "chart_grid_lines": 4,
+    "panel_bg_slice":   0
+  }
+}

@@ -15,3 +15,9 @@ CMakeUserPresets.json
 *.dylib
 *.dll
 *.exe
+
+# Local-only ops notes — contains passwords / SSH info; never commit.
+INSTRUCTIONS
+INSTRUCTIONS.local
+*.secrets
+*.creds
