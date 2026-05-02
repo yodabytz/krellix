@@ -10,6 +10,7 @@
 #include <QVector>
 #include <QWidget>
 
+class QEvent;
 class QLabel;
 
 struct KrellmailAccount {
@@ -54,6 +55,7 @@ public:
     QWidget *createWidget(QWidget *parent) override;
     void tick() override;
     void shutdown() override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
     void onConnected();
@@ -76,7 +78,7 @@ private:
     };
 
     QVector<KrellmailAccount> readAccounts() const;
-    void startCheck();
+    void startCheck(bool force = false);
     void finishCheck();
     void failCurrent(const QString &message);
     void startNextAccount();

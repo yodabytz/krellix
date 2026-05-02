@@ -3,6 +3,7 @@
 #include "theme/Theme.h"
 #include "widgets/Panel.h"
 
+#include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPainter>
@@ -58,7 +59,7 @@ KrellmailEnvelope::KrellmailEnvelope(Theme *theme, QWidget *parent)
     : QWidget(parent)
     , m_theme(theme)
 {
-    setFixedSize(36, 26);
+    setFixedSize(28, 20);
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     m_timer.setInterval(120);
     connect(&m_timer, &QTimer::timeout, this, [this]() {
@@ -85,6 +86,7 @@ void KrellmailEnvelope::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
+    p.scale(width() / 36.0, height() / 26.0);
 
     const QColor bg = themeColor(m_theme, QStringLiteral("chart_bg"), QColor(15, 22, 28));
     QColor paper = themeColor(m_theme, QStringLiteral("text_primary"), QColor(236, 244, 248));
@@ -165,36 +167,54 @@ QWidget *KrellmailMonitor::createWidget(QWidget *parent)
 {
     auto *panel = new Panel(theme(), parent);
     panel->setSurfaceKey(QStringLiteral("panel_bg_krellmail"));
+    panel->setCursor(Qt::PointingHandCursor);
+    panel->installEventFilter(this);
 
     auto *row = new QWidget(panel);
+    row->installEventFilter(this);
     auto *hbox = new QHBoxLayout(row);
-    hbox->setContentsMargins(4, 2, 4, 2);
-    hbox->setSpacing(6);
+    hbox->setContentsMargins(3, 1, 3, 1);
+    hbox->setSpacing(4);
 
     m_icon = new KrellmailEnvelope(theme(), row);
+    m_icon->installEventFilter(this);
     hbox->addWidget(m_icon);
 
     auto *textBox = new QWidget(row);
+    textBox->installEventFilter(this);
     auto *vbox = new QVBoxLayout(textBox);
     vbox->setContentsMargins(0, 0, 0, 0);
     vbox->setSpacing(0);
     m_primary = new QLabel(QStringLiteral("Mail"), textBox);
     m_detail = new QLabel(QStringLiteral("checking..."), textBox);
+    m_primary->installEventFilter(this);
+    m_detail->installEventFilter(this);
     m_primary->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_detail->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_primary->setFixedHeight(12);
+    m_detail->setFixedHeight(11);
     vbox->addWidget(m_primary);
     vbox->addWidget(m_detail);
     hbox->addWidget(textBox, 1);
     panel->addWidget(row);
 
     applyStatus();
-    startCheck();
+    startCheck(true);
     return panel;
 }
 
 void KrellmailMonitor::tick()
 {
-    startCheck();
+    startCheck(true);
+}
+
+bool KrellmailMonitor::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event && event->type() == QEvent::MouseButtonRelease) {
+        startCheck(true);
+        return true;
+    }
+    return MonitorBase::eventFilter(watched, event);
 }
 
 void KrellmailMonitor::shutdown()
@@ -231,9 +251,21 @@ QVector<KrellmailAccount> KrellmailMonitor::readAccounts() const
     return accounts;
 }
 
-void KrellmailMonitor::startCheck()
+void KrellmailMonitor::startCheck(bool force)
 {
-    if (m_fetching || m_tearingDown) return;
+    if (m_tearingDown) return;
+    if (m_fetching) {
+        if (!force) return;
+        m_timeout.stop();
+        if (m_socket) {
+            m_socket->disconnect(this);
+            m_socket->abort();
+            m_socket->deleteLater();
+            m_socket = nullptr;
+        }
+        m_fetching = false;
+        m_state = State::Idle;
+    }
     m_accounts = readAccounts();
     m_accountIndex = -1;
     m_totalCount = 0;
@@ -439,11 +471,11 @@ void KrellmailMonitor::applyStatus()
     const QColor scol = secondary.color.isValid() ? secondary.color
         : themeColor(theme(), QStringLiteral("text_secondary"), QColor(170, 190, 200));
     if (m_primary) {
-        m_primary->setStyleSheet(QStringLiteral("QLabel { color: %1; font-weight: 700; }")
+        m_primary->setStyleSheet(QStringLiteral("QLabel { color: %1; font-size: 10px; font-weight: 700; }")
                                  .arg(cssColor(pcol)));
     }
     if (m_detail) {
-        m_detail->setStyleSheet(QStringLiteral("QLabel { color: %1; }").arg(cssColor(scol)));
+        m_detail->setStyleSheet(QStringLiteral("QLabel { color: %1; font-size: 9px; }").arg(cssColor(scol)));
     }
 
     if (m_accounts.isEmpty()) {

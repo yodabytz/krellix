@@ -426,7 +426,8 @@ void MainWindow::refreshLiveSettings()
             }
             if (lm.monitor
                 && (lm.monitor->id() == QStringLiteral("krellweather")
-                    || lm.monitor->id() == QStringLiteral("krellwire")))
+                    || lm.monitor->id() == QStringLiteral("krellwire")
+                    || lm.monitor->id() == QStringLiteral("krellmail")))
                 lm.monitor->tick();
         }
         m_layout->invalidate();

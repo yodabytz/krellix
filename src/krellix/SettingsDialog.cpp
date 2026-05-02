@@ -670,7 +670,7 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
     root->addWidget(liveHint);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, this, &SettingsDialog::onAccept);
     root->addWidget(buttons);
 
     // ---------------- Initial values + live wiring ----------------
@@ -908,11 +908,11 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
                                          protocol->currentData().toString());
                     emit settingsApplied();
                 });
-        connect(host, &QLineEdit::editingFinished, this, [this, host, account]() {
+        connect(host, &QLineEdit::textChanged, this, [this, host, account]() {
             QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/host").arg(account),
                                  host->text().trimmed());
-            emit settingsApplied();
         });
+        connect(host, &QLineEdit::editingFinished, this, [this]() { emit settingsApplied(); });
         connect(port, QOverload<int>::of(&QSpinBox::valueChanged),
                 this, [this, account](int v) {
                     QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/port").arg(account), v);
@@ -922,16 +922,16 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
             QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/ssl").arg(account), v);
             emit settingsApplied();
         });
-        connect(user, &QLineEdit::editingFinished, this, [this, user, account]() {
+        connect(user, &QLineEdit::textChanged, this, [this, user, account]() {
             QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/username").arg(account),
                                  user->text());
-            emit settingsApplied();
         });
-        connect(password, &QLineEdit::editingFinished, this, [this, password, account]() {
+        connect(user, &QLineEdit::editingFinished, this, [this]() { emit settingsApplied(); });
+        connect(password, &QLineEdit::textChanged, this, [this, password, account]() {
             QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/password").arg(account),
                                  password->text());
-            emit settingsApplied();
         });
+        connect(password, &QLineEdit::editingFinished, this, [this]() { emit settingsApplied(); });
     }
     if (m_krellspectrumEnabled) {
         connect(m_krellspectrumEnabled, &QCheckBox::toggled, this, [this](bool v) {
@@ -1312,5 +1312,7 @@ bool SettingsDialog::hasKrellSpectrumPlugin() const
 
 void SettingsDialog::onAccept()
 {
+    if (m_krellmailEnabled)
+        emit settingsApplied();
     accept();
 }
