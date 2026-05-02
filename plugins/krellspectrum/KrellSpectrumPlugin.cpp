@@ -286,7 +286,10 @@ void KrellSpectrumAudioCapture::start(KrellSpectrumConfig config)
     } else if (backend == QStringLiteral("pulse")) {
         m_backends << QStringLiteral("parec");
     } else {
-        m_backends << QStringLiteral("pw-record") << QStringLiteral("parec");
+        if (!defaultPulseMonitorSource().isEmpty())
+            m_backends << QStringLiteral("parec") << QStringLiteral("pw-record");
+        else
+            m_backends << QStringLiteral("pw-record") << QStringLiteral("parec");
     }
     startNextBackend();
 }
