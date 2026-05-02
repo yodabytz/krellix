@@ -69,6 +69,30 @@ int imapSearchCount(const QByteArray &line)
     return count;
 }
 
+bool isGmailHost(const QString &host)
+{
+    const QString lower = host.trimmed().toLower();
+    return lower.contains(QStringLiteral("gmail.com"))
+        || lower.contains(QStringLiteral("googlemail.com"));
+}
+
+QByteArray imapQuoted(const QString &value)
+{
+    return value.toUtf8().replace("\\", "\\\\").replace("\"", "\\\"");
+}
+
+QString loginPassword(const KrellmailAccount &account)
+{
+    QString password = account.password;
+    if (isGmailHost(account.host)) {
+        QString stripped = password;
+        stripped.remove(QLatin1Char(' '));
+        if (stripped.size() == 16)
+            password = stripped;
+    }
+    return password;
+}
+
 } // namespace
 
 KrellmailEnvelope::KrellmailEnvelope(Theme *theme, QWidget *parent)
@@ -442,8 +466,8 @@ void KrellmailMonitor::processLine(const QByteArray &line)
         }
         m_state = State::ImapLogin;
         m_imapTag = "a001";
-        const QByteArray user = account.username.toUtf8().replace("\\", "\\\\").replace("\"", "\\\"");
-        const QByteArray pass = account.password.toUtf8().replace("\\", "\\\\").replace("\"", "\\\"");
+        const QByteArray user = imapQuoted(account.username);
+        const QByteArray pass = imapQuoted(loginPassword(account));
         sendLine(m_imapTag + " LOGIN \"" + user + "\" \"" + pass + "\"");
     } else if (m_state == State::ImapLogin) {
         if (trimmed.startsWith(m_imapTag + " OK")) {
@@ -455,11 +479,30 @@ void KrellmailMonitor::processLine(const QByteArray &line)
         }
     } else if (m_state == State::ImapSelect) {
         if (trimmed.startsWith(m_imapTag + " OK")) {
-            m_state = State::ImapSearch;
-            m_imapTag = "a003";
-            sendLine(m_imapTag + " SEARCH UNSEEN");
+            if (isGmailHost(account.host)) {
+                m_state = State::ImapGmailSearch;
+                m_imapTag = "a003";
+                sendLine(m_imapTag + " UID SEARCH X-GM-RAW \"in:inbox is:unread\"");
+            } else {
+                m_state = State::ImapSearch;
+                m_imapTag = "a003";
+                sendLine(m_imapTag + " SEARCH UNSEEN");
+            }
         } else if (trimmed.startsWith(m_imapTag + " NO") || trimmed.startsWith(m_imapTag + " BAD")) {
             failCurrent(QString::fromUtf8(trimmed));
+        }
+    } else if (m_state == State::ImapGmailSearch) {
+        const int searchCount = imapSearchCount(trimmed);
+        if (searchCount >= 0) {
+            m_totalCount += searchCount;
+        } else if (trimmed.startsWith(m_imapTag + " OK")) {
+            m_state = State::ImapLogout;
+            m_imapTag = "a005";
+            sendLine(m_imapTag + " LOGOUT");
+        } else if (trimmed.startsWith(m_imapTag + " NO") || trimmed.startsWith(m_imapTag + " BAD")) {
+            m_state = State::ImapSearch;
+            m_imapTag = "a004";
+            sendLine(m_imapTag + " SEARCH UNSEEN");
         }
     } else if (m_state == State::ImapSearch) {
         const int searchCount = imapSearchCount(trimmed);

@@ -74,6 +74,7 @@ private:
         ImapGreeting,
         ImapLogin,
         ImapSelect,
+        ImapGmailSearch,
         ImapSearch,
         ImapLogout
     };
