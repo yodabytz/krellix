@@ -50,6 +50,7 @@ private:
     bool hasKrelldaciousPlugin() const;
     bool hasKrellweatherPlugin() const;
     bool hasKrellwirePlugin() const;
+    bool hasKrellmailPlugin() const;
     bool hasKrellSpectrumPlugin() const;
 
     Theme *m_theme;
@@ -93,6 +94,14 @@ private:
     QSpinBox    *m_krellwireUpdateMs = nullptr;
     QSpinBox    *m_krellwireScrollPps = nullptr;
     QList<QLineEdit *> m_krellwireFeeds;
+    QCheckBox   *m_krellmailEnabled = nullptr;
+    QSpinBox    *m_krellmailUpdateMs = nullptr;
+    QList<QComboBox *> m_krellmailProtocols;
+    QList<QLineEdit *> m_krellmailHosts;
+    QList<QSpinBox *> m_krellmailPorts;
+    QList<QCheckBox *> m_krellmailSsl;
+    QList<QLineEdit *> m_krellmailUsers;
+    QList<QLineEdit *> m_krellmailPasswords;
     QCheckBox   *m_krellspectrumEnabled = nullptr;
     QComboBox   *m_krellspectrumVisualMode = nullptr;
     QComboBox   *m_krellspectrumBandCount = nullptr;

@@ -55,6 +55,7 @@ QStringList defaultMonitorOrder()
         QStringLiteral("krelldacious"),
         QStringLiteral("krellweather"),
         QStringLiteral("krellwire"),
+        QStringLiteral("krellmail"),
         QStringLiteral("krellspectrum"),
         QStringLiteral("disk"),
         QStringLiteral("sensors"),

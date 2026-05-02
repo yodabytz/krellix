@@ -292,3 +292,24 @@ set_target_properties(krellspectrum PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
 )
 install(TARGETS krellspectrum LIBRARY DESTINATION lib/krellix/plugins)
+
+add_library(krellmail MODULE
+    plugins/krellmail/KrellmailPlugin.cpp
+    plugins/krellmail/KrellmailPlugin.h
+)
+target_include_directories(krellmail PRIVATE src)
+target_link_libraries(krellmail PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    Qt6::Network
+)
+target_compile_definitions(krellmail PRIVATE
+    QT_NO_CAST_FROM_ASCII
+    QT_NO_CAST_TO_ASCII
+    QT_NO_NARROWING_CONVERSIONS_IN_CONNECT
+)
+set_target_properties(krellmail PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
+)
+install(TARGETS krellmail LIBRARY DESTINATION lib/krellix/plugins)

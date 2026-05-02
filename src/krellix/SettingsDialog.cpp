@@ -53,6 +53,7 @@ const QList<QPair<QString, QString>> kMonitorOrderItems = {
     {QStringLiteral("krelldacious"), QStringLiteral("Krelldacious")},
     {QStringLiteral("krellweather"), QStringLiteral("Krellweather")},
     {QStringLiteral("krellwire"), QStringLiteral("Krellwire")},
+    {QStringLiteral("krellmail"), QStringLiteral("Krellmail")},
     {QStringLiteral("krellspectrum"), QStringLiteral("KrellSpectrum")},
     {QStringLiteral("disk"),    QStringLiteral("Disk I/O")},
     {QStringLiteral("sensors"), QStringLiteral("Sensors")},
@@ -509,6 +510,62 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
             m_pluginStack->addWidget(pluginPage);
         }
 
+        if (hasKrellmailPlugin()) {
+            auto *pluginPage = new QWidget(m_pluginStack);
+            auto *pluginLayout = new QVBoxLayout(pluginPage);
+            auto *group = new QGroupBox(QStringLiteral("Krellmail"), pluginPage);
+            auto *form = new QFormLayout(group);
+
+            m_krellmailEnabled =
+                new QCheckBox(QStringLiteral("Show Krellmail mail monitor"), group);
+            form->addRow(QString(), m_krellmailEnabled);
+
+            m_krellmailUpdateMs = new QSpinBox(group);
+            m_krellmailUpdateMs->setRange(30000, 3600000);
+            m_krellmailUpdateMs->setSingleStep(30000);
+            m_krellmailUpdateMs->setSuffix(QStringLiteral(" ms"));
+            form->addRow(QStringLiteral("Update interval:"), m_krellmailUpdateMs);
+
+            for (int i = 0; i < 3; ++i) {
+                auto *protocol = new QComboBox(group);
+                protocol->addItem(QStringLiteral("IMAP"), QStringLiteral("imap"));
+                protocol->addItem(QStringLiteral("POP3"), QStringLiteral("pop3"));
+                m_krellmailProtocols.append(protocol);
+                form->addRow(QStringLiteral("Account %1 protocol:").arg(i + 1), protocol);
+
+                auto *host = new QLineEdit(group);
+                host->setClearButtonEnabled(true);
+                host->setPlaceholderText(QStringLiteral("mail.example.com"));
+                m_krellmailHosts.append(host);
+                form->addRow(QStringLiteral("Account %1 server:").arg(i + 1), host);
+
+                auto *port = new QSpinBox(group);
+                port->setRange(1, 65535);
+                m_krellmailPorts.append(port);
+                form->addRow(QStringLiteral("Account %1 port:").arg(i + 1), port);
+
+                auto *ssl = new QCheckBox(QStringLiteral("Use SSL/TLS"), group);
+                m_krellmailSsl.append(ssl);
+                form->addRow(QStringLiteral("Account %1 security:").arg(i + 1), ssl);
+
+                auto *user = new QLineEdit(group);
+                user->setClearButtonEnabled(true);
+                m_krellmailUsers.append(user);
+                form->addRow(QStringLiteral("Account %1 user:").arg(i + 1), user);
+
+                auto *password = new QLineEdit(group);
+                password->setEchoMode(QLineEdit::Password);
+                password->setClearButtonEnabled(true);
+                m_krellmailPasswords.append(password);
+                form->addRow(QStringLiteral("Account %1 password:").arg(i + 1), password);
+            }
+
+            pluginLayout->addWidget(group);
+            pluginLayout->addStretch(1);
+            m_pluginList->addItem(QStringLiteral("Krellmail"));
+            m_pluginStack->addWidget(pluginPage);
+        }
+
         if (hasKrellSpectrumPlugin()) {
             auto *pluginPage = new QWidget(m_pluginStack);
             auto *pluginLayout = new QVBoxLayout(pluginPage);
@@ -823,6 +880,59 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
             emit settingsApplied();
         });
     }
+    if (m_krellmailEnabled) {
+        connect(m_krellmailEnabled, &QCheckBox::toggled, this, [this](bool v) {
+            QSettings().setValue(QStringLiteral("plugins/krellmail/enabled"), v);
+            emit panelStackChanged();
+        });
+    }
+    if (m_krellmailUpdateMs) {
+        connect(m_krellmailUpdateMs, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, [this](int v) {
+                    QSettings().setValue(QStringLiteral("plugins/krellmail/update_ms"), v);
+                    emit settingsApplied();
+                });
+    }
+    for (int i = 0; i < m_krellmailProtocols.size(); ++i) {
+        const int account = i + 1;
+        QComboBox *protocol = m_krellmailProtocols.at(i);
+        QLineEdit *host = m_krellmailHosts.at(i);
+        QSpinBox *port = m_krellmailPorts.at(i);
+        QCheckBox *ssl = m_krellmailSsl.at(i);
+        QLineEdit *user = m_krellmailUsers.at(i);
+        QLineEdit *password = m_krellmailPasswords.at(i);
+
+        connect(protocol, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, [this, protocol, account](int) {
+                    QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/protocol").arg(account),
+                                         protocol->currentData().toString());
+                    emit settingsApplied();
+                });
+        connect(host, &QLineEdit::editingFinished, this, [this, host, account]() {
+            QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/host").arg(account),
+                                 host->text().trimmed());
+            emit settingsApplied();
+        });
+        connect(port, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, [this, account](int v) {
+                    QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/port").arg(account), v);
+                    emit settingsApplied();
+                });
+        connect(ssl, &QCheckBox::toggled, this, [this, account](bool v) {
+            QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/ssl").arg(account), v);
+            emit settingsApplied();
+        });
+        connect(user, &QLineEdit::editingFinished, this, [this, user, account]() {
+            QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/username").arg(account),
+                                 user->text());
+            emit settingsApplied();
+        });
+        connect(password, &QLineEdit::editingFinished, this, [this, password, account]() {
+            QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/password").arg(account),
+                                 password->text());
+            emit settingsApplied();
+        });
+    }
     if (m_krellspectrumEnabled) {
         connect(m_krellspectrumEnabled, &QCheckBox::toggled, this, [this](bool v) {
             QSettings().setValue(QStringLiteral("plugins/krellspectrum/enabled"), v);
@@ -1026,6 +1136,36 @@ void SettingsDialog::loadFromSettings()
             s.value(QStringLiteral("plugins/krellwire/feed%1").arg(i + 1),
                     i < wireDefaults.size() ? wireDefaults.at(i) : QString()).toString());
     }
+    if (m_krellmailEnabled) {
+        m_krellmailEnabled->setChecked(
+            s.value(QStringLiteral("plugins/krellmail/enabled"), true).toBool());
+    }
+    if (m_krellmailUpdateMs) {
+        m_krellmailUpdateMs->setValue(
+            s.value(QStringLiteral("plugins/krellmail/update_ms"), 300000).toInt());
+    }
+    for (int i = 0; i < m_krellmailProtocols.size(); ++i) {
+        const int account = i + 1;
+        const QString proto = s.value(QStringLiteral("plugins/krellmail/account%1/protocol").arg(account),
+                                      QStringLiteral("imap")).toString();
+        const int protoIndex = m_krellmailProtocols.at(i)->findData(proto);
+        m_krellmailProtocols.at(i)->setCurrentIndex(protoIndex >= 0 ? protoIndex : 0);
+        const bool ssl = s.value(QStringLiteral("plugins/krellmail/account%1/ssl").arg(account),
+                                 true).toBool();
+        m_krellmailSsl.at(i)->setChecked(ssl);
+        const int fallbackPort = proto == QLatin1String("pop3")
+            ? (ssl ? 995 : 110)
+            : (ssl ? 993 : 143);
+        m_krellmailPorts.at(i)->setValue(
+            s.value(QStringLiteral("plugins/krellmail/account%1/port").arg(account),
+                    fallbackPort).toInt());
+        m_krellmailHosts.at(i)->setText(
+            s.value(QStringLiteral("plugins/krellmail/account%1/host").arg(account)).toString());
+        m_krellmailUsers.at(i)->setText(
+            s.value(QStringLiteral("plugins/krellmail/account%1/username").arg(account)).toString());
+        m_krellmailPasswords.at(i)->setText(
+            s.value(QStringLiteral("plugins/krellmail/account%1/password").arg(account)).toString());
+    }
     if (m_krellspectrumEnabled) {
         m_krellspectrumEnabled->setChecked(
             s.value(QStringLiteral("plugins/krellspectrum/enabled"), true).toBool());
@@ -1158,6 +1298,11 @@ bool SettingsDialog::hasKrellweatherPlugin() const
 bool SettingsDialog::hasKrellwirePlugin() const
 {
     return hasPlugin(QStringLiteral("krellwire"));
+}
+
+bool SettingsDialog::hasKrellmailPlugin() const
+{
+    return hasPlugin(QStringLiteral("krellmail"));
 }
 
 bool SettingsDialog::hasKrellSpectrumPlugin() const
