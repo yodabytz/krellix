@@ -1047,7 +1047,7 @@ void SettingsDialog::loadFromSettings()
     }
     if (m_krellspectrumSmoothing) {
         m_krellspectrumSmoothing->setValue(
-            s.value(QStringLiteral("plugins/krellspectrum/smoothing"), 0.72).toDouble());
+            s.value(QStringLiteral("plugins/krellspectrum/smoothing"), 0.38).toDouble());
     }
     if (m_krellspectrumColorMode) {
         const QString mode = s.value(QStringLiteral("plugins/krellspectrum/color_mode"),
@@ -1067,7 +1067,7 @@ void SettingsDialog::loadFromSettings()
     }
     if (m_krellspectrumFps) {
         m_krellspectrumFps->setValue(
-            s.value(QStringLiteral("plugins/krellspectrum/fps"), 30).toInt());
+            s.value(QStringLiteral("plugins/krellspectrum/fps"), 45).toInt());
     }
     if (m_krellspectrumHeight) {
         m_krellspectrumHeight->setValue(

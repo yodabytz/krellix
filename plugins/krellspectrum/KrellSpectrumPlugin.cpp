@@ -22,8 +22,8 @@
 
 namespace {
 
-constexpr int kSampleRate = 44100;
-constexpr int kFrameSamples = 512;
+constexpr int kSampleRate = 48000;
+constexpr int kFrameSamples = 256;
 constexpr double kPi = 3.14159265358979323846;
 
 KrellSpectrumConfig configuredSpectrum()
@@ -41,12 +41,12 @@ KrellSpectrumConfig configuredSpectrum()
                                    QStringLiteral("#56c7ff")).toString());
     if (!c.staticColor.isValid()) c.staticColor = QColor(86, 199, 255);
     c.bands = qBound(16, s.value(QStringLiteral("plugins/krellspectrum/bands"), 32).toInt(), 128);
-    c.fps = qBound(8, s.value(QStringLiteral("plugins/krellspectrum/fps"), 30).toInt(), 60);
+    c.fps = qBound(8, s.value(QStringLiteral("plugins/krellspectrum/fps"), 45).toInt(), 60);
     c.sensitivity = qBound(0.2,
                            s.value(QStringLiteral("plugins/krellspectrum/sensitivity"), 1.35).toDouble(),
                            8.0);
     c.smoothing = qBound(0.0,
-                         s.value(QStringLiteral("plugins/krellspectrum/smoothing"), 0.72).toDouble(),
+                         s.value(QStringLiteral("plugins/krellspectrum/smoothing"), 0.38).toDouble(),
                          0.95);
     c.peakHold = s.value(QStringLiteral("plugins/krellspectrum/peak_hold"), true).toBool();
     c.stereoSplit = s.value(QStringLiteral("plugins/krellspectrum/stereo_split"), false).toBool();
@@ -212,8 +212,11 @@ void KrellSpectrumProcessor::process(const QVector<float> &samples)
     }
 
     for (int i = 0; i < m_bandCount; ++i) {
-        const float smoothed = static_cast<float>(static_cast<double>(m_bands.at(i)) * m_smoothing
-            + static_cast<double>(next.at(i)) * (1.0 - m_smoothing));
+        const double current = m_bands.at(i);
+        const double candidate = next.at(i);
+        const double smoothing = candidate > current ? qMin(m_smoothing, 0.18) : m_smoothing;
+        const float smoothed = static_cast<float>(current * smoothing
+            + candidate * (1.0 - smoothing));
         m_bands[i] = smoothed;
         m_peaks[i] = qMax(smoothed, m_peaks.at(i) * 0.965f - 0.002f);
     }
@@ -272,6 +275,8 @@ void KrellSpectrumAudioCapture::start(KrellSpectrumConfig config)
 {
     stop();
     m_config = config;
+    m_minEmitMs = qMax(1, 1000 / qBound(8, m_config.fps, 60));
+    m_emitTimer.restart();
     m_stopping = false;
     m_backendIndex = 0;
     m_backends.clear();
@@ -315,7 +320,8 @@ QStringList KrellSpectrumAudioCapture::argsForBackend(const QString &program,
         args << QStringLiteral("--raw")
              << QStringLiteral("--format=s16")
              << QStringLiteral("--rate=%1").arg(kSampleRate)
-             << QStringLiteral("--channels=1");
+             << QStringLiteral("--channels=1")
+             << QStringLiteral("--latency=10ms");
         if (!device.isEmpty())
             args << QStringLiteral("--target=%1").arg(device);
         args << QStringLiteral("-");
@@ -324,7 +330,8 @@ QStringList KrellSpectrumAudioCapture::argsForBackend(const QString &program,
              << QStringLiteral("--format=s16le")
              << QStringLiteral("--rate=%1").arg(kSampleRate)
              << QStringLiteral("--channels=1")
-             << QStringLiteral("--latency-msec=25");
+             << QStringLiteral("--latency-msec=10")
+             << QStringLiteral("--process-time-msec=5");
         if (!device.isEmpty())
             args << QStringLiteral("--device=%1").arg(device);
     }
@@ -414,7 +421,10 @@ void KrellSpectrumAudioCapture::consumeBytes(const QByteArray &bytes)
         const qint16 sample = static_cast<qint16>((static_cast<qint16>(hi) << 8) | lo);
         m_frame.append(static_cast<float>(sample) / 32768.0f);
         if (m_frame.size() >= kFrameSamples) {
-            emit samplesReady(m_frame);
+            if (!m_emitTimer.isValid() || m_emitTimer.elapsed() >= m_minEmitMs) {
+                emit samplesReady(m_frame);
+                m_emitTimer.restart();
+            }
             m_frame.clear();
         }
     }

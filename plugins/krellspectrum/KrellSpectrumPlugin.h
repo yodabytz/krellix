@@ -22,7 +22,7 @@ struct KrellSpectrumConfig {
     int bands = 32;
     int fps = 30;
     double sensitivity = 1.35;
-    double smoothing = 0.72;
+    double smoothing = 0.38;
     bool peakHold = true;
     bool stereoSplit = false;
 };
@@ -45,7 +45,7 @@ private:
 
     int m_bandCount = 32;
     int m_fftSize = 1024;
-    double m_smoothing = 0.72;
+    double m_smoothing = 0.38;
     double m_sensitivity = 1.35;
     double m_noiseFloor = 0.0005;
     double m_level = 0.0;
@@ -92,6 +92,8 @@ private:
     int m_backendIndex = 0;
     QByteArray m_pendingBytes;
     QVector<float> m_frame;
+    QElapsedTimer m_emitTimer;
+    int m_minEmitMs = 16;
     bool m_stopping = false;
 };
 
