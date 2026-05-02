@@ -5,19 +5,25 @@
 
 #include <QNetworkAccessManager>
 #include <QPointer>
+#include <QVector>
 
-class QLabel;
+#include <vector>
+
 class QNetworkReply;
-class QJsonObject;
 class QWidget;
 
-class KrellweatherMonitor : public MonitorBase
+struct KrellwireFeedItem {
+    QString title;
+    QUrl url;
+};
+
+class KrellwireMonitor : public MonitorBase
 {
     Q_OBJECT
 
 public:
-    explicit KrellweatherMonitor(Theme *theme, QObject *parent = nullptr);
-    ~KrellweatherMonitor() override;
+    explicit KrellwireMonitor(Theme *theme, QObject *parent = nullptr);
+    ~KrellwireMonitor() override;
 
     QString id() const override;
     QString displayName() const override;
@@ -29,22 +35,18 @@ public:
 private:
     void fetch();
     void handleReply(QNetworkReply *reply);
-    void cancelPendingReply();
-    void applyThemeColors();
-    void renderWeather(const QJsonObject &obj);
-    void setMessage(const QString &line1, const QString &line2);
+    void cancelReplies();
+    void publishItems();
 
-    QPointer<QLabel> m_location;
-    QPointer<QWidget> m_icon;
-    QPointer<QLabel> m_primary;
-    QPointer<QLabel> m_detail;
-    QPointer<QNetworkReply> m_reply;
+    QPointer<QWidget> m_ticker;
     QNetworkAccessManager m_net;
+    QVector<QPointer<QNetworkReply>> m_replies;
+    std::vector<KrellwireFeedItem> m_items;
     bool m_fetching = false;
     bool m_tearingDown = false;
 };
 
-class KrellweatherPlugin : public QObject, public IKrellixPlugin
+class KrellwirePlugin : public QObject, public IKrellixPlugin
 {
     Q_OBJECT
     Q_PLUGIN_METADATA(IID KrellixPlugin_iid)

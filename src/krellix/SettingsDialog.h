@@ -48,6 +48,7 @@ private:
     bool hasKrellkamPlugin() const;
     bool hasKrelldaciousPlugin() const;
     bool hasKrellweatherPlugin() const;
+    bool hasKrellwirePlugin() const;
 
     Theme *m_theme;
 
@@ -85,6 +86,11 @@ private:
     QLineEdit   *m_krellweatherStation = nullptr;
     QComboBox   *m_krellweatherUnits = nullptr;
     QSpinBox    *m_krellweatherUpdateMs = nullptr;
+    QCheckBox   *m_krellwireEnabled = nullptr;
+    QSpinBox    *m_krellwireItems = nullptr;
+    QSpinBox    *m_krellwireUpdateMs = nullptr;
+    QSpinBox    *m_krellwireScrollPps = nullptr;
+    QList<QLineEdit *> m_krellwireFeeds;
 
     Q_DISABLE_COPY_MOVE(SettingsDialog)
 };

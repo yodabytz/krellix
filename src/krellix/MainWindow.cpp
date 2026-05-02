@@ -54,6 +54,7 @@ QStringList defaultMonitorOrder()
         QStringLiteral("krellkam"),
         QStringLiteral("krelldacious"),
         QStringLiteral("krellweather"),
+        QStringLiteral("krellwire"),
         QStringLiteral("disk"),
         QStringLiteral("sensors"),
         QStringLiteral("battery"),
@@ -113,7 +114,9 @@ MainWindow::MainWindow(Theme *theme,
     m_layout->setContentsMargins(0, 0, 0, 0);
     m_layout->setSpacing(0);
 
-    // Initial discovery + monitor instantiation.
+    // Initial discovery loads plugin factories; the actual live monitor
+    // instances are created by buildPanelStack() below so ordering and
+    // enable/disable state are handled in one place.
     (void) m_pluginLoader->discoverAndLoad(m_theme, this);
     buildPanelStack(m_cliEnabledIds);
 
@@ -355,52 +358,46 @@ void MainWindow::buildPanelStack(const QStringList &enabledIds)
     fitToPanelStack();
 }
 
-static void deleteLayoutContents(QLayout *layout)
-{
-    if (!layout) return;
-    while (layout->count() > 0) {
-        QLayoutItem *item = layout->takeAt(0);
-        if (!item) break;
-        if (QWidget *w = item->widget()) {
-            w->setParent(nullptr);
-            w->deleteLater();
-        } else if (QLayout *sub = item->layout()) {
-            deleteLayoutContents(sub);
-            sub->deleteLater();
-        }
-        delete item;
-    }
-}
-
 void MainWindow::clearPanelStack()
 {
     // Tear down per-monitor widgets and the monitors themselves. Each
     // monitor parents its QTimer, so stopping/deleting the monitor stops
-    // the tick.
+    // the tick. Leave non-monitor layout widgets such as the top strip and
+    // connection alert in place; deleting them here leaves stale raw pointers
+    // that can be touched by later theme or remote-source callbacks.
     for (const LiveMonitor &lm : m_monitors) {
+        if (lm.timer) {
+            lm.timer->stop();
+            lm.timer->disconnect(this);
+            lm.timer->disconnect(lm.monitor);
+        }
         if (lm.monitor)
             lm.monitor->shutdown();
         if (lm.widget) {
+            m_layout->removeWidget(lm.widget);
             lm.widget->setParent(nullptr);
             lm.widget->deleteLater();
         }
         if (lm.monitor) {
+            lm.monitor->disconnect(this);
             lm.monitor->deleteLater();
         }
     }
     m_monitors.clear();
-
-    deleteLayoutContents(m_layout);
 }
 
 void MainWindow::rebuildPanels()
 {
+    if (m_rebuildingPanels)
+        return;
+    m_rebuildingPanels = true;
     clearPanelStack();
     buildPanelStack(m_cliEnabledIds);
     applyFrameMargins();
     applyFixedWidth();
     fitToPanelStack();
     update();
+    m_rebuildingPanels = false;
 }
 
 void MainWindow::refreshMonitorTimers()
@@ -425,7 +422,9 @@ void MainWindow::refreshLiveSettings()
                 lm.widget->updateGeometry();
                 lm.widget->update();
             }
-            if (lm.monitor && lm.monitor->id() == QStringLiteral("krellweather"))
+            if (lm.monitor
+                && (lm.monitor->id() == QStringLiteral("krellweather")
+                    || lm.monitor->id() == QStringLiteral("krellwire")))
                 lm.monitor->tick();
         }
         m_layout->invalidate();

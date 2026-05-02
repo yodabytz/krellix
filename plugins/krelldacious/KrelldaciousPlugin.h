@@ -24,6 +24,7 @@ public:
     void tick() override;
 
 private:
+    void applyThemeColors();
     void sendPlayerCommand(const QString &method);
     void setAudaciousVolume(int percent);
     QVariant playerProperty(const QString &name, bool *ok = nullptr) const;

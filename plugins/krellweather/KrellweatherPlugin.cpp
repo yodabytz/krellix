@@ -37,8 +37,9 @@ enum class WeatherIconKind {
 class WeatherIconWidget : public QWidget
 {
 public:
-    explicit WeatherIconWidget(QWidget *parent = nullptr)
+    explicit WeatherIconWidget(Theme *theme, QWidget *parent = nullptr)
         : QWidget(parent)
+        , m_theme(theme)
     {
         setFixedSize(30, 24);
         setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -57,8 +58,27 @@ protected:
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing, true);
 
+        auto themed = [this](const QString &key, const QColor &fallback, int alpha = 255) {
+            QColor color = themeColor(key, fallback);
+            color.setAlpha(alpha);
+            return color;
+        };
+
+        const QColor primary = themed(QStringLiteral("text_primary"),
+                                      QColor(235, 246, 252), 230);
+        const QColor secondary = themed(QStringLiteral("text_secondary"),
+                                        QColor(180, 210, 222), 235);
+        const QColor accent = themed(QStringLiteral("text_accent"),
+                                     QColor(255, 220, 88), 220);
+        const QColor warning = themed(QStringLiteral("accent_warning"),
+                                      QColor(255, 202, 55), 235);
+        const QColor cutout = themed(QStringLiteral("chart_bg"),
+                                     QColor(24, 42, 55), 240);
+        const QColor border = themed(QStringLiteral("panel_border"),
+                                     primary.darker(180), 210);
+
         if (m_kind == WeatherIconKind::Unknown) {
-            p.setPen(QPen(QColor(170, 210, 225, 180), 1.4));
+            p.setPen(QPen(secondary, 1.4));
             p.drawEllipse(QRectF(8, 5, 14, 14));
             p.drawLine(QPointF(15, 11), QPointF(15, 15));
             p.drawPoint(QPointF(15, 18));
@@ -77,7 +97,7 @@ protected:
             || m_kind == WeatherIconKind::PartlySun;
 
         if (sun) {
-            p.setPen(QPen(QColor(255, 220, 88, 220), 1.3));
+            p.setPen(QPen(accent, 1.3));
             for (int i = 0; i < 8; ++i) {
                 const double a = i * M_PI / 4.0;
                 const QPointF c(11, 10);
@@ -85,22 +105,22 @@ protected:
                            c + QPointF(qCos(a) * 10.0, qSin(a) * 10.0));
             }
             p.setPen(Qt::NoPen);
-            p.setBrush(QColor(255, 202, 55, 235));
+            p.setBrush(warning);
             p.drawEllipse(QRectF(5, 4, 12, 12));
         }
 
         if (moon) {
             p.setPen(Qt::NoPen);
-            p.setBrush(QColor(218, 232, 246, 230));
+            p.setBrush(primary);
             p.drawEllipse(QRectF(5, 3, 14, 14));
-            p.setBrush(QColor(24, 42, 55, 240));
+            p.setBrush(cutout);
             p.drawEllipse(QRectF(10, 1, 13, 14));
         }
 
         if (cloud) {
             const int y = m_kind == WeatherIconKind::Cloud ? 7 : 9;
-            p.setPen(QPen(QColor(42, 64, 74, 210), 1.0));
-            p.setBrush(QColor(190, 218, 226, 238));
+            p.setPen(QPen(border, 1.0));
+            p.setBrush(secondary);
             QPainterPath path;
             path.addEllipse(QRectF(6, y + 3, 9, 8));
             path.addEllipse(QRectF(12, y, 10, 11));
@@ -111,6 +131,14 @@ protected:
     }
 
 private:
+    QColor themeColor(const QString &key, const QColor &fallback) const
+    {
+        if (!m_theme) return fallback;
+        const QColor color = m_theme->color(key, fallback);
+        return color.isValid() ? color : fallback;
+    }
+
+    Theme *m_theme = nullptr;
     WeatherIconKind m_kind = WeatherIconKind::Unknown;
 };
 
@@ -212,6 +240,15 @@ WeatherIconKind iconKindForWeather(const QJsonObject &obj)
 
 } // namespace
 
+QString cssColor(const QColor &color)
+{
+    return QStringLiteral("rgba(%1, %2, %3, %4)")
+        .arg(color.red())
+        .arg(color.green())
+        .arg(color.blue())
+        .arg(color.alpha());
+}
+
 KrellweatherMonitor::KrellweatherMonitor(Theme *theme, QObject *parent)
     : MonitorBase(theme, parent)
 {
@@ -250,17 +287,11 @@ QWidget *KrellweatherMonitor::createWidget(QWidget *parent)
 
     m_location = new QLabel(stationCode(), body);
     m_location->setAlignment(Qt::AlignCenter);
-    m_location->setStyleSheet(QStringLiteral(
-        "font-size: 9px; font-weight: 700;"
-        "color: rgba(205, 230, 242, 235);"));
 
     m_primary = new QLabel(QStringLiteral("--"), body);
     m_primary->setAlignment(Qt::AlignCenter);
-    m_primary->setStyleSheet(QStringLiteral(
-        "font-size: 16px; font-weight: 800;"
-        "color: rgba(245, 252, 255, 245);"));
 
-    m_icon = new WeatherIconWidget(body);
+    m_icon = new WeatherIconWidget(theme(), body);
     auto *tempRow = new QHBoxLayout;
     tempRow->setContentsMargins(0, 0, 0, 0);
     tempRow->setSpacing(3);
@@ -272,9 +303,12 @@ QWidget *KrellweatherMonitor::createWidget(QWidget *parent)
     m_detail = new QLabel(QStringLiteral("waiting for weather"), body);
     m_detail->setAlignment(Qt::AlignCenter);
     m_detail->setWordWrap(true);
-    m_detail->setStyleSheet(QStringLiteral(
-        "font-size: 9px; font-weight: 600;"
-        "color: rgba(170, 210, 225, 220);"));
+
+    applyThemeColors();
+    connect(theme(), &Theme::themeChanged, this, [this]() {
+        applyThemeColors();
+        if (m_icon) m_icon->update();
+    });
 
     layout->addWidget(m_location);
     layout->addLayout(tempRow);
@@ -385,6 +419,34 @@ void KrellweatherMonitor::cancelPendingReply()
     if (reply->isRunning())
         reply->abort();
     reply->deleteLater();
+}
+
+void KrellweatherMonitor::applyThemeColors()
+{
+    const QColor primary = theme()->textStyle(
+        QStringLiteral("text_primary")).color;
+    const QColor secondary = theme()->textStyle(
+        QStringLiteral("text_secondary"),
+        QStringLiteral("text_primary")).color;
+    const QColor accent = theme()->textStyle(
+        QStringLiteral("text_accent"),
+        QStringLiteral("text_primary")).color;
+
+    if (m_location) {
+        m_location->setStyleSheet(QStringLiteral(
+            "font-size: 9px; font-weight: 700; color: %1;")
+            .arg(cssColor(accent.isValid() ? accent : primary)));
+    }
+    if (m_primary) {
+        m_primary->setStyleSheet(QStringLiteral(
+            "font-size: 16px; font-weight: 800; color: %1;")
+            .arg(cssColor(primary)));
+    }
+    if (m_detail) {
+        m_detail->setStyleSheet(QStringLiteral(
+            "font-size: 9px; font-weight: 600; color: %1;")
+            .arg(cssColor(secondary.isValid() ? secondary : primary)));
+    }
 }
 
 void KrellweatherMonitor::renderWeather(const QJsonObject &obj)

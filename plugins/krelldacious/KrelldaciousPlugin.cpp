@@ -36,9 +36,10 @@ public:
         Next,
     };
 
-    explicit TransportButton(Kind kind, QWidget *parent = nullptr)
+    explicit TransportButton(Kind kind, Theme *theme, QWidget *parent = nullptr)
         : QPushButton(parent)
         , m_kind(kind)
+        , m_theme(theme)
     {
         setFixedSize(25, 19);
         setFocusPolicy(Qt::NoFocus);
@@ -56,34 +57,42 @@ protected:
         const QRectF r = rect().adjusted(0.5, 0.5, -0.5, -0.5);
         const bool hot = isEnabled() && underMouse();
         const bool pressed = isEnabled() && isDown();
+        const QColor panel = themeColor(QStringLiteral("panel_bg"),
+                                        QColor(15, 20, 25));
+        const QColor border = themeColor(QStringLiteral("panel_border"),
+                                         QColor(138, 185, 210));
+        const QColor accent = themeColor(QStringLiteral("text_accent"),
+                                         QColor(110, 205, 230));
+        const QColor primary = themeColor(QStringLiteral("text_primary"),
+                                          QColor(210, 235, 246));
+        const QColor disabled = themeColor(QStringLiteral("text_secondary"),
+                                           QColor(155, 165, 172));
 
         QLinearGradient bg(r.topLeft(), r.bottomLeft());
         if (!isEnabled()) {
-            bg.setColorAt(0.0, QColor(28, 32, 36, 120));
-            bg.setColorAt(1.0, QColor(8, 10, 12, 150));
+            bg.setColorAt(0.0, withAlpha(panel.lighter(125), 120));
+            bg.setColorAt(1.0, withAlpha(panel.darker(135), 150));
         } else if (pressed) {
-            bg.setColorAt(0.0, QColor(37, 88, 112, 230));
-            bg.setColorAt(1.0, QColor(9, 24, 32, 235));
+            bg.setColorAt(0.0, withAlpha(accent.darker(120), 230));
+            bg.setColorAt(1.0, withAlpha(panel.darker(155), 235));
         } else if (hot) {
-            bg.setColorAt(0.0, QColor(43, 92, 116, 225));
-            bg.setColorAt(0.48, QColor(16, 36, 48, 230));
-            bg.setColorAt(1.0, QColor(5, 12, 18, 240));
+            bg.setColorAt(0.0, withAlpha(accent, 225));
+            bg.setColorAt(0.48, withAlpha(panel, 230));
+            bg.setColorAt(1.0, withAlpha(panel.darker(150), 240));
         } else {
-            bg.setColorAt(0.0, QColor(45, 52, 58, 215));
-            bg.setColorAt(0.45, QColor(15, 20, 25, 230));
-            bg.setColorAt(1.0, QColor(4, 7, 10, 240));
+            bg.setColorAt(0.0, withAlpha(panel.lighter(135), 215));
+            bg.setColorAt(0.45, withAlpha(panel, 230));
+            bg.setColorAt(1.0, withAlpha(panel.darker(150), 240));
         }
 
-        p.setPen(QPen(isEnabled()
-                          ? QColor(138, 185, 210, hot ? 210 : 140)
-                          : QColor(110, 120, 128, 80), 1.0));
+        p.setPen(QPen(isEnabled() ? withAlpha(border, hot ? 210 : 150)
+                                  : withAlpha(disabled, 90), 1.0));
         p.setBrush(bg);
         p.drawRoundedRect(r, 4.0, 4.0);
 
         p.setPen(Qt::NoPen);
-        p.setBrush(isEnabled()
-                       ? QColor(210, 235, 246, 235)
-                       : QColor(155, 165, 172, 90));
+        p.setBrush(isEnabled() ? withAlpha(primary, 235)
+                               : withAlpha(disabled, 100));
 
         const qreal y = height() / 2.0;
         const qreal shift = pressed ? 1.0 : 0.0;
@@ -120,7 +129,21 @@ protected:
     }
 
 private:
+    QColor themeColor(const QString &key, const QColor &fallback) const
+    {
+        if (!m_theme) return fallback;
+        const QColor color = m_theme->color(key, fallback);
+        return color.isValid() ? color : fallback;
+    }
+
+    QColor withAlpha(QColor color, int alpha) const
+    {
+        color.setAlpha(alpha);
+        return color;
+    }
+
     Kind m_kind;
+    Theme *m_theme = nullptr;
 };
 
 QVariant unwrapDbusVariant(QVariant v)
@@ -184,33 +207,71 @@ void styleTransportButton(QPushButton *button, const QString &tip)
     button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 }
 
-void styleVolume(QSlider *slider)
+QString cssColor(const QColor &color)
+{
+    return QStringLiteral("rgba(%1, %2, %3, %4)")
+        .arg(color.red())
+        .arg(color.green())
+        .arg(color.blue())
+        .arg(color.alpha());
+}
+
+QColor themeColor(Theme *theme, const QString &key, const QColor &fallback)
+{
+    if (!theme) return fallback;
+    const QColor color = theme->color(key, fallback);
+    return color.isValid() ? color : fallback;
+}
+
+QColor textColor(Theme *theme,
+                 const QString &key,
+                 const QString &fallbackKey = QStringLiteral("text_primary"))
+{
+    if (!theme) return QColor(226, 240, 246, 235);
+    const QColor color = theme->textStyle(key, fallbackKey).color;
+    return color.isValid() ? color : QColor(226, 240, 246, 235);
+}
+
+QColor withAlpha(QColor color, int alpha)
+{
+    color.setAlpha(alpha);
+    return color;
+}
+
+void styleVolume(QSlider *slider, Theme *theme)
 {
     slider->setFixedHeight(13);
     slider->setFocusPolicy(Qt::NoFocus);
-    slider->setStyleSheet(QStringLiteral(
+    const QColor groove = themeColor(theme, QStringLiteral("chart_bg"), QColor(5, 8, 10));
+    const QColor border = themeColor(theme, QStringLiteral("panel_border"), QColor(135, 170, 190));
+    const QColor accent = textColor(theme, QStringLiteral("text_accent"));
+    const QColor primary = textColor(theme, QStringLiteral("text_primary"));
+    const QColor handle = themeColor(theme, QStringLiteral("panel_bg"), primary);
+    const QString style = QStringLiteral(
         "QSlider::groove:horizontal {"
         "  height: 3px;"
-        "  background: rgba(5, 8, 10, 185);"
-        "  border: 1px solid rgba(135, 170, 190, 90);"
+        "  background: %1;"
+        "  border: 1px solid %2;"
         "  border-radius: 1px;"
         "}"
         "QSlider::sub-page:horizontal {"
-        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0,"
-        "                              stop:0 rgba(65, 175, 210, 210),"
-        "                              stop:1 rgba(180, 245, 255, 230));"
+        "  background: %3;"
         "  border-radius: 1px;"
         "}"
         "QSlider::handle:horizontal {"
         "  width: 7px;"
         "  height: 9px;"
         "  margin: -4px 0;"
-        "  background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
-        "                              stop:0 #f7fbff, stop:1 #9bb3bf);"
-        "  border: 1px solid rgba(20, 35, 44, 230);"
+        "  background: %4;"
+        "  border: 1px solid %5;"
         "  border-radius: 2px;"
         "}"
-    ));
+    ).arg(cssColor(withAlpha(groove, 185)),
+          cssColor(withAlpha(border, 120)),
+          cssColor(withAlpha(accent, 220)),
+          cssColor(withAlpha(handle.lighter(125), 235)),
+          cssColor(withAlpha(border.darker(140), 230)));
+    slider->setStyleSheet(style);
 }
 
 } // namespace
@@ -251,19 +312,14 @@ QWidget *KrelldaciousMonitor::createWidget(QWidget *parent)
     m_track = new QLabel(QStringLiteral("(waiting for Audacious)"), body);
     m_track->setAlignment(Qt::AlignCenter);
     m_track->setWordWrap(true);
-    m_track->setStyleSheet(QStringLiteral(
-        "font-size: 10px;"
-        "font-weight: 600;"
-        "color: rgba(226, 240, 246, 235);"
-    ));
 
     auto *buttons = new QHBoxLayout;
     buttons->setContentsMargins(0, 0, 0, 0);
     buttons->setSpacing(2);
     buttons->addStretch(1);
-    m_prev = new TransportButton(TransportButton::Previous, body);
-    m_playPause = new TransportButton(TransportButton::PlayPause, body);
-    m_next = new TransportButton(TransportButton::Next, body);
+    m_prev = new TransportButton(TransportButton::Previous, theme(), body);
+    m_playPause = new TransportButton(TransportButton::PlayPause, theme(), body);
+    m_next = new TransportButton(TransportButton::Next, theme(), body);
     styleTransportButton(m_prev, QStringLiteral("Previous"));
     styleTransportButton(m_playPause, QStringLiteral("Play / pause"));
     styleTransportButton(m_next, QStringLiteral("Next"));
@@ -274,7 +330,7 @@ QWidget *KrelldaciousMonitor::createWidget(QWidget *parent)
 
     m_volume = new QSlider(Qt::Horizontal, body);
     m_volume->setRange(0, 100);
-    styleVolume(m_volume);
+    styleVolume(m_volume, theme());
 
     layout->addWidget(m_track);
     layout->addLayout(buttons);
@@ -294,9 +350,28 @@ QWidget *KrelldaciousMonitor::createWidget(QWidget *parent)
         if (!m_updatingVolume)
             setAudaciousVolume(value);
     });
+    connect(theme(), &Theme::themeChanged, this, [this]() {
+        applyThemeColors();
+        if (m_prev) m_prev->update();
+        if (m_playPause) m_playPause->update();
+        if (m_next) m_next->update();
+    });
 
+    applyThemeColors();
     tick();
     return panel;
+}
+
+void KrelldaciousMonitor::applyThemeColors()
+{
+    const QColor primary = textColor(theme(), QStringLiteral("text_primary"));
+    if (m_track) {
+        m_track->setStyleSheet(QStringLiteral(
+            "font-size: 10px; font-weight: 600; color: %1;")
+            .arg(cssColor(primary)));
+    }
+    if (m_volume)
+        styleVolume(m_volume, theme());
 }
 
 void KrelldaciousMonitor::tick()

@@ -91,6 +91,7 @@ private:
     RemoteSource  *m_remote       = nullptr;
     class Panel   *m_topStrip     = nullptr;   // optional decorative header
     QList<LiveMonitor> m_monitors;
+    bool m_rebuildingPanels = false;
 
     bool   m_dragging   = false;
     QPoint m_dragOffset;

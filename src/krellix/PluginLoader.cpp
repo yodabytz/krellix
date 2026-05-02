@@ -109,15 +109,10 @@ QList<MonitorBase *> PluginLoader::discoverAndLoad(Theme *theme,
                 continue;
             }
 
-            const QList<MonitorBase *> monitors =
-                plugin->createMonitors(theme, monitorParent);
-            for (MonitorBase *m : monitors) {
-                if (m) all.append(m);
-            }
             qCInfo(lcPlugin).nospace()
                 << "loaded plugin " << plugin->pluginId()
                 << " " << plugin->pluginVersion()
-                << " (" << monitors.size() << " monitor(s))";
+                << " (factory ready)";
 
             m_loaders.append(loader);
             m_plugins.append(plugin);

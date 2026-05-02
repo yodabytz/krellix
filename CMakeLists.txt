@@ -251,3 +251,24 @@ set_target_properties(krellweather PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
 )
 install(TARGETS krellweather LIBRARY DESTINATION lib/krellix/plugins)
+
+add_library(krellwire MODULE
+    plugins/krellwire/KrellwirePlugin.cpp
+    plugins/krellwire/KrellwirePlugin.h
+)
+target_include_directories(krellwire PRIVATE src)
+target_link_libraries(krellwire PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    Qt6::Network
+)
+target_compile_definitions(krellwire PRIVATE
+    QT_NO_CAST_FROM_ASCII
+    QT_NO_CAST_TO_ASCII
+    QT_NO_NARROWING_CONVERSIONS_IN_CONNECT
+)
+set_target_properties(krellwire PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
+)
+install(TARGETS krellwire LIBRARY DESTINATION lib/krellix/plugins)

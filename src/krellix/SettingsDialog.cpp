@@ -51,6 +51,7 @@ const QList<QPair<QString, QString>> kMonitorOrderItems = {
     {QStringLiteral("krellkam"), QStringLiteral("Krellkam")},
     {QStringLiteral("krelldacious"), QStringLiteral("Krelldacious")},
     {QStringLiteral("krellweather"), QStringLiteral("Krellweather")},
+    {QStringLiteral("krellwire"), QStringLiteral("Krellwire")},
     {QStringLiteral("disk"),    QStringLiteral("Disk I/O")},
     {QStringLiteral("sensors"), QStringLiteral("Sensors")},
     {QStringLiteral("battery"), QStringLiteral("Battery")},
@@ -461,6 +462,51 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
             m_pluginStack->addWidget(pluginPage);
         }
 
+        if (hasKrellwirePlugin()) {
+            auto *pluginPage = new QWidget(m_pluginStack);
+            auto *pluginLayout = new QVBoxLayout(pluginPage);
+            auto *group = new QGroupBox(QStringLiteral("Krellwire"), pluginPage);
+            auto *form = new QFormLayout(group);
+
+            m_krellwireEnabled =
+                new QCheckBox(QStringLiteral("Show Krellwire ticker"), group);
+            form->addRow(QString(), m_krellwireEnabled);
+
+            m_krellwireItems = new QSpinBox(group);
+            m_krellwireItems->setRange(1, 3);
+            form->addRow(QStringLiteral("Items per feed:"), m_krellwireItems);
+
+            m_krellwireUpdateMs = new QSpinBox(group);
+            m_krellwireUpdateMs->setRange(60000, 3600000);
+            m_krellwireUpdateMs->setSingleStep(60000);
+            m_krellwireUpdateMs->setSuffix(QStringLiteral(" ms"));
+            form->addRow(QStringLiteral("Refresh interval:"), m_krellwireUpdateMs);
+
+            m_krellwireScrollPps = new QSpinBox(group);
+            m_krellwireScrollPps->setRange(10, 160);
+            m_krellwireScrollPps->setSingleStep(5);
+            m_krellwireScrollPps->setSuffix(QStringLiteral(" px/s"));
+            form->addRow(QStringLiteral("Scroll speed:"), m_krellwireScrollPps);
+
+            const QStringList defaults = {
+                QStringLiteral("https://feeds.bbci.co.uk/news/rss.xml"),
+                QStringLiteral("https://feeds.npr.org/1001/rss.xml"),
+                QStringLiteral("https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml"),
+            };
+            for (int i = 0; i < 3; ++i) {
+                auto *feed = new QLineEdit(group);
+                feed->setClearButtonEnabled(true);
+                feed->setPlaceholderText(defaults.at(i));
+                m_krellwireFeeds.append(feed);
+                form->addRow(QStringLiteral("Feed %1:").arg(i + 1), feed);
+            }
+
+            pluginLayout->addWidget(group);
+            pluginLayout->addStretch(1);
+            m_pluginList->addItem(QStringLiteral("Krellwire"));
+            m_pluginStack->addWidget(pluginPage);
+        }
+
         if (m_pluginList->count() == 0) {
             auto *empty = new QLabel(QStringLiteral("No editable plugins installed."), m_pluginStack);
             empty->setAlignment(Qt::AlignCenter);
@@ -663,6 +709,41 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
                     emit settingsApplied();
                 });
     }
+    if (m_krellwireEnabled) {
+        connect(m_krellwireEnabled, &QCheckBox::toggled, this, [this](bool v) {
+            QSettings().setValue(QStringLiteral("plugins/krellwire/enabled"), v);
+            emit panelStackChanged();
+        });
+    }
+    if (m_krellwireItems) {
+        connect(m_krellwireItems, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, [this](int v) {
+                    QSettings().setValue(QStringLiteral("plugins/krellwire/items"), v);
+                    emit settingsApplied();
+                });
+    }
+    if (m_krellwireUpdateMs) {
+        connect(m_krellwireUpdateMs, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, [this](int v) {
+                    QSettings().setValue(QStringLiteral("plugins/krellwire/interval_ms"), v);
+                    emit settingsApplied();
+                });
+    }
+    if (m_krellwireScrollPps) {
+        connect(m_krellwireScrollPps, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, [this](int v) {
+                    QSettings().setValue(QStringLiteral("plugins/krellwire/scroll_pps"), v);
+                    emit settingsApplied();
+                });
+    }
+    for (int i = 0; i < m_krellwireFeeds.size(); ++i) {
+        QLineEdit *feed = m_krellwireFeeds.at(i);
+        const QString key = QStringLiteral("plugins/krellwire/feed%1").arg(i + 1);
+        connect(feed, &QLineEdit::editingFinished, this, [this, feed, key]() {
+            QSettings().setValue(key, feed->text().trimmed());
+            emit settingsApplied();
+        });
+    }
 
     populatePlugins();
 }
@@ -755,6 +836,32 @@ void SettingsDialog::loadFromSettings()
         m_krellweatherUpdateMs->setValue(
             s.value(QStringLiteral("plugins/krellweather/interval_ms"), 600000).toInt());
     }
+    if (m_krellwireEnabled) {
+        m_krellwireEnabled->setChecked(
+            s.value(QStringLiteral("plugins/krellwire/enabled"), true).toBool());
+    }
+    if (m_krellwireItems) {
+        m_krellwireItems->setValue(
+            s.value(QStringLiteral("plugins/krellwire/items"), 3).toInt());
+    }
+    if (m_krellwireUpdateMs) {
+        m_krellwireUpdateMs->setValue(
+            s.value(QStringLiteral("plugins/krellwire/interval_ms"), 600000).toInt());
+    }
+    if (m_krellwireScrollPps) {
+        m_krellwireScrollPps->setValue(
+            s.value(QStringLiteral("plugins/krellwire/scroll_pps"), 28).toInt());
+    }
+    const QStringList wireDefaults = {
+        QStringLiteral("https://feeds.bbci.co.uk/news/rss.xml"),
+        QStringLiteral("https://feeds.npr.org/1001/rss.xml"),
+        QStringLiteral("https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml"),
+    };
+    for (int i = 0; i < m_krellwireFeeds.size(); ++i) {
+        m_krellwireFeeds.at(i)->setText(
+            s.value(QStringLiteral("plugins/krellwire/feed%1").arg(i + 1),
+                    i < wireDefaults.size() ? wireDefaults.at(i) : QString()).toString());
+    }
 }
 
 void SettingsDialog::saveToSettings()
@@ -826,6 +933,11 @@ bool SettingsDialog::hasKrelldaciousPlugin() const
 bool SettingsDialog::hasKrellweatherPlugin() const
 {
     return hasPlugin(QStringLiteral("krellweather"));
+}
+
+bool SettingsDialog::hasKrellwirePlugin() const
+{
+    return hasPlugin(QStringLiteral("krellwire"));
 }
 
 void SettingsDialog::onAccept()
