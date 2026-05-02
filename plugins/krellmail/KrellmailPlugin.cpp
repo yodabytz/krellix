@@ -8,7 +8,6 @@
 #include <QLabel>
 #include <QPainter>
 #include <QPainterPath>
-#include <QRegularExpression>
 #include <QSettings>
 #include <QSizePolicy>
 #include <QVBoxLayout>
@@ -54,15 +53,20 @@ QString countText(int count)
     return QStringLiteral("%1 messages").arg(count);
 }
 
-int imapStatusValue(const QByteArray &line, const QByteArray &field)
+int imapSearchCount(const QByteArray &line)
 {
-    const QString pattern = QStringLiteral("\\b%1\\s+(\\d+)\\b")
-        .arg(QString::fromLatin1(field));
-    const QRegularExpression re(pattern,
-                                QRegularExpression::CaseInsensitiveOption);
-    const QRegularExpressionMatch match = re.match(QString::fromUtf8(line));
-    if (!match.hasMatch()) return -1;
-    return match.captured(1).toInt();
+    const QList<QByteArray> parts = line.simplified().split(' ');
+    if (parts.size() < 2
+        || parts.at(0) != QByteArrayLiteral("*")
+        || parts.at(1).toUpper() != QByteArrayLiteral("SEARCH"))
+        return -1;
+    int count = 0;
+    for (int i = 2; i < parts.size(); ++i) {
+        bool ok = false;
+        parts.at(i).toUInt(&ok);
+        if (ok) ++count;
+    }
+    return count;
 }
 
 } // namespace
@@ -431,9 +435,9 @@ void KrellmailMonitor::processLine(const QByteArray &line)
             return;
         }
         if (trimmed.startsWith("* PREAUTH")) {
-            m_state = State::ImapStatus;
+            m_state = State::ImapSelect;
             m_imapTag = "a001";
-            sendLine(m_imapTag + " STATUS INBOX (UNSEEN)");
+            sendLine(m_imapTag + " EXAMINE INBOX");
             return;
         }
         m_state = State::ImapLogin;
@@ -443,20 +447,27 @@ void KrellmailMonitor::processLine(const QByteArray &line)
         sendLine(m_imapTag + " LOGIN \"" + user + "\" \"" + pass + "\"");
     } else if (m_state == State::ImapLogin) {
         if (trimmed.startsWith(m_imapTag + " OK")) {
-            m_state = State::ImapStatus;
+            m_state = State::ImapSelect;
             m_imapTag = "a002";
-            sendLine(m_imapTag + " STATUS INBOX (UNSEEN)");
+            sendLine(m_imapTag + " EXAMINE INBOX");
         } else if (trimmed.startsWith(m_imapTag + " NO") || trimmed.startsWith(m_imapTag + " BAD")) {
             failCurrent(QString::fromUtf8(trimmed));
         }
-    } else if (m_state == State::ImapStatus) {
-        if (trimmed.startsWith("* STATUS")) {
-            const int messages = imapStatusValue(trimmed, "UNSEEN");
-            if (messages >= 0)
-                m_totalCount += messages;
+    } else if (m_state == State::ImapSelect) {
+        if (trimmed.startsWith(m_imapTag + " OK")) {
+            m_state = State::ImapSearch;
+            m_imapTag = "a003";
+            sendLine(m_imapTag + " SEARCH UNSEEN");
+        } else if (trimmed.startsWith(m_imapTag + " NO") || trimmed.startsWith(m_imapTag + " BAD")) {
+            failCurrent(QString::fromUtf8(trimmed));
+        }
+    } else if (m_state == State::ImapSearch) {
+        const int searchCount = imapSearchCount(trimmed);
+        if (searchCount >= 0) {
+            m_totalCount += searchCount;
         } else if (trimmed.startsWith(m_imapTag + " OK")) {
             m_state = State::ImapLogout;
-            m_imapTag = "a003";
+            m_imapTag = "a004";
             sendLine(m_imapTag + " LOGOUT");
         } else if (trimmed.startsWith(m_imapTag + " NO") || trimmed.startsWith(m_imapTag + " BAD")) {
             failCurrent(QString::fromUtf8(trimmed));

@@ -73,7 +73,8 @@ private:
         PopStat,
         ImapGreeting,
         ImapLogin,
-        ImapStatus,
+        ImapSelect,
+        ImapSearch,
         ImapLogout
     };
 
