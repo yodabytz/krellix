@@ -242,6 +242,20 @@ void MainWindow::buildBuiltins(const QStringList &enabledIds, bool clockOnly)
 
 void MainWindow::buildPanelStack(const QStringList &enabledIds)
 {
+    // Optional decorative top strip — drawn ABOVE the first real
+    // monitor when the active theme requests it. Themes set the
+    // metric "top_strip_height" to a positive pixel value and define
+    // a "panel_bg_top" surface; everything else uses the surface
+    // image at that fixed height. Themes that don't set the metric
+    // get no strip — this is opt-in per theme, not a global feature.
+    const int topStripH = m_theme->metric(QStringLiteral("top_strip_height"), 0);
+    if (topStripH > 0) {
+        auto *strip = new Panel(m_theme, this);
+        strip->setSurfaceKey(QStringLiteral("panel_bg_top"));
+        strip->setFixedHeight(topStripH);
+        m_layout->addWidget(strip);
+    }
+
     const bool clockAtTop =
         QSettings().value(QStringLiteral("window/clock_at_top"), true).toBool();
     const QList<MonitorBase *> pluginMonitors =
