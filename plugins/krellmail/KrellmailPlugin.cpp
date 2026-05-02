@@ -8,6 +8,7 @@
 #include <QLabel>
 #include <QPainter>
 #include <QPainterPath>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QSizePolicy>
 #include <QVBoxLayout>
@@ -51,6 +52,17 @@ QString countText(int count)
     if (count == 1)
         return QStringLiteral("1 message");
     return QStringLiteral("%1 messages").arg(count);
+}
+
+int imapStatusValue(const QByteArray &line, const QByteArray &field)
+{
+    const QString pattern = QStringLiteral("\\b%1\\s+(\\d+)\\b")
+        .arg(QString::fromLatin1(field));
+    const QRegularExpression re(pattern,
+                                QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch match = re.match(QString::fromUtf8(line));
+    if (!match.hasMatch()) return -1;
+    return match.captured(1).toInt();
 }
 
 } // namespace
@@ -421,7 +433,7 @@ void KrellmailMonitor::processLine(const QByteArray &line)
         if (trimmed.startsWith("* PREAUTH")) {
             m_state = State::ImapStatus;
             m_imapTag = "a001";
-            sendLine(m_imapTag + " STATUS INBOX (UNSEEN)");
+            sendLine(m_imapTag + " STATUS INBOX (MESSAGES)");
             return;
         }
         m_state = State::ImapLogin;
@@ -433,18 +445,15 @@ void KrellmailMonitor::processLine(const QByteArray &line)
         if (trimmed.startsWith(m_imapTag + " OK")) {
             m_state = State::ImapStatus;
             m_imapTag = "a002";
-            sendLine(m_imapTag + " STATUS INBOX (UNSEEN)");
+            sendLine(m_imapTag + " STATUS INBOX (MESSAGES)");
         } else if (trimmed.startsWith(m_imapTag + " NO") || trimmed.startsWith(m_imapTag + " BAD")) {
             failCurrent(QString::fromUtf8(trimmed));
         }
     } else if (m_state == State::ImapStatus) {
         if (trimmed.startsWith("* STATUS")) {
-            const QByteArray marker = "UNSEEN ";
-            const int pos = trimmed.indexOf(marker);
-            if (pos >= 0) {
-                const QByteArray tail = trimmed.mid(pos + marker.size());
-                m_totalCount += qMax(0, tail.split(')').first().trimmed().toInt());
-            }
+            const int messages = imapStatusValue(trimmed, "MESSAGES");
+            if (messages >= 0)
+                m_totalCount += messages;
         } else if (trimmed.startsWith(m_imapTag + " OK")) {
             m_state = State::ImapLogout;
             m_imapTag = "a003";
@@ -490,7 +499,7 @@ void KrellmailMonitor::applyStatus()
     if (m_detail) {
         QString detail = countText(m_totalCount);
         if (m_errorCount > 0 && !m_lastError.isEmpty())
-            detail += QStringLiteral("  %1 error").arg(m_errorCount);
+            detail += QStringLiteral("  %1").arg(m_lastError);
         m_detail->setText(detail);
     }
 }
