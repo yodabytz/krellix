@@ -248,13 +248,17 @@ void MainWindow::buildPanelStack(const QStringList &enabledIds)
     // a "panel_bg_top" surface; everything else uses the surface
     // image at that fixed height. Themes that don't set the metric
     // get no strip — this is opt-in per theme, not a global feature.
-    const int topStripH = m_theme->metric(QStringLiteral("top_strip_height"), 0);
-    if (topStripH > 0) {
-        auto *strip = new Panel(m_theme, this);
-        strip->setSurfaceKey(QStringLiteral("panel_bg_top"));
-        strip->setFixedHeight(topStripH);
-        m_layout->addWidget(strip);
+    //
+    // The widget is always created so theme cycles (T / Up arrow) can
+    // toggle visibility without rebuilding the panel stack. Initial
+    // visibility / height is set from the active theme's metric here;
+    // onThemeChanged() re-applies on every subsequent theme switch.
+    if (!m_topStrip) {
+        m_topStrip = new Panel(m_theme, this);
+        m_topStrip->setSurfaceKey(QStringLiteral("panel_bg_top"));
+        m_layout->addWidget(m_topStrip);
     }
+    applyTopStripFromTheme();
 
     const bool clockAtTop =
         QSettings().value(QStringLiteral("window/clock_at_top"), true).toBool();
@@ -491,8 +495,24 @@ void MainWindow::onThemeChanged()
 {
     applyFrameMargins();
     applyFixedWidth();
+    applyTopStripFromTheme();
     fitToPanelStack();
     update();
+}
+
+void MainWindow::applyTopStripFromTheme()
+{
+    if (!m_topStrip) return;
+    const int h = m_theme->metric(QStringLiteral("top_strip_height"), 0);
+    if (h > 0) {
+        m_topStrip->setFixedHeight(h);
+        m_topStrip->setVisible(true);
+    } else {
+        // Theme doesn't want a top strip — collapse the widget so it
+        // takes zero pixels. setVisible(false) is enough; the layout
+        // skips hidden children.
+        m_topStrip->setVisible(false);
+    }
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)

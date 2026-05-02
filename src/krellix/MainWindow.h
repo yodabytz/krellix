@@ -80,6 +80,7 @@ private:
     void applySettingsOverridesToTheme();
     void restorePosition();
     void persistPosition();
+    void applyTopStripFromTheme();
 
     QStringList   m_cliEnabledIds;             // remembered from constructor
     Theme         *m_theme;
@@ -88,6 +89,7 @@ private:
     AlertBanner   *m_alertBanner  = nullptr;
     QTimer        *m_alertDebounce = nullptr;
     RemoteSource  *m_remote       = nullptr;
+    class Panel   *m_topStrip     = nullptr;   // optional decorative header
     QList<LiveMonitor> m_monitors;
 
     bool   m_dragging   = false;
