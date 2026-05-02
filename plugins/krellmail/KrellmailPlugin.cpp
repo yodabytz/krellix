@@ -433,7 +433,7 @@ void KrellmailMonitor::processLine(const QByteArray &line)
         if (trimmed.startsWith("* PREAUTH")) {
             m_state = State::ImapStatus;
             m_imapTag = "a001";
-            sendLine(m_imapTag + " STATUS INBOX (MESSAGES)");
+            sendLine(m_imapTag + " STATUS INBOX (UNSEEN)");
             return;
         }
         m_state = State::ImapLogin;
@@ -445,13 +445,13 @@ void KrellmailMonitor::processLine(const QByteArray &line)
         if (trimmed.startsWith(m_imapTag + " OK")) {
             m_state = State::ImapStatus;
             m_imapTag = "a002";
-            sendLine(m_imapTag + " STATUS INBOX (MESSAGES)");
+            sendLine(m_imapTag + " STATUS INBOX (UNSEEN)");
         } else if (trimmed.startsWith(m_imapTag + " NO") || trimmed.startsWith(m_imapTag + " BAD")) {
             failCurrent(QString::fromUtf8(trimmed));
         }
     } else if (m_state == State::ImapStatus) {
         if (trimmed.startsWith("* STATUS")) {
-            const int messages = imapStatusValue(trimmed, "MESSAGES");
+            const int messages = imapStatusValue(trimmed, "UNSEEN");
             if (messages >= 0)
                 m_totalCount += messages;
         } else if (trimmed.startsWith(m_imapTag + " OK")) {
