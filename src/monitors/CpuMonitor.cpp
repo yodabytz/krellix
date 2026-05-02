@@ -27,9 +27,9 @@ QList<CpuSample> sortedCoreSamples(const QList<CpuSample> &samples)
     return cores;
 }
 
-QString displayCpuName(int slot)
+QString displayCpuName(int cpuIndex)
 {
-    return QStringLiteral("cpu%1").arg(slot);
+    return QStringLiteral("cpu%1").arg(cpuIndex);
 }
 
 } // namespace
@@ -145,11 +145,11 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
             ui.chart = p->addChart(QStringLiteral("chart_line_cpu"));
             if (ui.chart) {
                 ui.chart->setMaxValue(1.0);
-                ui.chart->setOverlayText(displayCpuName(slot) + QStringLiteral("  0%"));
+                ui.chart->setOverlayText(displayCpuName(smp.index) + QStringLiteral("  0%"));
             }
             m_cores.append(ui);
             m_visibleCoreIndices.append(smp.index);
-            m_visibleCoreLabels.append(displayCpuName(slot));
+            m_visibleCoreLabels.append(displayCpuName(smp.index));
             vbox->addWidget(p);
         }
         if (m_cores.isEmpty()) {

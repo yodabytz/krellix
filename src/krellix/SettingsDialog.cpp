@@ -9,6 +9,7 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -52,6 +53,7 @@ const QList<QPair<QString, QString>> kMonitorOrderItems = {
     {QStringLiteral("krelldacious"), QStringLiteral("Krelldacious")},
     {QStringLiteral("krellweather"), QStringLiteral("Krellweather")},
     {QStringLiteral("krellwire"), QStringLiteral("Krellwire")},
+    {QStringLiteral("krellspectrum"), QStringLiteral("KrellSpectrum")},
     {QStringLiteral("disk"),    QStringLiteral("Disk I/O")},
     {QStringLiteral("sensors"), QStringLiteral("Sensors")},
     {QStringLiteral("battery"), QStringLiteral("Battery")},
@@ -279,7 +281,7 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
                 const QString key = QStringLiteral("monitors/cpu/")
                                     + QString::number(smp.index);
                 const bool checked = cs.value(key, true).toBool();
-                auto *cb = new QCheckBox(QStringLiteral("cpu%1").arg(slot), page);
+                auto *cb = new QCheckBox(QStringLiteral("cpu%1").arg(smp.index), page);
                 cb->setChecked(checked);
                 layout->addWidget(cb);
                 const int cpuIdx = smp.index;
@@ -504,6 +506,83 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
             pluginLayout->addWidget(group);
             pluginLayout->addStretch(1);
             m_pluginList->addItem(QStringLiteral("Krellwire"));
+            m_pluginStack->addWidget(pluginPage);
+        }
+
+        if (hasKrellSpectrumPlugin()) {
+            auto *pluginPage = new QWidget(m_pluginStack);
+            auto *pluginLayout = new QVBoxLayout(pluginPage);
+            auto *group = new QGroupBox(QStringLiteral("KrellSpectrum"), pluginPage);
+            auto *form = new QFormLayout(group);
+
+            m_krellspectrumEnabled =
+                new QCheckBox(QStringLiteral("Show KrellSpectrum visualizer"), group);
+            form->addRow(QString(), m_krellspectrumEnabled);
+
+            m_krellspectrumVisualMode = new QComboBox(group);
+            m_krellspectrumVisualMode->addItem(QStringLiteral("Bars"), QStringLiteral("bars"));
+            m_krellspectrumVisualMode->addItem(QStringLiteral("Smooth bars"), QStringLiteral("smooth_bars"));
+            m_krellspectrumVisualMode->addItem(QStringLiteral("Waveform"), QStringLiteral("waveform"));
+            m_krellspectrumVisualMode->addItem(QStringLiteral("Filled waveform"), QStringLiteral("filled_waveform"));
+            m_krellspectrumVisualMode->addItem(QStringLiteral("Circular"), QStringLiteral("circular"));
+            m_krellspectrumVisualMode->addItem(QStringLiteral("Particles"), QStringLiteral("particles"));
+            form->addRow(QStringLiteral("Visual mode:"), m_krellspectrumVisualMode);
+
+            m_krellspectrumBandCount = new QComboBox(group);
+            for (int bands : {16, 32, 64, 128})
+                m_krellspectrumBandCount->addItem(QString::number(bands), bands);
+            form->addRow(QStringLiteral("Bands:"), m_krellspectrumBandCount);
+
+            m_krellspectrumSensitivity = new QDoubleSpinBox(group);
+            m_krellspectrumSensitivity->setRange(0.2, 8.0);
+            m_krellspectrumSensitivity->setSingleStep(0.05);
+            m_krellspectrumSensitivity->setDecimals(2);
+            form->addRow(QStringLiteral("Sensitivity:"), m_krellspectrumSensitivity);
+
+            m_krellspectrumSmoothing = new QDoubleSpinBox(group);
+            m_krellspectrumSmoothing->setRange(0.0, 0.95);
+            m_krellspectrumSmoothing->setSingleStep(0.05);
+            m_krellspectrumSmoothing->setDecimals(2);
+            form->addRow(QStringLiteral("Smoothing:"), m_krellspectrumSmoothing);
+
+            m_krellspectrumColorMode = new QComboBox(group);
+            m_krellspectrumColorMode->addItem(QStringLiteral("Gradient"), QStringLiteral("gradient"));
+            m_krellspectrumColorMode->addItem(QStringLiteral("Theme/static"), QStringLiteral("theme"));
+            m_krellspectrumColorMode->addItem(QStringLiteral("Per-band"), QStringLiteral("per_band"));
+            m_krellspectrumColorMode->addItem(QStringLiteral("Reactive"), QStringLiteral("reactive"));
+            m_krellspectrumColorMode->addItem(QStringLiteral("Static color"), QStringLiteral("static"));
+            form->addRow(QStringLiteral("Color mode:"), m_krellspectrumColorMode);
+
+            m_krellspectrumBackend = new QComboBox(group);
+            m_krellspectrumBackend->addItem(QStringLiteral("Auto"), QStringLiteral("auto"));
+            m_krellspectrumBackend->addItem(QStringLiteral("PipeWire"), QStringLiteral("pipewire"));
+            m_krellspectrumBackend->addItem(QStringLiteral("PulseAudio"), QStringLiteral("pulse"));
+            form->addRow(QStringLiteral("Backend:"), m_krellspectrumBackend);
+
+            m_krellspectrumDevice = new QLineEdit(group);
+            m_krellspectrumDevice->setClearButtonEnabled(true);
+            m_krellspectrumDevice->setPlaceholderText(QStringLiteral("blank = default; use monitor/source name if needed"));
+            form->addRow(QStringLiteral("Device:"), m_krellspectrumDevice);
+
+            m_krellspectrumFps = new QSpinBox(group);
+            m_krellspectrumFps->setRange(8, 60);
+            m_krellspectrumFps->setSuffix(QStringLiteral(" fps"));
+            form->addRow(QStringLiteral("FPS cap:"), m_krellspectrumFps);
+
+            m_krellspectrumHeight = new QSpinBox(group);
+            m_krellspectrumHeight->setRange(24, 220);
+            m_krellspectrumHeight->setSuffix(QStringLiteral(" px"));
+            form->addRow(QStringLiteral("Height:"), m_krellspectrumHeight);
+
+            m_krellspectrumPeakHold = new QCheckBox(QStringLiteral("Peak hold"), group);
+            form->addRow(QString(), m_krellspectrumPeakHold);
+
+            m_krellspectrumStereoSplit = new QCheckBox(QStringLiteral("Stereo split"), group);
+            form->addRow(QString(), m_krellspectrumStereoSplit);
+
+            pluginLayout->addWidget(group);
+            pluginLayout->addStretch(1);
+            m_pluginList->addItem(QStringLiteral("KrellSpectrum"));
             m_pluginStack->addWidget(pluginPage);
         }
 
@@ -744,6 +823,91 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
             emit settingsApplied();
         });
     }
+    if (m_krellspectrumEnabled) {
+        connect(m_krellspectrumEnabled, &QCheckBox::toggled, this, [this](bool v) {
+            QSettings().setValue(QStringLiteral("plugins/krellspectrum/enabled"), v);
+            emit panelStackChanged();
+        });
+    }
+    if (m_krellspectrumVisualMode) {
+        connect(m_krellspectrumVisualMode, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, [this](int) {
+                    QSettings().setValue(QStringLiteral("plugins/krellspectrum/visual_mode"),
+                                         m_krellspectrumVisualMode->currentData().toString());
+                    emit settingsApplied();
+                });
+    }
+    if (m_krellspectrumBandCount) {
+        connect(m_krellspectrumBandCount, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, [this](int) {
+                    QSettings().setValue(QStringLiteral("plugins/krellspectrum/bands"),
+                                         m_krellspectrumBandCount->currentData().toInt());
+                    emit settingsApplied();
+                });
+    }
+    if (m_krellspectrumSensitivity) {
+        connect(m_krellspectrumSensitivity, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, [this](double v) {
+                    QSettings().setValue(QStringLiteral("plugins/krellspectrum/sensitivity"), v);
+                    emit settingsApplied();
+                });
+    }
+    if (m_krellspectrumSmoothing) {
+        connect(m_krellspectrumSmoothing, QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+                this, [this](double v) {
+                    QSettings().setValue(QStringLiteral("plugins/krellspectrum/smoothing"), v);
+                    emit settingsApplied();
+                });
+    }
+    if (m_krellspectrumColorMode) {
+        connect(m_krellspectrumColorMode, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, [this](int) {
+                    QSettings().setValue(QStringLiteral("plugins/krellspectrum/color_mode"),
+                                         m_krellspectrumColorMode->currentData().toString());
+                    emit settingsApplied();
+                });
+    }
+    if (m_krellspectrumBackend) {
+        connect(m_krellspectrumBackend, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, [this](int) {
+                    QSettings().setValue(QStringLiteral("plugins/krellspectrum/backend"),
+                                         m_krellspectrumBackend->currentData().toString());
+                    emit settingsApplied();
+                });
+    }
+    if (m_krellspectrumDevice) {
+        connect(m_krellspectrumDevice, &QLineEdit::editingFinished, this, [this]() {
+            QSettings().setValue(QStringLiteral("plugins/krellspectrum/device"),
+                                 m_krellspectrumDevice->text().trimmed());
+            emit settingsApplied();
+        });
+    }
+    if (m_krellspectrumFps) {
+        connect(m_krellspectrumFps, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, [this](int v) {
+                    QSettings().setValue(QStringLiteral("plugins/krellspectrum/fps"), v);
+                    emit settingsApplied();
+                });
+    }
+    if (m_krellspectrumHeight) {
+        connect(m_krellspectrumHeight, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, [this](int v) {
+                    QSettings().setValue(QStringLiteral("plugins/krellspectrum/height"), v);
+                    emit settingsApplied();
+                });
+    }
+    if (m_krellspectrumPeakHold) {
+        connect(m_krellspectrumPeakHold, &QCheckBox::toggled, this, [this](bool v) {
+            QSettings().setValue(QStringLiteral("plugins/krellspectrum/peak_hold"), v);
+            emit settingsApplied();
+        });
+    }
+    if (m_krellspectrumStereoSplit) {
+        connect(m_krellspectrumStereoSplit, &QCheckBox::toggled, this, [this](bool v) {
+            QSettings().setValue(QStringLiteral("plugins/krellspectrum/stereo_split"), v);
+            emit settingsApplied();
+        });
+    }
 
     populatePlugins();
 }
@@ -862,6 +1026,62 @@ void SettingsDialog::loadFromSettings()
             s.value(QStringLiteral("plugins/krellwire/feed%1").arg(i + 1),
                     i < wireDefaults.size() ? wireDefaults.at(i) : QString()).toString());
     }
+    if (m_krellspectrumEnabled) {
+        m_krellspectrumEnabled->setChecked(
+            s.value(QStringLiteral("plugins/krellspectrum/enabled"), true).toBool());
+    }
+    if (m_krellspectrumVisualMode) {
+        const QString mode = s.value(QStringLiteral("plugins/krellspectrum/visual_mode"),
+                                     QStringLiteral("bars")).toString();
+        const int idx = m_krellspectrumVisualMode->findData(mode);
+        m_krellspectrumVisualMode->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+    if (m_krellspectrumBandCount) {
+        const int bands = s.value(QStringLiteral("plugins/krellspectrum/bands"), 32).toInt();
+        const int idx = m_krellspectrumBandCount->findData(bands);
+        m_krellspectrumBandCount->setCurrentIndex(idx >= 0 ? idx : 1);
+    }
+    if (m_krellspectrumSensitivity) {
+        m_krellspectrumSensitivity->setValue(
+            s.value(QStringLiteral("plugins/krellspectrum/sensitivity"), 1.35).toDouble());
+    }
+    if (m_krellspectrumSmoothing) {
+        m_krellspectrumSmoothing->setValue(
+            s.value(QStringLiteral("plugins/krellspectrum/smoothing"), 0.72).toDouble());
+    }
+    if (m_krellspectrumColorMode) {
+        const QString mode = s.value(QStringLiteral("plugins/krellspectrum/color_mode"),
+                                     QStringLiteral("gradient")).toString();
+        const int idx = m_krellspectrumColorMode->findData(mode);
+        m_krellspectrumColorMode->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+    if (m_krellspectrumBackend) {
+        const QString backend = s.value(QStringLiteral("plugins/krellspectrum/backend"),
+                                        QStringLiteral("auto")).toString();
+        const int idx = m_krellspectrumBackend->findData(backend);
+        m_krellspectrumBackend->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+    if (m_krellspectrumDevice) {
+        m_krellspectrumDevice->setText(
+            s.value(QStringLiteral("plugins/krellspectrum/device")).toString());
+    }
+    if (m_krellspectrumFps) {
+        m_krellspectrumFps->setValue(
+            s.value(QStringLiteral("plugins/krellspectrum/fps"), 30).toInt());
+    }
+    if (m_krellspectrumHeight) {
+        m_krellspectrumHeight->setValue(
+            s.value(QStringLiteral("plugins/krellspectrum/height"),
+                    m_theme->metric(QStringLiteral("chart_height"), 44)).toInt());
+    }
+    if (m_krellspectrumPeakHold) {
+        m_krellspectrumPeakHold->setChecked(
+            s.value(QStringLiteral("plugins/krellspectrum/peak_hold"), true).toBool());
+    }
+    if (m_krellspectrumStereoSplit) {
+        m_krellspectrumStereoSplit->setChecked(
+            s.value(QStringLiteral("plugins/krellspectrum/stereo_split"), false).toBool());
+    }
 }
 
 void SettingsDialog::saveToSettings()
@@ -938,6 +1158,11 @@ bool SettingsDialog::hasKrellweatherPlugin() const
 bool SettingsDialog::hasKrellwirePlugin() const
 {
     return hasPlugin(QStringLiteral("krellwire"));
+}
+
+bool SettingsDialog::hasKrellSpectrumPlugin() const
+{
+    return hasPlugin(QStringLiteral("krellspectrum"));
 }
 
 void SettingsDialog::onAccept()

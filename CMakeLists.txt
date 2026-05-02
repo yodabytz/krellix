@@ -272,3 +272,23 @@ set_target_properties(krellwire PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
 )
 install(TARGETS krellwire LIBRARY DESTINATION lib/krellix/plugins)
+
+add_library(krellspectrum MODULE
+    plugins/krellspectrum/KrellSpectrumPlugin.cpp
+    plugins/krellspectrum/KrellSpectrumPlugin.h
+)
+target_include_directories(krellspectrum PRIVATE src)
+target_link_libraries(krellspectrum PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+)
+target_compile_definitions(krellspectrum PRIVATE
+    QT_NO_CAST_FROM_ASCII
+    QT_NO_CAST_TO_ASCII
+    QT_NO_NARROWING_CONVERSIONS_IN_CONNECT
+)
+set_target_properties(krellspectrum PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
+)
+install(TARGETS krellspectrum LIBRARY DESTINATION lib/krellix/plugins)

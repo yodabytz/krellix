@@ -10,6 +10,7 @@ class QCheckBox;
 class QComboBox;
 class QLineEdit;
 class QListWidget;
+class QDoubleSpinBox;
 class QSpinBox;
 class QStackedWidget;
 
@@ -49,6 +50,7 @@ private:
     bool hasKrelldaciousPlugin() const;
     bool hasKrellweatherPlugin() const;
     bool hasKrellwirePlugin() const;
+    bool hasKrellSpectrumPlugin() const;
 
     Theme *m_theme;
 
@@ -91,6 +93,18 @@ private:
     QSpinBox    *m_krellwireUpdateMs = nullptr;
     QSpinBox    *m_krellwireScrollPps = nullptr;
     QList<QLineEdit *> m_krellwireFeeds;
+    QCheckBox   *m_krellspectrumEnabled = nullptr;
+    QComboBox   *m_krellspectrumVisualMode = nullptr;
+    QComboBox   *m_krellspectrumBandCount = nullptr;
+    QDoubleSpinBox *m_krellspectrumSensitivity = nullptr;
+    QDoubleSpinBox *m_krellspectrumSmoothing = nullptr;
+    QComboBox   *m_krellspectrumColorMode = nullptr;
+    QComboBox   *m_krellspectrumBackend = nullptr;
+    QLineEdit   *m_krellspectrumDevice = nullptr;
+    QSpinBox    *m_krellspectrumFps = nullptr;
+    QSpinBox    *m_krellspectrumHeight = nullptr;
+    QCheckBox   *m_krellspectrumPeakHold = nullptr;
+    QCheckBox   *m_krellspectrumStereoSplit = nullptr;
 
     Q_DISABLE_COPY_MOVE(SettingsDialog)
 };
