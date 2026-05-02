@@ -3,6 +3,7 @@
 #include "theme/Theme.h"
 #include "widgets/Panel.h"
 
+#include <QDesktopServices>
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -10,6 +11,7 @@
 #include <QPainterPath>
 #include <QSettings>
 #include <QSizePolicy>
+#include <QUrl>
 #include <QVBoxLayout>
 #include <QtMath>
 
@@ -251,6 +253,10 @@ void KrellmailMonitor::tick()
 bool KrellmailMonitor::eventFilter(QObject *watched, QEvent *event)
 {
     if (event && event->type() == QEvent::MouseButtonRelease) {
+        if (watched == m_icon.data()) {
+            QDesktopServices::openUrl(QUrl(QStringLiteral("mailto:")));
+            return true;
+        }
         startCheck(true);
         return true;
     }
@@ -482,7 +488,7 @@ void KrellmailMonitor::processLine(const QByteArray &line)
             if (isGmailHost(account.host)) {
                 m_state = State::ImapGmailSearch;
                 m_imapTag = "a003";
-                sendLine(m_imapTag + " UID SEARCH X-GM-RAW \"in:inbox is:unread\"");
+                sendLine(m_imapTag + " SEARCH X-GM-RAW \"in:unread\"");
             } else {
                 m_state = State::ImapSearch;
                 m_imapTag = "a003";
