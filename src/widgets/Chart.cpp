@@ -184,23 +184,77 @@ void Chart::paintEvent(QPaintEvent *)
         m_theme->brush(m_colorKey, r,
                        m_theme->color(QStringLiteral("text_primary")));
 
-    // Same GKrellM convention as Panel: scale chart_bg vertically to chart
-    // height, then tile horizontally. Preserves the 3D shading without
-    // distortion at any chart width.
-    const QPixmap bgPix = m_theme->pixmap(QStringLiteral("chart_bg"));
-    if (!bgPix.isNull() && r.height() > 0) {
+    // Background. Prefer the v2 surface entry (image + slice + opacity +
+    // tint, all in one lookup) — that's what Panel already uses, and
+    // themes that put chart_bg under the v2 "surfaces" block went
+    // unrendered before because Chart was only reading the v1 "images"
+    // map. Falls back to the legacy v1 pixmap path, then to the
+    // colour/gradient brush, in that order.
+    Theme::Surface surf = m_theme->surface(QStringLiteral("chart_bg"));
+    if (surf.image.isNull()) {
+        // v1 fallback — old themes only wrote "images" not "surfaces".
+        const QPixmap legacy = m_theme->pixmap(QStringLiteral("chart_bg"));
+        if (!legacy.isNull()) {
+            surf.image = legacy;
+            // No slice info in v1 — keep the previous tile/stretch
+            // behavior driven by imageMode.
+            surf.slice = 0;
+        }
+    }
+    if (!surf.image.isNull() && r.height() > 0) {
         const QString mode = m_theme->imageMode(QStringLiteral("chart_bg"),
                                                 QStringLiteral("tile"));
-        if (mode == QStringLiteral("stretch")) {
-            p.drawPixmap(r, bgPix);
+        const qreal prevOpacity = p.opacity();
+        if (surf.opacity < 1.0) p.setOpacity(prevOpacity * surf.opacity);
+        if (surf.slice > 0
+            && surf.image.width()  >= 2 * surf.slice
+            && surf.image.height() >= 2 * surf.slice
+            && r.width()           >= 2 * surf.slice
+            && r.height()          >= 2 * surf.slice) {
+            // 9-slice keeps the chart frame's corner / edge artwork
+            // crisp regardless of how wide the chart ends up.
+            const int s     = surf.slice;
+            const int sw    = surf.image.width();
+            const int sh    = surf.image.height();
+            const int sMidW = sw - 2 * s;
+            const int sMidH = sh - 2 * s;
+            const int tw    = r.width();
+            const int th    = r.height();
+            const int tMidW = tw - 2 * s;
+            const int tMidH = th - 2 * s;
+            const int tx    = r.x();
+            const int ty    = r.y();
+            p.drawPixmap(QRect(tx,            ty,             s, s),
+                         surf.image, QRect(0,    0,    s, s));
+            p.drawPixmap(QRect(tx + tw - s,   ty,             s, s),
+                         surf.image, QRect(sw-s, 0,    s, s));
+            p.drawPixmap(QRect(tx,            ty + th - s,    s, s),
+                         surf.image, QRect(0,    sh-s, s, s));
+            p.drawPixmap(QRect(tx + tw - s,   ty + th - s,    s, s),
+                         surf.image, QRect(sw-s, sh-s, s, s));
+            p.drawPixmap(QRect(tx + s,        ty,             tMidW, s),
+                         surf.image, QRect(s,    0,    sMidW, s));
+            p.drawPixmap(QRect(tx + s,        ty + th - s,    tMidW, s),
+                         surf.image, QRect(s,    sh-s, sMidW, s));
+            p.drawPixmap(QRect(tx,            ty + s,         s, tMidH),
+                         surf.image, QRect(0,    s,    s, sMidH));
+            p.drawPixmap(QRect(tx + tw - s,   ty + s,         s, tMidH),
+                         surf.image, QRect(sw-s, s,    s, sMidH));
+            p.drawPixmap(QRect(tx + s,        ty + s,         tMidW, tMidH),
+                         surf.image, QRect(s,    s,    sMidW, sMidH));
+        } else if (mode == QStringLiteral("stretch")) {
+            p.drawPixmap(r, surf.image);
         } else {
-            const QPixmap scaled = (bgPix.height() == r.height())
-                ? bgPix
-                : bgPix.scaledToHeight(r.height(), Qt::SmoothTransformation);
+            const QPixmap scaled = (surf.image.height() == r.height())
+                ? surf.image
+                : surf.image.scaledToHeight(r.height(),
+                                            Qt::SmoothTransformation);
             p.drawTiledPixmap(r, scaled);
         }
+        if (surf.tint.isValid()) p.fillRect(r, surf.tint);
+        if (surf.opacity < 1.0) p.setOpacity(prevOpacity);
     } else {
-        // No image — fill with the chart_bg solid OR gradient brush.
+        // No image anywhere — fill with the chart_bg solid or gradient.
         p.fillRect(r, m_theme->brush(QStringLiteral("chart_bg"), r, bg));
     }
 

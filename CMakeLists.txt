@@ -230,3 +230,24 @@ set_target_properties(krelldacious PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
 )
 install(TARGETS krelldacious LIBRARY DESTINATION lib/krellix/plugins)
+
+add_library(krellweather MODULE
+    plugins/krellweather/KrellweatherPlugin.cpp
+    plugins/krellweather/KrellweatherPlugin.h
+)
+target_include_directories(krellweather PRIVATE src)
+target_link_libraries(krellweather PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    Qt6::Network
+)
+target_compile_definitions(krellweather PRIVATE
+    QT_NO_CAST_FROM_ASCII
+    QT_NO_CAST_TO_ASCII
+    QT_NO_NARROWING_CONVERSIONS_IN_CONNECT
+)
+set_target_properties(krellweather PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
+)
+install(TARGETS krellweather LIBRARY DESTINATION lib/krellix/plugins)

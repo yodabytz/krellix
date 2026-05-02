@@ -3,7 +3,6 @@ build-*/
 .cache/
 .vscode/
 .idea/
-.claude/
 compile_commands.json
 *.user
 *.autosave
@@ -15,6 +14,14 @@ CMakeUserPresets.json
 *.dylib
 *.dll
 *.exe
+*.pkg.tar.zst
+*.pkg.tar.zst.sig
+*.tar.zst
+*.tar.zst.sig
+*.db
+*.db.sig
+*.files
+*.files.sig
 
 # Local-only ops notes — contains passwords / SSH info; never commit.
 INSTRUCTIONS

@@ -50,6 +50,7 @@ const QList<QPair<QString, QString>> kMonitorOrderItems = {
     {QStringLiteral("net"),     QStringLiteral("Net")},
     {QStringLiteral("krellkam"), QStringLiteral("Krellkam")},
     {QStringLiteral("krelldacious"), QStringLiteral("Krelldacious")},
+    {QStringLiteral("krellweather"), QStringLiteral("Krellweather")},
     {QStringLiteral("disk"),    QStringLiteral("Disk I/O")},
     {QStringLiteral("sensors"), QStringLiteral("Sensors")},
     {QStringLiteral("battery"), QStringLiteral("Battery")},
@@ -418,6 +419,48 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
             m_pluginStack->addWidget(pluginPage);
         }
 
+        if (hasKrellweatherPlugin()) {
+            auto *pluginPage = new QWidget(m_pluginStack);
+            auto *pluginLayout = new QVBoxLayout(pluginPage);
+            auto *group = new QGroupBox(QStringLiteral("Krellweather"), pluginPage);
+            auto *form = new QFormLayout(group);
+
+            m_krellweatherEnabled =
+                new QCheckBox(QStringLiteral("Show Krellweather panel"), group);
+            form->addRow(QString(), m_krellweatherEnabled);
+
+            m_krellweatherStation = new QLineEdit(group);
+            m_krellweatherStation->setMaxLength(8);
+            m_krellweatherStation->setClearButtonEnabled(true);
+            m_krellweatherStation->setPlaceholderText(QStringLiteral("KMIA"));
+            form->addRow(QStringLiteral("Station ID:"), m_krellweatherStation);
+
+            auto *stationHelp = new QLabel(group);
+            stationHelp->setTextFormat(Qt::RichText);
+            stationHelp->setOpenExternalLinks(true);
+            stationHelp->setTextInteractionFlags(Qt::TextBrowserInteraction);
+            stationHelp->setWordWrap(true);
+            stationHelp->setText(QStringLiteral(
+                "<a href=\"https://www.cnrfc.noaa.gov/metar.php\">Find station IDs</a>"));
+            form->addRow(QString(), stationHelp);
+
+            m_krellweatherUnits = new QComboBox(group);
+            m_krellweatherUnits->addItem(QStringLiteral("Fahrenheit"), QStringLiteral("F"));
+            m_krellweatherUnits->addItem(QStringLiteral("Celsius"), QStringLiteral("C"));
+            form->addRow(QStringLiteral("Temperature:"), m_krellweatherUnits);
+
+            m_krellweatherUpdateMs = new QSpinBox(group);
+            m_krellweatherUpdateMs->setRange(60000, 3600000);
+            m_krellweatherUpdateMs->setSingleStep(60000);
+            m_krellweatherUpdateMs->setSuffix(QStringLiteral(" ms"));
+            form->addRow(QStringLiteral("Update interval:"), m_krellweatherUpdateMs);
+
+            pluginLayout->addWidget(group);
+            pluginLayout->addStretch(1);
+            m_pluginList->addItem(QStringLiteral("Krellweather"));
+            m_pluginStack->addWidget(pluginPage);
+        }
+
         if (m_pluginList->count() == 0) {
             auto *empty = new QLabel(QStringLiteral("No editable plugins installed."), m_pluginStack);
             empty->setAlignment(Qt::AlignCenter);
@@ -591,6 +634,35 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
             emit panelStackChanged();
         });
     }
+    if (m_krellweatherEnabled) {
+        connect(m_krellweatherEnabled, &QCheckBox::toggled, this, [this](bool v) {
+            QSettings().setValue(QStringLiteral("plugins/krellweather/enabled"), v);
+            emit panelStackChanged();
+        });
+    }
+    if (m_krellweatherStation) {
+        connect(m_krellweatherStation, &QLineEdit::editingFinished, this, [this]() {
+            const QString code = m_krellweatherStation->text().trimmed().toUpper();
+            m_krellweatherStation->setText(code);
+            QSettings().setValue(QStringLiteral("plugins/krellweather/station"), code);
+            emit settingsApplied();
+        });
+    }
+    if (m_krellweatherUnits) {
+        connect(m_krellweatherUnits, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, [this](int) {
+                    QSettings().setValue(QStringLiteral("plugins/krellweather/units"),
+                                         m_krellweatherUnits->currentData().toString());
+                    emit settingsApplied();
+                });
+    }
+    if (m_krellweatherUpdateMs) {
+        connect(m_krellweatherUpdateMs, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, [this](int v) {
+                    QSettings().setValue(QStringLiteral("plugins/krellweather/interval_ms"), v);
+                    emit settingsApplied();
+                });
+    }
 
     populatePlugins();
 }
@@ -664,6 +736,25 @@ void SettingsDialog::loadFromSettings()
         m_krelldaciousEnabled->setChecked(
             s.value(QStringLiteral("plugins/krelldacious/enabled"), true).toBool());
     }
+    if (m_krellweatherEnabled) {
+        m_krellweatherEnabled->setChecked(
+            s.value(QStringLiteral("plugins/krellweather/enabled"), true).toBool());
+    }
+    if (m_krellweatherStation) {
+        const QString code = s.value(QStringLiteral("plugins/krellweather/station"),
+                                     QStringLiteral("KMIA")).toString().toUpper();
+        m_krellweatherStation->setText(code);
+    }
+    if (m_krellweatherUnits) {
+        const QString units = s.value(QStringLiteral("plugins/krellweather/units"),
+                                      QStringLiteral("F")).toString().toUpper();
+        const int idx = m_krellweatherUnits->findData(units);
+        m_krellweatherUnits->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+    if (m_krellweatherUpdateMs) {
+        m_krellweatherUpdateMs->setValue(
+            s.value(QStringLiteral("plugins/krellweather/interval_ms"), 600000).toInt());
+    }
 }
 
 void SettingsDialog::saveToSettings()
@@ -730,6 +821,11 @@ bool SettingsDialog::hasKrellkamPlugin() const
 bool SettingsDialog::hasKrelldaciousPlugin() const
 {
     return hasPlugin(QStringLiteral("krelldacious"));
+}
+
+bool SettingsDialog::hasKrellweatherPlugin() const
+{
+    return hasPlugin(QStringLiteral("krellweather"));
 }
 
 void SettingsDialog::onAccept()

@@ -53,6 +53,7 @@ QStringList defaultMonitorOrder()
         QStringLiteral("net"),
         QStringLiteral("krellkam"),
         QStringLiteral("krelldacious"),
+        QStringLiteral("krellweather"),
         QStringLiteral("disk"),
         QStringLiteral("sensors"),
         QStringLiteral("battery"),
@@ -377,6 +378,8 @@ void MainWindow::clearPanelStack()
     // monitor parents its QTimer, so stopping/deleting the monitor stops
     // the tick.
     for (const LiveMonitor &lm : m_monitors) {
+        if (lm.monitor)
+            lm.monitor->shutdown();
         if (lm.widget) {
             lm.widget->setParent(nullptr);
             lm.widget->deleteLater();
@@ -422,6 +425,8 @@ void MainWindow::refreshLiveSettings()
                 lm.widget->updateGeometry();
                 lm.widget->update();
             }
+            if (lm.monitor && lm.monitor->id() == QStringLiteral("krellweather"))
+                lm.monitor->tick();
         }
         m_layout->invalidate();
     }

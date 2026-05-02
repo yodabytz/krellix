@@ -34,6 +34,11 @@ public:
 
     virtual void tick() = 0;
 
+    // Called before a live monitor is removed from the panel stack.
+    // Subclasses with async work can cancel it here; QObject deletion may be
+    // deferred with deleteLater().
+    virtual void shutdown() {}
+
     Theme *theme() const { return m_theme; }
 
 private:

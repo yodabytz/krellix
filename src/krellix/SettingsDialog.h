@@ -47,6 +47,7 @@ private:
     bool hasPlugin(const QString &id) const;
     bool hasKrellkamPlugin() const;
     bool hasKrelldaciousPlugin() const;
+    bool hasKrellweatherPlugin() const;
 
     Theme *m_theme;
 
@@ -80,6 +81,10 @@ private:
     QList<QComboBox *> m_krellkamTypes;
     QList<QLineEdit *> m_krellkamSources;
     QCheckBox   *m_krelldaciousEnabled = nullptr;
+    QCheckBox   *m_krellweatherEnabled = nullptr;
+    QLineEdit   *m_krellweatherStation = nullptr;
+    QComboBox   *m_krellweatherUnits = nullptr;
+    QSpinBox    *m_krellweatherUpdateMs = nullptr;
 
     Q_DISABLE_COPY_MOVE(SettingsDialog)
 };

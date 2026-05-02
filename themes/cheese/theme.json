@@ -1,0 +1,74 @@
+{
+  "name": "cheese",
+  "version": "1.0",
+  "author": "krellix",
+  "description": "Cheese — bright yellow GKrellM-style theme with compact high-contrast panels.",
+
+  "surfaces": {
+    "panel_bg":              { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_host":         { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_clock":        { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_cpu":          { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_proc":         { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_mem":          { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_net":          { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_disk":         { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_uptime":       { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_battery":      { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_sensors":      { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_krellkam":     { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_krelldacious": { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_krellweather": { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "chart_bg":              { "image": "assets/chart_bg.png", "slice": 5, "opacity": 1.0 }
+  },
+
+  "text_styles": {
+    "text_primary":   { "color": "#17140a", "shadow": { "x": 1, "y": 1, "color": "#fff7a966" } },
+    "text_secondary": { "color": "#3c3516", "shadow": { "x": 1, "y": 1, "color": "#fff7a950" } },
+    "text_accent":    { "color": "#0d2b2e", "shadow": { "x": 1, "y": 1, "color": "#f8ec8890" } }
+  },
+
+  "images": {
+    "panel_bg": "assets/panel.png",
+    "chart_bg": "assets/chart_bg.png"
+  },
+
+  "colors": {
+    "panel_bg":           "#d9d38a",
+    "panel_border":       "#6b7052",
+    "panel_highlight":    "#fff2a2",
+    "chart_bg":           "#f1efb5",
+    "chart_grid":         "#8e8c5f",
+    "text_primary":       "#17140a",
+    "text_secondary":     "#3c3516",
+    "text_accent":        "#0d2b2e",
+    "krell_track":        "#716b38",
+    "krell_indicator":    "#17140a",
+    "chart_line_default": "#16130a",
+    "chart_line_cpu":     "#101010",
+    "chart_line_mem":     "#5b2b15",
+    "chart_line_swap":    "#875121",
+    "chart_line_net_rx":  "#0b4742",
+    "chart_line_net_tx":  "#176c63",
+    "chart_line_disk":    "#4b3c14",
+    "accent_warning":     "#8a550f",
+    "accent_critical":    "#8a1f16"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 8, "bold": true },
+    "value": { "family": "Monospace", "size": 9, "bold": true },
+    "time":  { "family": "Monospace", "size": 9, "bold": true }
+  },
+
+  "metrics": {
+    "panel_padding":    3,
+    "panel_spacing":    1,
+    "panel_border":     0,
+    "panel_min_width":  68,
+    "krell_height":     7,
+    "chart_height":     38,
+    "chart_grid_lines": 5,
+    "panel_bg_slice":   5
+  }
+}
