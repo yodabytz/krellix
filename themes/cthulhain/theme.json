@@ -11,6 +11,7 @@
     "panel_bg_host":     { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
     "panel_bg_clock":    { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
     "panel_bg_cpu":      { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
+    "panel_bg_proc":     { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
     "panel_bg_mem":      { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
     "panel_bg_net":      { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },
     "panel_bg_disk":     { "image": "assets/panel.png", "slice": 4, "opacity": 1.0 },

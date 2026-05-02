@@ -4,6 +4,7 @@
 #include "sysdep/DiskStat.h"
 #include "sysdep/MemStat.h"
 #include "sysdep/NetStat.h"
+#include "sysdep/ProcStat.h"
 #include "sysdep/UptimeStat.h"
 
 #include <QDateTime>
@@ -36,6 +37,7 @@ QJsonObject helloObject(int intervalMs)
     o.insert(QStringLiteral("interval_ms"), intervalMs);
     QJsonArray mon;
     mon << QStringLiteral("cpu") << QStringLiteral("mem")
+        << QStringLiteral("proc")
         << QStringLiteral("uptime") << QStringLiteral("net")
         << QStringLiteral("disk");
     o.insert(QStringLiteral("monitors"), mon);
@@ -114,6 +116,12 @@ QJsonObject sampleObject()
         diskArr.append(d);
     }
     o.insert(QStringLiteral("disk"), diskArr);
+
+    const ProcInfo p = ProcStat::read();
+    QJsonObject proc;
+    proc.insert(QStringLiteral("processes"), p.processes);
+    proc.insert(QStringLiteral("users"),     p.users);
+    o.insert(QStringLiteral("proc"), proc);
 
     return o;
 }

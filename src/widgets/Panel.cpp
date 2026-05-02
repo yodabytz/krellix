@@ -149,6 +149,13 @@ Meter *Panel::addMeter(const QString &colorKey)
     return m;
 }
 
+void Panel::addWidget(QWidget *widget)
+{
+    if (!widget) return;
+    widget->setParent(this);
+    m_layout->addWidget(widget);
+}
+
 void Panel::onThemeChanged()
 {
     const int pad = m_theme->metric(QStringLiteral("panel_padding"), 4);

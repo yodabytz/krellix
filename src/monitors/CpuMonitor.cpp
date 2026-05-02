@@ -10,6 +10,30 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include <algorithm>
+
+namespace {
+
+QList<CpuSample> sortedCoreSamples(const QList<CpuSample> &samples)
+{
+    QList<CpuSample> cores;
+    for (const CpuSample &s : samples) {
+        if (s.index >= 0)
+            cores.append(s);
+    }
+    std::sort(cores.begin(), cores.end(), [](const CpuSample &a, const CpuSample &b) {
+        return a.index < b.index;
+    });
+    return cores;
+}
+
+QString displayCpuName(int slot)
+{
+    return QStringLiteral("cpu%1").arg(slot);
+}
+
+} // namespace
+
 CpuMonitor::CpuMonitor(Theme *theme, QObject *parent)
     : MonitorBase(theme, parent)
 {
@@ -71,6 +95,7 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
 
     QWidget *container = m_container;
     QVBoxLayout *vbox  = m_containerLayout;
+    const QList<CpuSample> cores = sortedCoreSamples(samples);
 
     // Combined mode: ONE panel, ONE chart, with one line per core (each
     // in a distinct hue from the rainbow palette). Saves the most space
@@ -81,14 +106,14 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
         Krell *aggKrell = p->addKrell();
         Chart *chart = p->addChart();
         chart->setMaxValue(1.0);
-        const int nCores = samples.size() - 1;   // skip aggregate at [0]
+        const int nCores = cores.size();
         chart->setRainbowSeries(nCores);
         chart->setOverlayText(QStringLiteral("CPU x%1  0%").arg(nCores));
 
         m_combinedChart = chart;
         m_aggregateUI.krell = aggKrell;
-        for (int i = 1; i < samples.size(); ++i)
-            m_combinedCoreIndices.append(samples[i].index);
+        for (const CpuSample &core : cores)
+            m_combinedCoreIndices.append(core.index);
         vbox->addWidget(p);
     } else if (m_mode == Mode::Aggregate) {
         // Per-CPU panel layout is intentionally compact: just a krell
@@ -106,8 +131,8 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
         m_aggregateUI = ui;
         vbox->addWidget(p);
     } else {
-        for (int i = 1; i < samples.size(); ++i) {
-            const CpuSample &smp = samples[i];
+        for (int slot = 0; slot < cores.size(); ++slot) {
+            const CpuSample &smp = cores[slot];
             const QString key = QStringLiteral("monitors/cpu/") +
                                 QString::number(smp.index);
             const bool enabled = s.value(key, true).toBool();
@@ -120,10 +145,11 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
             ui.chart = p->addChart(QStringLiteral("chart_line_cpu"));
             if (ui.chart) {
                 ui.chart->setMaxValue(1.0);
-                ui.chart->setOverlayText(smp.name + QStringLiteral("  0%"));
+                ui.chart->setOverlayText(displayCpuName(slot) + QStringLiteral("  0%"));
             }
             m_cores.append(ui);
             m_visibleCoreIndices.append(smp.index);
+            m_visibleCoreLabels.append(displayCpuName(slot));
             vbox->addWidget(p);
         }
         if (m_cores.isEmpty()) {
@@ -225,8 +251,10 @@ void CpuMonitor::tick()
             if (ui.chart) {
                 ui.chart->appendSample(util);
                 const int pct = static_cast<int>(util * 100.0 + 0.5);
+                const QString label = slot < m_visibleCoreLabels.size()
+                    ? m_visibleCoreLabels[slot] : curr->name;
                 ui.chart->setOverlayText(
-                    QStringLiteral("%1  %2%").arg(curr->name).arg(pct));
+                    QStringLiteral("%1  %2%").arg(label).arg(pct));
             }
         }
     }

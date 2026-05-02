@@ -11,6 +11,7 @@
 #include "monitors/MemMonitor.h"
 #include "monitors/MonitorBase.h"
 #include "monitors/NetMonitor.h"
+#include "monitors/ProcMonitor.h"
 #include "monitors/SensorsMonitor.h"
 #include "monitors/UptimeMonitor.h"
 #include "theme/Theme.h"
@@ -29,6 +30,7 @@
 #include <QPaintEvent>
 #include <QPainter>
 #include <QSettings>
+#include <QSet>
 #include <QShortcut>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -37,6 +39,45 @@
 #ifndef KRELLIX_VERSION
 #  define KRELLIX_VERSION "0.0.0"
 #endif
+
+namespace {
+
+QStringList defaultMonitorOrder()
+{
+    return {
+        QStringLiteral("host"),
+        QStringLiteral("cpu"),
+        QStringLiteral("proc"),
+        QStringLiteral("mem"),
+        QStringLiteral("uptime"),
+        QStringLiteral("net"),
+        QStringLiteral("krellkam"),
+        QStringLiteral("krelldacious"),
+        QStringLiteral("disk"),
+        QStringLiteral("sensors"),
+        QStringLiteral("battery"),
+    };
+}
+
+QStringList configuredMonitorOrder()
+{
+    const QStringList defaults = defaultMonitorOrder();
+    const QString raw = QSettings().value(QStringLiteral("monitors/order")).toString();
+    QStringList out;
+    for (const QString &id : raw.split(QLatin1Char(','), Qt::SkipEmptyParts)) {
+        const QString trimmed = id.trimmed();
+        if ((defaults.contains(trimmed) || trimmed.startsWith(QStringLiteral("plugin:")))
+            && !out.contains(trimmed))
+            out.append(trimmed);
+    }
+    for (const QString &id : defaults) {
+        if (!out.contains(id))
+            out.append(id);
+    }
+    return out;
+}
+
+} // namespace
 
 MainWindow::MainWindow(Theme *theme,
                        const QStringList &enabledMonitorIds,
@@ -166,7 +207,7 @@ void MainWindow::addMonitor(MonitorBase *m)
     connect(timer, &QTimer::timeout, m, &MonitorBase::tick);
     timer->start();
 
-    m_monitors.append(LiveMonitor{m, w});
+    m_monitors.append(LiveMonitor{m, w, timer});
 }
 
 void MainWindow::buildBuiltins(const QStringList &enabledIds, bool clockOnly)
@@ -182,28 +223,40 @@ void MainWindow::buildBuiltins(const QStringList &enabledIds, bool clockOnly)
         return;
     }
 
-    if (enabled(QStringLiteral("host")))
-        addMonitor(new HostMonitor(m_theme, this));
-    if (enabled(QStringLiteral("cpu")))
-        addMonitor(new CpuMonitor(m_theme, this));
-    if (enabled(QStringLiteral("mem")))
-        addMonitor(new MemMonitor(m_theme, this));
-    if (enabled(QStringLiteral("uptime")))
-        addMonitor(new UptimeMonitor(m_theme, this));
-    if (enabled(QStringLiteral("net")))
-        addMonitor(new NetMonitor(m_theme, this));
-    if (enabled(QStringLiteral("disk")))
-        addMonitor(new DiskMonitor(m_theme, this));
-    if (enabled(QStringLiteral("sensors")))
-        addMonitor(new SensorsMonitor(m_theme, this));
-    if (enabled(QStringLiteral("battery")))
-        addMonitor(new BatteryMonitor(m_theme, this));
+    auto addById = [this](const QString &id) {
+        if (id == QStringLiteral("host")) addMonitor(new HostMonitor(m_theme, this));
+        else if (id == QStringLiteral("cpu")) addMonitor(new CpuMonitor(m_theme, this));
+        else if (id == QStringLiteral("proc")) addMonitor(new ProcMonitor(m_theme, this));
+        else if (id == QStringLiteral("mem")) addMonitor(new MemMonitor(m_theme, this));
+        else if (id == QStringLiteral("uptime")) addMonitor(new UptimeMonitor(m_theme, this));
+        else if (id == QStringLiteral("net")) addMonitor(new NetMonitor(m_theme, this));
+        else if (id == QStringLiteral("disk")) addMonitor(new DiskMonitor(m_theme, this));
+        else if (id == QStringLiteral("sensors")) addMonitor(new SensorsMonitor(m_theme, this));
+        else if (id == QStringLiteral("battery")) addMonitor(new BatteryMonitor(m_theme, this));
+    };
+
+    for (const QString &id : configuredMonitorOrder()) {
+        if (enabled(id)) addById(id);
+    }
 }
 
 void MainWindow::buildPanelStack(const QStringList &enabledIds)
 {
     const bool clockAtTop =
         QSettings().value(QStringLiteral("window/clock_at_top"), true).toBool();
+    const QList<MonitorBase *> pluginMonitors =
+        m_pluginLoader->createMonitorsForAll(m_theme, this);
+    QSet<MonitorBase *> addedPlugins;
+    auto addPluginById = [this, &pluginMonitors, &addedPlugins](const QString &id) {
+        for (MonitorBase *m : pluginMonitors) {
+            if (m && m->id() == id && !addedPlugins.contains(m)) {
+                addMonitor(m);
+                addedPlugins.insert(m);
+                return true;
+            }
+        }
+        return false;
+    };
 
     if (clockAtTop) {
         // GKrellM-style: clock right under host. host first, clock second,
@@ -217,32 +270,68 @@ void MainWindow::buildPanelStack(const QStringList &enabledIds)
             addMonitor(new HostMonitor(m_theme, this));
         if (enabled(QStringLiteral("clock")))
             addMonitor(new ClockMonitor(m_theme, this));
-        if (enabled(QStringLiteral("cpu")))
-            addMonitor(new CpuMonitor(m_theme, this));
-        if (enabled(QStringLiteral("mem")))
-            addMonitor(new MemMonitor(m_theme, this));
-        if (enabled(QStringLiteral("uptime")))
-            addMonitor(new UptimeMonitor(m_theme, this));
-        if (enabled(QStringLiteral("net")))
-            addMonitor(new NetMonitor(m_theme, this));
-        if (enabled(QStringLiteral("disk")))
-            addMonitor(new DiskMonitor(m_theme, this));
-        if (enabled(QStringLiteral("sensors")))
-            addMonitor(new SensorsMonitor(m_theme, this));
-        if (enabled(QStringLiteral("battery")))
-            addMonitor(new BatteryMonitor(m_theme, this));
-    } else {
-        // Clock at the bottom (legacy ordering).
-        buildBuiltins(enabledIds, /*clockOnly=*/false);
-    }
 
-    // Plugin monitors: re-instantiate from cached IKrellixPlugin list.
-    const QList<MonitorBase *> pluginMonitors =
-        m_pluginLoader->createMonitorsForAll(m_theme, this);
-    for (MonitorBase *m : pluginMonitors) addMonitor(m);
+        auto addById = [this](const QString &id) {
+            if (id == QStringLiteral("cpu")) addMonitor(new CpuMonitor(m_theme, this));
+            else if (id == QStringLiteral("proc")) addMonitor(new ProcMonitor(m_theme, this));
+            else if (id == QStringLiteral("mem")) addMonitor(new MemMonitor(m_theme, this));
+            else if (id == QStringLiteral("uptime")) addMonitor(new UptimeMonitor(m_theme, this));
+            else if (id == QStringLiteral("net")) addMonitor(new NetMonitor(m_theme, this));
+            else if (id == QStringLiteral("disk")) addMonitor(new DiskMonitor(m_theme, this));
+            else if (id == QStringLiteral("sensors")) addMonitor(new SensorsMonitor(m_theme, this));
+            else if (id == QStringLiteral("battery")) addMonitor(new BatteryMonitor(m_theme, this));
+        };
+        for (const QString &id : configuredMonitorOrder()) {
+            if (addPluginById(id)) {
+                continue;
+            } else if (id.startsWith(QStringLiteral("plugin:"))
+                       && addPluginById(id.mid(7))) {
+                continue;
+            } else if (id == QStringLiteral("krellkam")) {
+                (void) addPluginById(id);
+            } else if (id != QStringLiteral("host") && enabled(id)) {
+                addById(id);
+            }
+        }
+    } else {
+        const auto enabled = [&enabledIds](const QString &id) {
+            if (!enabledIds.isEmpty()) return enabledIds.contains(id);
+            return QSettings().value(QStringLiteral("monitors/") + id, true).toBool();
+        };
+        auto addById = [this](const QString &id) {
+            if (id == QStringLiteral("host")) addMonitor(new HostMonitor(m_theme, this));
+            else if (id == QStringLiteral("cpu")) addMonitor(new CpuMonitor(m_theme, this));
+            else if (id == QStringLiteral("proc")) addMonitor(new ProcMonitor(m_theme, this));
+            else if (id == QStringLiteral("mem")) addMonitor(new MemMonitor(m_theme, this));
+            else if (id == QStringLiteral("uptime")) addMonitor(new UptimeMonitor(m_theme, this));
+            else if (id == QStringLiteral("net")) addMonitor(new NetMonitor(m_theme, this));
+            else if (id == QStringLiteral("disk")) addMonitor(new DiskMonitor(m_theme, this));
+            else if (id == QStringLiteral("sensors")) addMonitor(new SensorsMonitor(m_theme, this));
+            else if (id == QStringLiteral("battery")) addMonitor(new BatteryMonitor(m_theme, this));
+        };
+        for (const QString &id : configuredMonitorOrder()) {
+            if (addPluginById(id)) {
+                continue;
+            } else if (id.startsWith(QStringLiteral("plugin:"))
+                       && addPluginById(id.mid(7))) {
+                continue;
+            } else if (id == QStringLiteral("krellkam")) {
+                (void) addPluginById(id);
+            } else if (enabled(id)) {
+                addById(id);
+            }
+        }
+    }
 
     if (!clockAtTop)
         buildBuiltins(enabledIds, /*clockOnly=*/true);
+
+    for (MonitorBase *m : pluginMonitors) {
+        if (m && !addedPlugins.contains(m)) {
+            addMonitor(m);
+            addedPlugins.insert(m);
+        }
+    }
 
     fitToPanelStack();
 }
@@ -289,6 +378,35 @@ void MainWindow::rebuildPanels()
     buildPanelStack(m_cliEnabledIds);
     applyFrameMargins();
     applyFixedWidth();
+    fitToPanelStack();
+    update();
+}
+
+void MainWindow::refreshMonitorTimers()
+{
+    const int settingsMs = QSettings().value(
+        QStringLiteral("update/interval_ms"), 1000).toInt();
+    for (const LiveMonitor &lm : m_monitors) {
+        if (!lm.monitor || !lm.timer) continue;
+        lm.timer->setInterval(qMax(lm.monitor->tickIntervalMs(),
+                                   qMax(100, settingsMs)));
+    }
+}
+
+void MainWindow::refreshLiveSettings()
+{
+    applySettingsOverridesToTheme();
+    applyFixedWidth();
+    refreshMonitorTimers();
+    if (m_layout) {
+        for (const LiveMonitor &lm : m_monitors) {
+            if (lm.widget) {
+                lm.widget->updateGeometry();
+                lm.widget->update();
+            }
+        }
+        m_layout->invalidate();
+    }
     fitToPanelStack();
     update();
 }
@@ -558,8 +676,11 @@ void MainWindow::showSettings()
             });
     connect(dlg, &SettingsDialog::settingsApplied, this,
             [this]() {
+                refreshLiveSettings();
+            });
+    connect(dlg, &SettingsDialog::panelStackChanged, this,
+            [this]() {
                 applySettingsOverridesToTheme();
-                applyFixedWidth();
                 rebuildPanels();
             });
 

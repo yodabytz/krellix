@@ -4,6 +4,7 @@
 #include "sysdep/DiskStat.h"
 #include "sysdep/MemStat.h"
 #include "sysdep/NetStat.h"
+#include "sysdep/ProcStat.h"
 
 #include <QByteArray>
 #include <QHostAddress>
@@ -45,6 +46,7 @@ public:
     MemInfo           memInfo()     const { return m_mem; }
     QList<NetSample>  netSamples()  const { return m_net; }
     QList<DiskSample> diskSamples() const { return m_disk; }
+    ProcInfo          procInfo()    const { return m_proc; }
 
 signals:
     void connectionStateChanged(bool connected);
@@ -77,6 +79,7 @@ private:
     MemInfo           m_mem;
     QList<NetSample>  m_net;
     QList<DiskSample> m_disk;
+    ProcInfo          m_proc;
 
     int               m_consecutiveParseErrors = 0;
     int               m_reconnectDelayMs       = 1000;

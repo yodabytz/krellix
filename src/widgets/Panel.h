@@ -35,6 +35,7 @@ public:
     Krell *addKrell();
     Chart *addChart(const QString &colorKey = QStringLiteral("chart_line_default"));
     Meter *addMeter(const QString &colorKey = QStringLiteral("krell_indicator"));
+    void addWidget(QWidget *widget);
 
     Theme *theme() const { return m_theme; }
 

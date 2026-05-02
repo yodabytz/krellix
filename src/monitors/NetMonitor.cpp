@@ -25,6 +25,19 @@ constexpr double kMinAdaptiveBps = 1024.0;          // 1 KB/s floor
 constexpr double kAdaptiveDecay  = 0.99;            // shrink 1% per tick when idle
 constexpr double kAdaptiveGrow   = 1.10;            // 10% headroom over peak
 
+bool defaultNetEnabled(const QString &name)
+{
+    return (name == QLatin1String("docker0")) || NetStat::isMainInterface(name);
+}
+
+bool netEnabled(const QSettings &settings, const QString &name)
+{
+    if (settings.value(QStringLiteral("monitors/net/show_all"), false).toBool())
+        return true;
+    return settings.value(QStringLiteral("monitors/net/") + name,
+                          defaultNetEnabled(name)).toBool();
+}
+
 } // namespace
 
 NetMonitor::NetMonitor(Theme *theme, QObject *parent)
@@ -85,12 +98,7 @@ QWidget *NetMonitor::createWidget(QWidget *parent)
         // available with friendly aliases, but stay default-disabled
         // so the user gets a clean single panel by default; they can
         // toggle individuals on for a per-network breakdown.
-        const bool defaultEnabled =
-            (s.name == QLatin1String("docker0"))
-            || NetStat::isMainInterface(s.name);
-        const bool enabled = settings.value(
-            QStringLiteral("monitors/net/") + s.name, defaultEnabled).toBool();
-        if (!enabled) continue;
+        if (!netEnabled(settings, s.name)) continue;
         IfaceUI ui = buildIfacePanel(theme(), container, vbox,
                                      s.name, s.alias);
         if (s.name == QLatin1String("docker0")) {
@@ -141,12 +149,8 @@ void NetMonitor::tick()
             // the monitor was constructed, OR when a fresh setting just
             // enabled this iface. Build its panel now so the user sees
             // their toggle take effect without another rebuild.
-            const bool defaultEnabled =
-                (s.name == QLatin1String("docker0"))
-                || NetStat::isMainInterface(s.name);
-            const bool enabled = settings.value(
-                QStringLiteral("monitors/net/") + s.name, defaultEnabled).toBool();
-            if (!enabled || !m_container || !m_containerLayout) continue;
+            if (!netEnabled(settings, s.name) || !m_container || !m_containerLayout)
+                continue;
             // Drop the "(waiting for data...)" placeholder the first time
             // we add a real interface panel — otherwise it just sits
             // above the live data forever.

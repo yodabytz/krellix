@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QList>
 #include <QDialog>
 
 class PluginLoader;
@@ -7,8 +8,10 @@ class Theme;
 
 class QCheckBox;
 class QComboBox;
+class QLineEdit;
 class QListWidget;
 class QSpinBox;
+class QStackedWidget;
 
 // Single-pane settings dialog covering the basic GKrellM-style toggles:
 // theme picker, always-on-top, clock-at-top, monitor enable/disable,
@@ -31,6 +34,7 @@ signals:
     // Generic settings-changed notification — MainWindow listens to rebuild
     // the panel stack so changes apply live.
     void settingsApplied();
+    void panelStackChanged();
 
 private slots:
     void onAccept();
@@ -39,6 +43,10 @@ private:
     void loadFromSettings();
     void saveToSettings();
     void populatePlugins();
+    void saveMonitorOrder();
+    bool hasPlugin(const QString &id) const;
+    bool hasKrellkamPlugin() const;
+    bool hasKrelldaciousPlugin() const;
 
     Theme *m_theme;
 
@@ -55,6 +63,7 @@ private:
     QCheckBox   *m_hostEnabled   = nullptr;
     QCheckBox   *m_cpuEnabled    = nullptr;
     QCheckBox   *m_memEnabled    = nullptr;
+    QCheckBox   *m_procEnabled   = nullptr;
     QCheckBox   *m_clockEnabled  = nullptr;
     QCheckBox   *m_uptimeEnabled  = nullptr;
     QCheckBox   *m_netEnabled     = nullptr;
@@ -62,6 +71,15 @@ private:
     QCheckBox   *m_sensorsEnabled = nullptr;
     QCheckBox   *m_batteryEnabled = nullptr;
     QListWidget *m_pluginList    = nullptr;
+    QStackedWidget *m_pluginStack = nullptr;
+    QListWidget *m_orderList     = nullptr;
+    QCheckBox   *m_krellkamEnabled = nullptr;
+    QSpinBox    *m_krellkamUpdateMs = nullptr;
+    QSpinBox    *m_krellkamFieldHeight = nullptr;
+    QList<QLineEdit *> m_krellkamTitles;
+    QList<QComboBox *> m_krellkamTypes;
+    QList<QLineEdit *> m_krellkamSources;
+    QCheckBox   *m_krelldaciousEnabled = nullptr;
 
     Q_DISABLE_COPY_MOVE(SettingsDialog)
 };

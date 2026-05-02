@@ -245,6 +245,12 @@ void RemoteSource::parseLine(const QByteArray &line)
     }
     m_disk = disk;
 
+    const QJsonObject p = obj.value(QStringLiteral("proc")).toObject();
+    ProcInfo pi;
+    pi.processes = p.value(QStringLiteral("processes")).toInt();
+    pi.users     = p.value(QStringLiteral("users")).toInt();
+    m_proc = pi;
+
     emit sampleReceived();
 }
 
@@ -254,6 +260,7 @@ void RemoteSource::resetCachedState()
     m_mem  = MemInfo{};
     m_net.clear();
     m_disk.clear();
+    m_proc = ProcInfo{};
     // -1 is the "unknown" sentinel UptimeMonitor uses to render "?".
     // Zero would render as "00:00" — actively misleading during a
     // disconnect window.

@@ -55,6 +55,7 @@ private:
 
     QList<CoreUI>    m_cores;
     QList<int>       m_visibleCoreIndices;   // /proc/stat indices we actually show
+    QStringList      m_visibleCoreLabels;    // normalized display labels: cpu0, cpu1, ...
     CoreUI           m_aggregateUI;
     QPointer<Chart>  m_combinedChart;
     QList<int>       m_combinedCoreIndices;

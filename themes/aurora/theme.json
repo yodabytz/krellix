@@ -12,6 +12,7 @@
     "panel_bg_host":    { "slice": 0, "opacity": 1.0 },
     "panel_bg_clock":   { "slice": 0, "opacity": 1.0 },
     "panel_bg_cpu":     { "slice": 0, "opacity": 1.0 },
+    "panel_bg_proc":    { "slice": 0, "opacity": 1.0 },
     "panel_bg_mem":     { "slice": 0, "opacity": 1.0 },
     "panel_bg_net":     { "slice": 0, "opacity": 1.0 },
     "panel_bg_disk":    { "slice": 0, "opacity": 1.0 },
@@ -50,6 +51,11 @@
       "gradient": "linear",
       "angle":    110,
       "stops":    [[0.0, "#061329"], [0.25, "#0b5066"], [0.48, "#35f4a1"], [0.70, "#20b8ff"], [1.0, "#090b1f"]]
+    },
+    "panel_bg_proc": {
+      "gradient": "linear",
+      "angle":    108,
+      "stops":    [[0.0, "#061226"], [0.28, "#12465f"], [0.52, "#45f0c6"], [0.74, "#5b7dff"], [1.0, "#080b20"]]
     },
     "panel_bg_mem": {
       "gradient": "linear",

@@ -38,7 +38,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     )
 endif()
 
-find_package(Qt6 6.2 REQUIRED COMPONENTS Core Gui Widgets Network)
+find_package(Qt6 6.2 REQUIRED COMPONENTS Core Gui Widgets Network DBus)
 
 qt_standard_project_setup()
 
@@ -71,6 +71,8 @@ set(KRELLIX_SOURCES
     src/sysdep/CpuStat.h
     src/sysdep/MemStat.cpp
     src/sysdep/MemStat.h
+    src/sysdep/ProcStat.cpp
+    src/sysdep/ProcStat.h
     src/sysdep/UptimeStat.cpp
     src/sysdep/UptimeStat.h
     src/sysdep/NetStat.cpp
@@ -93,6 +95,8 @@ set(KRELLIX_SOURCES
     src/monitors/CpuMonitor.h
     src/monitors/MemMonitor.cpp
     src/monitors/MemMonitor.h
+    src/monitors/ProcMonitor.cpp
+    src/monitors/ProcMonitor.h
     src/monitors/UptimeMonitor.cpp
     src/monitors/UptimeMonitor.h
     src/monitors/NetMonitor.cpp
@@ -129,6 +133,7 @@ target_compile_definitions(krellix PRIVATE
 set_target_properties(krellix PROPERTIES
     WIN32_EXECUTABLE OFF
     MACOSX_BUNDLE OFF
+    ENABLE_EXPORTS ON
 )
 
 install(TARGETS krellix RUNTIME DESTINATION bin)
@@ -148,6 +153,8 @@ qt_add_executable(krellixd
     src/sysdep/CpuStat.h
     src/sysdep/MemStat.cpp
     src/sysdep/MemStat.h
+    src/sysdep/ProcStat.cpp
+    src/sysdep/ProcStat.h
     src/sysdep/NetStat.cpp
     src/sysdep/NetStat.h
     src/sysdep/DockerNet.cpp
@@ -180,3 +187,46 @@ set_target_properties(krellixd PROPERTIES
 # krellix` aborted with "/usr/sbin exists in filesystem". Living in
 # /usr/bin avoids the conflict and is consistent with current FHS.
 install(TARGETS krellixd RUNTIME DESTINATION bin)
+
+# ---- Optional installable plugins ---------------------------------------
+add_library(krellkam MODULE
+    plugins/krellkam/KrellkamPlugin.cpp
+    plugins/krellkam/KrellkamPlugin.h
+)
+target_include_directories(krellkam PRIVATE src)
+target_link_libraries(krellkam PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    Qt6::Network
+)
+target_compile_definitions(krellkam PRIVATE
+    QT_NO_CAST_FROM_ASCII
+    QT_NO_CAST_TO_ASCII
+    QT_NO_NARROWING_CONVERSIONS_IN_CONNECT
+)
+set_target_properties(krellkam PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
+)
+install(TARGETS krellkam LIBRARY DESTINATION lib/krellix/plugins)
+
+add_library(krelldacious MODULE
+    plugins/krelldacious/KrelldaciousPlugin.cpp
+    plugins/krelldacious/KrelldaciousPlugin.h
+)
+target_include_directories(krelldacious PRIVATE src)
+target_link_libraries(krelldacious PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    Qt6::DBus
+)
+target_compile_definitions(krelldacious PRIVATE
+    QT_NO_CAST_FROM_ASCII
+    QT_NO_CAST_TO_ASCII
+    QT_NO_NARROWING_CONVERSIONS_IN_CONNECT
+)
+set_target_properties(krelldacious PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
+)
+install(TARGETS krelldacious LIBRARY DESTINATION lib/krellix/plugins)

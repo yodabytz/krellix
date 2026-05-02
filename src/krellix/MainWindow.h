@@ -63,6 +63,7 @@ private:
     struct LiveMonitor {
         MonitorBase *monitor;
         QWidget     *widget;
+        QTimer      *timer;
     };
 
     void addMonitor(MonitorBase *m);
@@ -71,6 +72,8 @@ private:
     void buildPanelStack(const QStringList &enabledIds);
     void clearPanelStack();
     void rebuildPanels();
+    void refreshLiveSettings();
+    void refreshMonitorTimers();
     void applyFixedWidth();
     void applyFrameMargins();
     void fitToPanelStack();
