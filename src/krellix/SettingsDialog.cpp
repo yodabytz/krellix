@@ -7,21 +7,34 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QCryptographicHash>
+#include <QDesktopServices>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QHostAddress>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QPushButton>
+#include <QRandomGenerator>
 #include <QSettings>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QStackedWidget>
 #include <QStringList>
+#include <QTcpServer>
+#include <QTcpSocket>
+#include <QUrl>
+#include <QUrlQuery>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -41,6 +54,7 @@ constexpr int kMaxPluginUpdateMs = 300000;
 constexpr int kMinScrollPps    = 5;
 constexpr int kMaxScrollPps    = 200;
 constexpr int kDefaultScrollPps = 30;
+constexpr int kMaxKrellmailAccounts = 10;
 
 const QList<QPair<QString, QString>> kMonitorOrderItems = {
     {QStringLiteral("host"),    QStringLiteral("Host")},
@@ -71,6 +85,36 @@ QList<CpuSample> sortedCoreSamples(const QList<CpuSample> &samples)
         return a.index < b.index;
     });
     return cores;
+}
+
+QString krellmailAccountKey(int index, const QString &name)
+{
+    return QStringLiteral("plugins/krellmail/account%1/%2").arg(index + 1).arg(name);
+}
+
+int defaultMailPort(const QString &protocol, bool ssl)
+{
+    if (protocol == QLatin1String("pop3"))
+        return ssl ? 995 : 110;
+    return ssl ? 993 : 143;
+}
+
+QString randomUrlToken(int bytes)
+{
+    QByteArray data;
+    data.resize(bytes);
+    for (int i = 0; i < bytes; ++i)
+        data[i] = static_cast<char>(QRandomGenerator::global()->bounded(256));
+    return QString::fromLatin1(data.toBase64(QByteArray::Base64UrlEncoding
+                                             | QByteArray::OmitTrailingEquals));
+}
+
+QString pkceChallenge(const QString &verifier)
+{
+    const QByteArray hash = QCryptographicHash::hash(verifier.toLatin1(),
+                                                     QCryptographicHash::Sha256);
+    return QString::fromLatin1(hash.toBase64(QByteArray::Base64UrlEncoding
+                                             | QByteArray::OmitTrailingEquals));
 }
 
 } // namespace
@@ -514,7 +558,8 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
             auto *pluginPage = new QWidget(m_pluginStack);
             auto *pluginLayout = new QVBoxLayout(pluginPage);
             auto *group = new QGroupBox(QStringLiteral("Krellmail"), pluginPage);
-            auto *form = new QFormLayout(group);
+            auto *groupLayout = new QVBoxLayout(group);
+            auto *form = new QFormLayout;
 
             m_krellmailEnabled =
                 new QCheckBox(QStringLiteral("Show Krellmail mail monitor"), group);
@@ -525,40 +570,21 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
             m_krellmailUpdateMs->setSingleStep(30000);
             m_krellmailUpdateMs->setSuffix(QStringLiteral(" ms"));
             form->addRow(QStringLiteral("Update interval:"), m_krellmailUpdateMs);
+            groupLayout->addLayout(form);
 
-            for (int i = 0; i < 3; ++i) {
-                auto *protocol = new QComboBox(group);
-                protocol->addItem(QStringLiteral("IMAP"), QStringLiteral("imap"));
-                protocol->addItem(QStringLiteral("POP3"), QStringLiteral("pop3"));
-                m_krellmailProtocols.append(protocol);
-                form->addRow(QStringLiteral("Account %1 protocol:").arg(i + 1), protocol);
+            m_krellmailAccountsContainer = new QWidget(group);
+            m_krellmailAccountsLayout = new QVBoxLayout(m_krellmailAccountsContainer);
+            m_krellmailAccountsLayout->setContentsMargins(0, 0, 0, 0);
+            m_krellmailAccountsLayout->setSpacing(6);
+            groupLayout->addWidget(m_krellmailAccountsContainer);
 
-                auto *host = new QLineEdit(group);
-                host->setClearButtonEnabled(true);
-                host->setPlaceholderText(QStringLiteral("mail.example.com"));
-                m_krellmailHosts.append(host);
-                form->addRow(QStringLiteral("Account %1 server:").arg(i + 1), host);
-
-                auto *port = new QSpinBox(group);
-                port->setRange(1, 65535);
-                m_krellmailPorts.append(port);
-                form->addRow(QStringLiteral("Account %1 port:").arg(i + 1), port);
-
-                auto *ssl = new QCheckBox(QStringLiteral("Use SSL/TLS"), group);
-                m_krellmailSsl.append(ssl);
-                form->addRow(QStringLiteral("Account %1 security:").arg(i + 1), ssl);
-
-                auto *user = new QLineEdit(group);
-                user->setClearButtonEnabled(true);
-                m_krellmailUsers.append(user);
-                form->addRow(QStringLiteral("Account %1 user:").arg(i + 1), user);
-
-                auto *password = new QLineEdit(group);
-                password->setEchoMode(QLineEdit::Password);
-                password->setClearButtonEnabled(true);
-                m_krellmailPasswords.append(password);
-                form->addRow(QStringLiteral("Account %1 password:").arg(i + 1), password);
-            }
+            auto *buttonRow = new QHBoxLayout;
+            buttonRow->addStretch(1);
+            m_krellmailAddAccount = new QPushButton(QStringLiteral("+"), group);
+            m_krellmailAddAccount->setFixedWidth(32);
+            m_krellmailAddAccount->setToolTip(QStringLiteral("Add mail account"));
+            buttonRow->addWidget(m_krellmailAddAccount);
+            groupLayout->addLayout(buttonRow);
 
             pluginLayout->addWidget(group);
             pluginLayout->addStretch(1);
@@ -893,46 +919,8 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
                     emit settingsApplied();
                 });
     }
-    for (int i = 0; i < m_krellmailProtocols.size(); ++i) {
-        const int account = i + 1;
-        QComboBox *protocol = m_krellmailProtocols.at(i);
-        QLineEdit *host = m_krellmailHosts.at(i);
-        QSpinBox *port = m_krellmailPorts.at(i);
-        QCheckBox *ssl = m_krellmailSsl.at(i);
-        QLineEdit *user = m_krellmailUsers.at(i);
-        QLineEdit *password = m_krellmailPasswords.at(i);
-
-        connect(protocol, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, [this, protocol, account](int) {
-                    QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/protocol").arg(account),
-                                         protocol->currentData().toString());
-                    emit settingsApplied();
-                });
-        connect(host, &QLineEdit::textChanged, this, [this, host, account]() {
-            QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/host").arg(account),
-                                 host->text().trimmed());
-        });
-        connect(host, &QLineEdit::editingFinished, this, [this]() { emit settingsApplied(); });
-        connect(port, QOverload<int>::of(&QSpinBox::valueChanged),
-                this, [this, account](int v) {
-                    QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/port").arg(account), v);
-                    emit settingsApplied();
-                });
-        connect(ssl, &QCheckBox::toggled, this, [this, account](bool v) {
-            QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/ssl").arg(account), v);
-            emit settingsApplied();
-        });
-        connect(user, &QLineEdit::textChanged, this, [this, user, account]() {
-            QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/username").arg(account),
-                                 user->text());
-        });
-        connect(user, &QLineEdit::editingFinished, this, [this]() { emit settingsApplied(); });
-        connect(password, &QLineEdit::textChanged, this, [this, password, account]() {
-            QSettings().setValue(QStringLiteral("plugins/krellmail/account%1/password").arg(account),
-                                 password->text());
-        });
-        connect(password, &QLineEdit::editingFinished, this, [this]() { emit settingsApplied(); });
-    }
+    if (m_krellmailAddAccount)
+        connect(m_krellmailAddAccount, &QPushButton::clicked, this, &SettingsDialog::addKrellmailAccount);
     if (m_krellspectrumEnabled) {
         connect(m_krellspectrumEnabled, &QCheckBox::toggled, this, [this](bool v) {
             QSettings().setValue(QStringLiteral("plugins/krellspectrum/enabled"), v);
@@ -1144,28 +1132,7 @@ void SettingsDialog::loadFromSettings()
         m_krellmailUpdateMs->setValue(
             s.value(QStringLiteral("plugins/krellmail/update_ms"), 300000).toInt());
     }
-    for (int i = 0; i < m_krellmailProtocols.size(); ++i) {
-        const int account = i + 1;
-        const QString proto = s.value(QStringLiteral("plugins/krellmail/account%1/protocol").arg(account),
-                                      QStringLiteral("imap")).toString();
-        const int protoIndex = m_krellmailProtocols.at(i)->findData(proto);
-        m_krellmailProtocols.at(i)->setCurrentIndex(protoIndex >= 0 ? protoIndex : 0);
-        const bool ssl = s.value(QStringLiteral("plugins/krellmail/account%1/ssl").arg(account),
-                                 true).toBool();
-        m_krellmailSsl.at(i)->setChecked(ssl);
-        const int fallbackPort = proto == QLatin1String("pop3")
-            ? (ssl ? 995 : 110)
-            : (ssl ? 993 : 143);
-        m_krellmailPorts.at(i)->setValue(
-            s.value(QStringLiteral("plugins/krellmail/account%1/port").arg(account),
-                    fallbackPort).toInt());
-        m_krellmailHosts.at(i)->setText(
-            s.value(QStringLiteral("plugins/krellmail/account%1/host").arg(account)).toString());
-        m_krellmailUsers.at(i)->setText(
-            s.value(QStringLiteral("plugins/krellmail/account%1/username").arg(account)).toString());
-        m_krellmailPasswords.at(i)->setText(
-            s.value(QStringLiteral("plugins/krellmail/account%1/password").arg(account)).toString());
-    }
+    rebuildKrellmailAccounts();
     if (m_krellspectrumEnabled) {
         m_krellspectrumEnabled->setChecked(
             s.value(QStringLiteral("plugins/krellspectrum/enabled"), true).toBool());
@@ -1222,6 +1189,319 @@ void SettingsDialog::loadFromSettings()
         m_krellspectrumStereoSplit->setChecked(
             s.value(QStringLiteral("plugins/krellspectrum/stereo_split"), false).toBool());
     }
+}
+
+int SettingsDialog::krellmailAccountCount() const
+{
+    QSettings s;
+    if (s.contains(QStringLiteral("plugins/krellmail/account_count")))
+        return qBound(0, s.value(QStringLiteral("plugins/krellmail/account_count"), 1).toInt(),
+                      kMaxKrellmailAccounts);
+
+    int legacyCount = 0;
+    for (int i = 0; i < 3; ++i) {
+        if (!s.value(krellmailAccountKey(i, QStringLiteral("host"))).toString().trimmed().isEmpty()
+            || !s.value(krellmailAccountKey(i, QStringLiteral("username"))).toString().trimmed().isEmpty())
+            legacyCount = i + 1;
+    }
+    return qMax(1, legacyCount);
+}
+
+void SettingsDialog::rebuildKrellmailAccounts()
+{
+    if (!m_krellmailAccountsLayout) return;
+    QSettings s;
+
+    while (QLayoutItem *item = m_krellmailAccountsLayout->takeAt(0)) {
+        if (QWidget *w = item->widget())
+            w->deleteLater();
+        delete item;
+    }
+    m_krellmailAccounts.clear();
+
+    const int count = krellmailAccountCount();
+    s.setValue(QStringLiteral("plugins/krellmail/account_count"), count);
+
+    for (int i = 0; i < count; ++i) {
+        KrellmailAccountWidgets row;
+        row.group = new QGroupBox(QStringLiteral("Account %1").arg(i + 1),
+                                  m_krellmailAccountsContainer);
+        auto *outer = new QVBoxLayout(row.group);
+        auto *top = new QHBoxLayout;
+        top->addStretch(1);
+        row.remove = new QPushButton(QStringLiteral("-"), row.group);
+        row.remove->setFixedWidth(32);
+        row.remove->setToolTip(QStringLiteral("Delete mail account"));
+        row.remove->setEnabled(count > 1);
+        top->addWidget(row.remove);
+        outer->addLayout(top);
+
+        auto *form = new QFormLayout;
+        row.protocol = new QComboBox(row.group);
+        row.protocol->addItem(QStringLiteral("IMAP"), QStringLiteral("imap"));
+        row.protocol->addItem(QStringLiteral("POP3"), QStringLiteral("pop3"));
+        form->addRow(QStringLiteral("Protocol:"), row.protocol);
+
+        row.auth = new QComboBox(row.group);
+        row.auth->addItem(QStringLiteral("Password"), QStringLiteral("password"));
+        row.auth->addItem(QStringLiteral("Gmail OAuth"), QStringLiteral("oauth"));
+        form->addRow(QStringLiteral("Auth:"), row.auth);
+
+        row.host = new QLineEdit(row.group);
+        row.host->setClearButtonEnabled(true);
+        row.host->setPlaceholderText(QStringLiteral("imap.gmail.com"));
+        form->addRow(QStringLiteral("Server:"), row.host);
+
+        row.port = new QSpinBox(row.group);
+        row.port->setRange(1, 65535);
+        form->addRow(QStringLiteral("Port:"), row.port);
+
+        row.ssl = new QCheckBox(QStringLiteral("Use SSL/TLS"), row.group);
+        form->addRow(QStringLiteral("Security:"), row.ssl);
+
+        row.user = new QLineEdit(row.group);
+        row.user->setClearButtonEnabled(true);
+        form->addRow(QStringLiteral("User:"), row.user);
+
+        row.password = new QLineEdit(row.group);
+        row.password->setEchoMode(QLineEdit::Password);
+        row.password->setClearButtonEnabled(true);
+        form->addRow(QStringLiteral("Password:"), row.password);
+
+        row.oauthClientId = new QLineEdit(row.group);
+        row.oauthClientId->setClearButtonEnabled(true);
+        row.oauthClientId->setPlaceholderText(QStringLiteral("Google OAuth desktop client ID"));
+        form->addRow(QStringLiteral("OAuth client ID:"), row.oauthClientId);
+
+        row.authorize = new QPushButton(QStringLiteral("Authorize Gmail"), row.group);
+        form->addRow(QString(), row.authorize);
+
+        row.status = new QLabel(row.group);
+        row.status->setWordWrap(true);
+        form->addRow(QString(), row.status);
+        outer->addLayout(form);
+        m_krellmailAccountsLayout->addWidget(row.group);
+
+        const QString proto = s.value(krellmailAccountKey(i, QStringLiteral("protocol")),
+                                      QStringLiteral("imap")).toString();
+        row.protocol->setCurrentIndex(qMax(0, row.protocol->findData(proto)));
+        const QString auth = s.value(krellmailAccountKey(i, QStringLiteral("auth")),
+                                     QStringLiteral("password")).toString();
+        row.auth->setCurrentIndex(qMax(0, row.auth->findData(auth)));
+        const bool ssl = s.value(krellmailAccountKey(i, QStringLiteral("ssl")), true).toBool();
+        row.ssl->setChecked(ssl);
+        row.port->setValue(s.value(krellmailAccountKey(i, QStringLiteral("port")),
+                                   defaultMailPort(proto, ssl)).toInt());
+        row.host->setText(s.value(krellmailAccountKey(i, QStringLiteral("host"))).toString());
+        row.user->setText(s.value(krellmailAccountKey(i, QStringLiteral("username"))).toString());
+        row.password->setText(s.value(krellmailAccountKey(i, QStringLiteral("password"))).toString());
+        row.oauthClientId->setText(s.value(krellmailAccountKey(i, QStringLiteral("oauth_client_id"))).toString());
+        row.status->setText(s.value(krellmailAccountKey(i, QStringLiteral("oauth_refresh_token"))).toString().isEmpty()
+                            ? QStringLiteral("Not authorized")
+                            : QStringLiteral("Gmail authorized"));
+
+        m_krellmailAccounts.append(row);
+        const int index = i;
+        auto updateAuthUi = [this, index]() {
+            if (index < 0 || index >= m_krellmailAccounts.size()) return;
+            KrellmailAccountWidgets &widgets = m_krellmailAccounts[index];
+            const bool oauth = widgets.auth->currentData().toString() == QLatin1String("oauth");
+            widgets.password->setEnabled(!oauth);
+            widgets.oauthClientId->setEnabled(oauth);
+            widgets.authorize->setEnabled(oauth);
+            if (oauth) {
+                widgets.protocol->setCurrentIndex(qMax(0, widgets.protocol->findData(QStringLiteral("imap"))));
+                widgets.host->setText(QStringLiteral("imap.gmail.com"));
+                widgets.ssl->setChecked(true);
+                widgets.port->setValue(993);
+            }
+        };
+        updateAuthUi();
+        auto save = [this, index]() { saveKrellmailAccount(index); };
+        connect(row.protocol, QOverload<int>::of(&QComboBox::currentIndexChanged), this, save);
+        connect(row.auth, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this, index, updateAuthUi](int) {
+            updateAuthUi();
+            saveKrellmailAccount(index);
+        });
+        connect(row.host, &QLineEdit::textChanged, this, save);
+        connect(row.port, QOverload<int>::of(&QSpinBox::valueChanged), this, save);
+        connect(row.ssl, &QCheckBox::toggled, this, save);
+        connect(row.user, &QLineEdit::textChanged, this, save);
+        connect(row.password, &QLineEdit::textChanged, this, save);
+        connect(row.oauthClientId, &QLineEdit::textChanged, this, save);
+        connect(row.authorize, &QPushButton::clicked, this, [this, index]() {
+            saveKrellmailAccount(index);
+            beginKrellmailOAuth(index);
+        });
+        connect(row.remove, &QPushButton::clicked, this, [this, index]() { removeKrellmailAccount(index); });
+    }
+    m_krellmailAccountsLayout->addStretch(1);
+}
+
+void SettingsDialog::saveKrellmailAccount(int index)
+{
+    if (index < 0 || index >= m_krellmailAccounts.size()) return;
+    const KrellmailAccountWidgets &row = m_krellmailAccounts.at(index);
+    QSettings s;
+    s.setValue(krellmailAccountKey(index, QStringLiteral("protocol")), row.protocol->currentData().toString());
+    s.setValue(krellmailAccountKey(index, QStringLiteral("auth")), row.auth->currentData().toString());
+    s.setValue(krellmailAccountKey(index, QStringLiteral("host")), row.host->text().trimmed());
+    s.setValue(krellmailAccountKey(index, QStringLiteral("port")), row.port->value());
+    s.setValue(krellmailAccountKey(index, QStringLiteral("ssl")), row.ssl->isChecked());
+    s.setValue(krellmailAccountKey(index, QStringLiteral("username")), row.user->text().trimmed());
+    s.setValue(krellmailAccountKey(index, QStringLiteral("password")), row.password->text());
+    s.setValue(krellmailAccountKey(index, QStringLiteral("oauth_client_id")), row.oauthClientId->text().trimmed());
+    emit settingsApplied();
+}
+
+void SettingsDialog::addKrellmailAccount()
+{
+    QSettings s;
+    const int count = krellmailAccountCount();
+    if (count >= kMaxKrellmailAccounts) return;
+    s.setValue(QStringLiteral("plugins/krellmail/account_count"), count + 1);
+    s.setValue(krellmailAccountKey(count, QStringLiteral("protocol")), QStringLiteral("imap"));
+    s.setValue(krellmailAccountKey(count, QStringLiteral("auth")), QStringLiteral("password"));
+    s.setValue(krellmailAccountKey(count, QStringLiteral("ssl")), true);
+    s.setValue(krellmailAccountKey(count, QStringLiteral("port")), 993);
+    rebuildKrellmailAccounts();
+    emit settingsApplied();
+}
+
+void SettingsDialog::removeKrellmailAccount(int index)
+{
+    QSettings s;
+    const int count = krellmailAccountCount();
+    if (index < 0 || index >= count || count <= 1) return;
+
+    for (int dst = index; dst < count - 1; ++dst) {
+        const int src = dst + 1;
+        const QStringList keys = {QStringLiteral("protocol"), QStringLiteral("auth"), QStringLiteral("host"),
+                                  QStringLiteral("port"), QStringLiteral("ssl"), QStringLiteral("username"),
+                                  QStringLiteral("password"), QStringLiteral("oauth_client_id"),
+                                  QStringLiteral("oauth_refresh_token")};
+        for (const QString &key : keys)
+            s.setValue(krellmailAccountKey(dst, key), s.value(krellmailAccountKey(src, key)));
+    }
+    s.remove(QStringLiteral("plugins/krellmail/account%1").arg(count));
+    s.setValue(QStringLiteral("plugins/krellmail/account_count"), count - 1);
+    rebuildKrellmailAccounts();
+    emit settingsApplied();
+}
+
+void SettingsDialog::beginKrellmailOAuth(int index)
+{
+    if (index < 0 || index >= m_krellmailAccounts.size()) return;
+    KrellmailAccountWidgets &row = m_krellmailAccounts[index];
+    const QString clientId = row.oauthClientId->text().trimmed();
+    const QString user = row.user->text().trimmed();
+    if (clientId.isEmpty() || user.isEmpty()) {
+        row.status->setText(QStringLiteral("OAuth needs a Gmail user and client ID"));
+        return;
+    }
+
+    delete m_krellmailOAuthServer;
+    m_krellmailOAuthServer = new QTcpServer(this);
+    if (!m_krellmailOAuthServer->listen(QHostAddress::LocalHost, 0)) {
+        row.status->setText(QStringLiteral("Could not start local OAuth callback"));
+        return;
+    }
+    m_krellmailOAuthAccount = index;
+    m_krellmailOAuthVerifier = randomUrlToken(48);
+    m_krellmailOAuthState = randomUrlToken(24);
+
+    connect(m_krellmailOAuthServer, &QTcpServer::newConnection,
+            this, &SettingsDialog::handleKrellmailOAuthCallback);
+
+    QUrl authUrl(QStringLiteral("https://accounts.google.com/o/oauth2/v2/auth"));
+    QUrlQuery query;
+    query.addQueryItem(QStringLiteral("client_id"), clientId);
+    query.addQueryItem(QStringLiteral("redirect_uri"),
+                       QStringLiteral("http://127.0.0.1:%1/").arg(m_krellmailOAuthServer->serverPort()));
+    query.addQueryItem(QStringLiteral("response_type"), QStringLiteral("code"));
+    query.addQueryItem(QStringLiteral("scope"), QStringLiteral("https://mail.google.com/"));
+    query.addQueryItem(QStringLiteral("access_type"), QStringLiteral("offline"));
+    query.addQueryItem(QStringLiteral("prompt"), QStringLiteral("consent"));
+    query.addQueryItem(QStringLiteral("login_hint"), user);
+    query.addQueryItem(QStringLiteral("code_challenge"), pkceChallenge(m_krellmailOAuthVerifier));
+    query.addQueryItem(QStringLiteral("code_challenge_method"), QStringLiteral("S256"));
+    query.addQueryItem(QStringLiteral("state"), m_krellmailOAuthState);
+    authUrl.setQuery(query);
+
+    row.status->setText(QStringLiteral("Waiting for Google authorization..."));
+    QDesktopServices::openUrl(authUrl);
+}
+
+void SettingsDialog::handleKrellmailOAuthCallback()
+{
+    if (!m_krellmailOAuthServer) return;
+    QTcpSocket *socket = m_krellmailOAuthServer->nextPendingConnection();
+    if (!socket) return;
+    socket->waitForReadyRead(3000);
+    const QByteArray request = socket->readAll();
+    const QList<QByteArray> lines = request.split('\n');
+    const QByteArray first = lines.isEmpty() ? QByteArray() : lines.first();
+    const QList<QByteArray> parts = first.split(' ');
+    QUrl url(QStringLiteral("http://127.0.0.1") + QString::fromUtf8(parts.size() > 1 ? parts.at(1) : QByteArray("/")));
+    QUrlQuery query(url);
+
+    const QString code = query.queryItemValue(QStringLiteral("code"));
+    const QString state = query.queryItemValue(QStringLiteral("state"));
+    const QString redirectUri =
+        QStringLiteral("http://127.0.0.1:%1/").arg(m_krellmailOAuthServer->serverPort());
+    const QString response = code.isEmpty()
+        ? QStringLiteral("HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nKrellmail authorization failed.")
+        : QStringLiteral("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nKrellmail is authorized. You can close this window.");
+    socket->write(response.toUtf8());
+    socket->disconnectFromHost();
+    socket->deleteLater();
+    m_krellmailOAuthServer->close();
+
+    if (m_krellmailOAuthAccount < 0 || m_krellmailOAuthAccount >= m_krellmailAccounts.size())
+        return;
+    if (code.isEmpty() || state != m_krellmailOAuthState) {
+        m_krellmailAccounts[m_krellmailOAuthAccount].status->setText(QStringLiteral("OAuth failed"));
+        return;
+    }
+
+    if (!m_krellmailOAuthNetwork)
+        m_krellmailOAuthNetwork = new QNetworkAccessManager(this);
+    const KrellmailAccountWidgets &row = m_krellmailAccounts.at(m_krellmailOAuthAccount);
+    QNetworkRequest tokenRequest(QUrl(QStringLiteral("https://oauth2.googleapis.com/token")));
+    tokenRequest.setHeader(QNetworkRequest::ContentTypeHeader,
+                           QStringLiteral("application/x-www-form-urlencoded"));
+    QUrlQuery body;
+    body.addQueryItem(QStringLiteral("client_id"), row.oauthClientId->text().trimmed());
+    body.addQueryItem(QStringLiteral("code"), code);
+    body.addQueryItem(QStringLiteral("code_verifier"), m_krellmailOAuthVerifier);
+    body.addQueryItem(QStringLiteral("grant_type"), QStringLiteral("authorization_code"));
+    body.addQueryItem(QStringLiteral("redirect_uri"), redirectUri);
+    QNetworkReply *reply = m_krellmailOAuthNetwork->post(tokenRequest, body.query(QUrl::FullyEncoded).toUtf8());
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() { finishKrellmailOAuth(reply); });
+}
+
+void SettingsDialog::finishKrellmailOAuth(QNetworkReply *reply)
+{
+    if (!reply) return;
+    reply->deleteLater();
+    if (m_krellmailOAuthAccount < 0 || m_krellmailOAuthAccount >= m_krellmailAccounts.size())
+        return;
+    KrellmailAccountWidgets &row = m_krellmailAccounts[m_krellmailOAuthAccount];
+    const QByteArray payload = reply->readAll();
+    const QJsonDocument doc = QJsonDocument::fromJson(payload);
+    const QString refreshToken = doc.object().value(QStringLiteral("refresh_token")).toString();
+    if (reply->error() != QNetworkReply::NoError || refreshToken.isEmpty()) {
+        row.status->setText(QStringLiteral("OAuth token failed"));
+        return;
+    }
+    QSettings s;
+    s.setValue(krellmailAccountKey(m_krellmailOAuthAccount, QStringLiteral("oauth_refresh_token")),
+               refreshToken);
+    s.setValue(krellmailAccountKey(m_krellmailOAuthAccount, QStringLiteral("auth")),
+               QStringLiteral("oauth"));
+    row.auth->setCurrentIndex(qMax(0, row.auth->findData(QStringLiteral("oauth"))));
+    row.status->setText(QStringLiteral("Gmail authorized"));
+    emit settingsApplied();
 }
 
 void SettingsDialog::saveToSettings()

@@ -2,17 +2,25 @@
 
 #include <QList>
 #include <QDialog>
+#include <QString>
 
 class PluginLoader;
 class Theme;
 
 class QCheckBox;
 class QComboBox;
+class QGroupBox;
 class QLineEdit;
+class QLabel;
 class QListWidget;
 class QDoubleSpinBox;
+class QNetworkAccessManager;
+class QNetworkReply;
+class QPushButton;
 class QSpinBox;
 class QStackedWidget;
+class QTcpServer;
+class QVBoxLayout;
 
 // Single-pane settings dialog covering the basic GKrellM-style toggles:
 // theme picker, always-on-top, clock-at-top, monitor enable/disable,
@@ -52,6 +60,29 @@ private:
     bool hasKrellwirePlugin() const;
     bool hasKrellmailPlugin() const;
     bool hasKrellSpectrumPlugin() const;
+    int krellmailAccountCount() const;
+    void rebuildKrellmailAccounts();
+    void saveKrellmailAccount(int index);
+    void addKrellmailAccount();
+    void removeKrellmailAccount(int index);
+    void beginKrellmailOAuth(int index);
+    void handleKrellmailOAuthCallback();
+    void finishKrellmailOAuth(QNetworkReply *reply);
+
+    struct KrellmailAccountWidgets {
+        QGroupBox *group = nullptr;
+        QComboBox *protocol = nullptr;
+        QComboBox *auth = nullptr;
+        QLineEdit *host = nullptr;
+        QSpinBox *port = nullptr;
+        QCheckBox *ssl = nullptr;
+        QLineEdit *user = nullptr;
+        QLineEdit *password = nullptr;
+        QLineEdit *oauthClientId = nullptr;
+        QPushButton *authorize = nullptr;
+        QPushButton *remove = nullptr;
+        QLabel *status = nullptr;
+    };
 
     Theme *m_theme;
 
@@ -96,12 +127,15 @@ private:
     QList<QLineEdit *> m_krellwireFeeds;
     QCheckBox   *m_krellmailEnabled = nullptr;
     QSpinBox    *m_krellmailUpdateMs = nullptr;
-    QList<QComboBox *> m_krellmailProtocols;
-    QList<QLineEdit *> m_krellmailHosts;
-    QList<QSpinBox *> m_krellmailPorts;
-    QList<QCheckBox *> m_krellmailSsl;
-    QList<QLineEdit *> m_krellmailUsers;
-    QList<QLineEdit *> m_krellmailPasswords;
+    QWidget     *m_krellmailAccountsContainer = nullptr;
+    QVBoxLayout *m_krellmailAccountsLayout = nullptr;
+    QPushButton *m_krellmailAddAccount = nullptr;
+    QList<KrellmailAccountWidgets> m_krellmailAccounts;
+    QTcpServer *m_krellmailOAuthServer = nullptr;
+    QNetworkAccessManager *m_krellmailOAuthNetwork = nullptr;
+    int m_krellmailOAuthAccount = -1;
+    QString m_krellmailOAuthVerifier;
+    QString m_krellmailOAuthState;
     QCheckBox   *m_krellspectrumEnabled = nullptr;
     QComboBox   *m_krellspectrumVisualMode = nullptr;
     QComboBox   *m_krellspectrumBandCount = nullptr;

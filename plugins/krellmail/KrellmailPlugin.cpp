@@ -6,18 +6,24 @@
 #include <QDesktopServices>
 #include <QEvent>
 #include <QHBoxLayout>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
+#include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QPainter>
 #include <QPainterPath>
 #include <QSettings>
 #include <QSizePolicy>
 #include <QUrl>
+#include <QUrlQuery>
 #include <QVBoxLayout>
 #include <QtMath>
 
 namespace {
 
 constexpr int kMaxAccounts = 3;
+constexpr int kMaxDynamicAccounts = 10;
 constexpr int kTimeoutMs = 12000;
 
 QString accountKey(int index, const QString &name)
@@ -30,6 +36,14 @@ int defaultPort(const QString &protocol, bool ssl)
     if (protocol == QLatin1String("imap"))
         return ssl ? 993 : 143;
     return ssl ? 995 : 110;
+}
+
+int configuredAccountCount(const QSettings &settings)
+{
+    if (settings.contains(QStringLiteral("plugins/krellmail/account_count")))
+        return qBound(0, settings.value(QStringLiteral("plugins/krellmail/account_count"), 1).toInt(),
+                      kMaxDynamicAccounts);
+    return kMaxAccounts;
 }
 
 QColor themeColor(Theme *theme, const QString &key, const QColor &fallback)
@@ -279,18 +293,25 @@ QVector<KrellmailAccount> KrellmailMonitor::readAccounts() const
 {
     QSettings s;
     QVector<KrellmailAccount> accounts;
-    for (int i = 1; i <= kMaxAccounts; ++i) {
+    const int accountCount = configuredAccountCount(s);
+    for (int i = 1; i <= accountCount; ++i) {
         KrellmailAccount account;
         account.protocol = s.value(accountKey(i, QStringLiteral("protocol")),
                                    QStringLiteral("imap")).toString().trimmed().toLower();
         if (account.protocol != QLatin1String("pop3"))
             account.protocol = QStringLiteral("imap");
+        account.auth = s.value(accountKey(i, QStringLiteral("auth")),
+                               QStringLiteral("password")).toString().trimmed().toLower();
+        if (account.auth != QLatin1String("oauth"))
+            account.auth = QStringLiteral("password");
         account.host = s.value(accountKey(i, QStringLiteral("host"))).toString().trimmed();
         account.ssl = s.value(accountKey(i, QStringLiteral("ssl")), true).toBool();
         account.port = s.value(accountKey(i, QStringLiteral("port")),
                                defaultPort(account.protocol, account.ssl)).toInt();
         account.username = s.value(accountKey(i, QStringLiteral("username"))).toString();
         account.password = s.value(accountKey(i, QStringLiteral("password"))).toString();
+        account.oauthClientId = s.value(accountKey(i, QStringLiteral("oauth_client_id"))).toString().trimmed();
+        account.oauthRefreshToken = s.value(accountKey(i, QStringLiteral("oauth_refresh_token"))).toString().trimmed();
         if (!account.host.isEmpty() && !account.username.isEmpty())
             accounts.append(account);
     }
@@ -317,6 +338,7 @@ void KrellmailMonitor::startCheck(bool force)
     m_totalCount = 0;
     m_errorCount = 0;
     m_lastError.clear();
+    m_oauthAccessToken.clear();
     if (m_accounts.isEmpty()) {
         applyStatus();
         return;
@@ -351,6 +373,7 @@ void KrellmailMonitor::startNextAccount()
 {
     m_timeout.stop();
     m_buffer.clear();
+    m_oauthAccessToken.clear();
     if (m_socket) {
         m_socket->disconnect(this);
         m_socket->abort();
@@ -383,12 +406,50 @@ void KrellmailMonitor::startNextAccount()
         m_socket->connectToHost(account.host, account.port);
 }
 
+void KrellmailMonitor::requestOAuthToken(const KrellmailAccount &account)
+{
+    if (account.oauthClientId.isEmpty() || account.oauthRefreshToken.isEmpty()) {
+        failCurrent(QStringLiteral("OAuth account needs authorization"));
+        return;
+    }
+
+    QNetworkRequest request(QUrl(QStringLiteral("https://oauth2.googleapis.com/token")));
+    request.setHeader(QNetworkRequest::ContentTypeHeader,
+                      QStringLiteral("application/x-www-form-urlencoded"));
+
+    QUrlQuery body;
+    body.addQueryItem(QStringLiteral("client_id"), account.oauthClientId);
+    body.addQueryItem(QStringLiteral("refresh_token"), account.oauthRefreshToken);
+    body.addQueryItem(QStringLiteral("grant_type"), QStringLiteral("refresh_token"));
+
+    m_state = State::ImapOAuthToken;
+    m_timeout.start(kTimeoutMs);
+    QNetworkReply *reply = m_oauthManager.post(request, body.query(QUrl::FullyEncoded).toUtf8());
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        onOAuthFinished(reply);
+    });
+}
+
 void KrellmailMonitor::sendLine(const QByteArray &line)
 {
     if (!m_socket) return;
     m_socket->write(line + "\r\n");
     m_socket->flush();
     m_timeout.start(kTimeoutMs);
+}
+
+QByteArray KrellmailMonitor::xoauth2InitialResponse(const KrellmailAccount &account,
+                                                    const QString &accessToken) const
+{
+    QByteArray payload;
+    payload += "user=";
+    payload += account.username.toUtf8();
+    payload += '\001';
+    payload += "auth=Bearer ";
+    payload += accessToken.toUtf8();
+    payload += '\001';
+    payload += '\001';
+    return payload.toBase64();
 }
 
 void KrellmailMonitor::onConnected()
@@ -420,6 +481,43 @@ void KrellmailMonitor::onSocketError(QAbstractSocket::SocketError)
 {
     if (m_tearingDown) return;
     failCurrent(m_socket ? m_socket->errorString() : QStringLiteral("connection error"));
+}
+
+void KrellmailMonitor::onOAuthFinished(QNetworkReply *reply)
+{
+    if (!reply) return;
+    reply->deleteLater();
+    if (m_tearingDown || !m_fetching)
+        return;
+    if (m_accountIndex < 0 || m_accountIndex >= m_accounts.size())
+        return;
+
+    const QByteArray payload = reply->readAll();
+    if (reply->error() != QNetworkReply::NoError) {
+        QString message = reply->errorString();
+        const QJsonDocument doc = QJsonDocument::fromJson(payload);
+        if (doc.isObject()) {
+            const QString error = doc.object().value(QStringLiteral("error")).toString();
+            const QString description = doc.object().value(QStringLiteral("error_description")).toString();
+            if (!error.isEmpty())
+                message = description.isEmpty() ? error : error + QStringLiteral(": ") + description;
+        }
+        failCurrent(QStringLiteral("OAuth: %1").arg(message));
+        return;
+    }
+
+    const QJsonDocument doc = QJsonDocument::fromJson(payload);
+    const QString accessToken = doc.object().value(QStringLiteral("access_token")).toString();
+    if (accessToken.isEmpty()) {
+        failCurrent(QStringLiteral("OAuth did not return an access token"));
+        return;
+    }
+
+    m_oauthAccessToken = accessToken;
+    const KrellmailAccount account = m_accounts.at(m_accountIndex);
+    m_state = State::ImapOAuthAuth;
+    sendLine(m_imapTag + " AUTHENTICATE XOAUTH2 "
+             + xoauth2InitialResponse(account, m_oauthAccessToken));
 }
 
 void KrellmailMonitor::onTimeout()
@@ -472,11 +570,25 @@ void KrellmailMonitor::processLine(const QByteArray &line)
         }
         m_state = State::ImapLogin;
         m_imapTag = "a001";
+        if (account.auth == QLatin1String("oauth")) {
+            requestOAuthToken(account);
+            return;
+        }
         const QByteArray user = imapQuoted(account.username);
         const QByteArray pass = imapQuoted(loginPassword(account));
         sendLine(m_imapTag + " LOGIN \"" + user + "\" \"" + pass + "\"");
     } else if (m_state == State::ImapLogin) {
         if (trimmed.startsWith(m_imapTag + " OK")) {
+            m_state = State::ImapSelect;
+            m_imapTag = "a002";
+            sendLine(m_imapTag + " EXAMINE INBOX");
+        } else if (trimmed.startsWith(m_imapTag + " NO") || trimmed.startsWith(m_imapTag + " BAD")) {
+            failCurrent(QString::fromUtf8(trimmed));
+        }
+    } else if (m_state == State::ImapOAuthAuth) {
+        if (trimmed.startsWith("+")) {
+            sendLine(QByteArray());
+        } else if (trimmed.startsWith(m_imapTag + " OK")) {
             m_state = State::ImapSelect;
             m_imapTag = "a002";
             sendLine(m_imapTag + " EXAMINE INBOX");

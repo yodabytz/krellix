@@ -3,6 +3,7 @@
 #include "monitors/MonitorBase.h"
 #include "sdk/KrellixPlugin.h"
 
+#include <QNetworkAccessManager>
 #include <QPaintEvent>
 #include <QPointer>
 #include <QSslSocket>
@@ -12,14 +13,18 @@
 
 class QEvent;
 class QLabel;
+class QNetworkReply;
 
 struct KrellmailAccount {
     QString protocol;
+    QString auth;
     QString host;
     int port = 0;
     bool ssl = true;
     QString username;
     QString password;
+    QString oauthClientId;
+    QString oauthRefreshToken;
 };
 
 class KrellmailEnvelope : public QWidget
@@ -62,6 +67,7 @@ private slots:
     void onEncrypted();
     void onReadyRead();
     void onSocketError(QAbstractSocket::SocketError error);
+    void onOAuthFinished(QNetworkReply *reply);
     void onTimeout();
 
 private:
@@ -73,6 +79,8 @@ private:
         PopStat,
         ImapGreeting,
         ImapLogin,
+        ImapOAuthToken,
+        ImapOAuthAuth,
         ImapSelect,
         ImapGmailSearch,
         ImapSearch,
@@ -84,7 +92,9 @@ private:
     void finishCheck();
     void failCurrent(const QString &message);
     void startNextAccount();
+    void requestOAuthToken(const KrellmailAccount &account);
     void sendLine(const QByteArray &line);
+    QByteArray xoauth2InitialResponse(const KrellmailAccount &account, const QString &accessToken) const;
     void processLine(const QByteArray &line);
     void applyStatus();
 
@@ -92,6 +102,7 @@ private:
     QPointer<QLabel> m_primary;
     QPointer<QLabel> m_detail;
     QSslSocket *m_socket = nullptr;
+    QNetworkAccessManager m_oauthManager;
     QTimer m_timeout;
     QVector<KrellmailAccount> m_accounts;
     int m_accountIndex = -1;
@@ -100,6 +111,7 @@ private:
     QString m_lastError;
     QByteArray m_buffer;
     QByteArray m_imapTag;
+    QString m_oauthAccessToken;
     State m_state = State::Idle;
     bool m_fetching = false;
     bool m_tearingDown = false;
