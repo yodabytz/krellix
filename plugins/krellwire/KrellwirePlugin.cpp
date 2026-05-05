@@ -177,8 +177,18 @@ public:
         setFixedHeight(fieldHeight());
         setCursor(Qt::PointingHandCursor);
         setMouseTracking(true);
+        syncTheme();
+        if (m_theme) {
+            connect(m_theme, &Theme::themeChanged, this, [this]() {
+                syncTheme();
+                rebuildText();
+                update();
+            });
+        }
         m_timer->setTimerType(Qt::CoarseTimer);
-        m_timer->setInterval(33);
+        m_timer->setInterval(qBound(33,
+            QSettings().value(QStringLiteral("appearance/scroll_interval_ms"), 83).toInt(),
+            250));
         connect(m_timer, &QTimer::timeout, this, [this]() {
             const qreal step = scrollPps() * (m_timer->interval() / 1000.0);
             m_offset -= step;
@@ -226,16 +236,16 @@ protected:
         p.fillRect(r, QColor(0, 0, 0, 20));
         p.setClipRect(r.adjusted(2, 0, -2, 0));
 
-        QFont f = font();
-        f.setPointSize(qMax(7, f.pointSize() - 1));
-        f.setBold(true);
-        p.setFont(f);
-        const QColor color = m_theme
-            ? m_theme->color(QStringLiteral("text_primary"))
-            : QColor(Qt::white);
-        p.setPen(QColor(0, 0, 0, 170));
-        p.drawText(QPointF(m_offset + 1, baseline() + 1), m_text);
-        p.setPen(color);
+        p.setFont(font());
+        const Theme::TextStyle ts = m_theme
+            ? m_theme->textStyle(QStringLiteral("text_primary"))
+            : Theme::TextStyle{QColor(Qt::white), {}};
+        if (ts.shadow.present) {
+            p.setPen(ts.shadow.color);
+            p.drawText(QPointF(m_offset + ts.shadow.offsetX,
+                               baseline() + ts.shadow.offsetY), m_text);
+        }
+        p.setPen(ts.color.isValid() ? ts.color : QColor(Qt::white));
         p.drawText(QPointF(m_offset, baseline()), m_text);
     }
 
@@ -250,6 +260,13 @@ private:
     {
         const QFontMetrics fm(font());
         return (height() + fm.ascent() - fm.descent()) / 2;
+    }
+
+    void syncTheme()
+    {
+        if (m_theme)
+            setFont(m_theme->font(QStringLiteral("label"), QWidget::font()));
+        setFixedHeight(fieldHeight());
     }
 
     void rebuildText()

@@ -21,7 +21,6 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
-#include <memory>
 
 namespace {
 
@@ -462,7 +461,29 @@ void KrellkamField::setSlotImage(int index, const QByteArray &bytes)
     }
     m_slots[index].image = image;
     m_slots[index].status.clear();
+    updateViewers(index);
     update();
+}
+
+void KrellkamField::updateViewers(int index)
+{
+    if (index < 0 || index >= m_slots.size() || m_slots.at(index).image.isNull())
+        return;
+
+    QList<QPointer<QLabel>> live;
+    const QPixmap pix = QPixmap::fromImage(m_slots.at(index).image);
+    for (const QPointer<QLabel> &viewer : m_viewers.value(index)) {
+        if (!viewer)
+            continue;
+        live.append(viewer);
+        viewer->setPixmap(pix.scaled(viewer->size(), Qt::KeepAspectRatio,
+                                     Qt::SmoothTransformation));
+    }
+
+    if (live.isEmpty())
+        m_viewers.remove(index);
+    else
+        m_viewers.insert(index, live);
 }
 
 bool KrellkamField::tryExtractMjpegFrame(int index, QByteArray &buffer)
@@ -555,31 +576,8 @@ void KrellkamField::openViewer(int index)
     image->setPixmap(pix.scaled(target, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     layout->addWidget(image, 1);
 
-    QTimer *liveTimer = nullptr;
-    if (slot.type == QStringLiteral("youtube") || isYoutubeUrl(slot.source)) {
-        liveTimer = new QTimer(dialog);
-        liveTimer->setInterval(qBound(3000,
-            QSettings().value(QStringLiteral("plugins/krellkam/youtube_viewer_ms"), 5000).toInt(),
-            15000));
-        QPointer<QLabel> viewer(image);
-        QPointer<QDialog> liveDialog(dialog);
-        auto inFlight = std::make_shared<bool>(false);
-        auto refreshLive = [this, source = slot.source, viewer, liveDialog, inFlight]() {
-            if (!viewer || !liveDialog || *inFlight) return;
-            *inFlight = true;
-            requestYoutubeFrame(source, [viewer, inFlight](const QByteArray &bytes, const QString &error) {
-                *inFlight = false;
-                if (!viewer || !error.isEmpty()) return;
-                QImage frame;
-                if (!frame.loadFromData(bytes)) return;
-                const QPixmap framePix = QPixmap::fromImage(frame);
-                viewer->setPixmap(framePix.scaled(viewer->size(), Qt::KeepAspectRatio,
-                                                  Qt::SmoothTransformation));
-            });
-        };
-        connect(liveTimer, &QTimer::timeout, dialog, refreshLive);
-        liveTimer->start();
-    }
+    m_viewers[index].append(QPointer<QLabel>(image));
+    connect(dialog, &QObject::destroyed, this, [this, index]() { updateViewers(index); });
 
     auto *close = new QPushButton(QStringLiteral("Close"), dialog);
     connect(close, &QPushButton::clicked, dialog, &QDialog::close);

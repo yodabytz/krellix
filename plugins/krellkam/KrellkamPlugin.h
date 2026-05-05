@@ -73,6 +73,7 @@ private:
     void requestCommandSource(int index, const QString &source);
     void setSlotImage(int index, const QByteArray &bytes);
     void setSlotError(int index, const QString &status);
+    void updateViewers(int index);
     bool tryExtractMjpegFrame(int index, QByteArray &buffer);
     void paintChartBackground(QPainter &p, const QRect &rect) const;
     int slotAt(const QPoint &pos) const;
@@ -83,6 +84,7 @@ private:
     QList<Slot> m_slots;
     QNetworkAccessManager m_net;
     QHash<QString, YoutubeStream> m_youtubeStreams;
+    QHash<int, QList<QPointer<QLabel>>> m_viewers;
 };
 
 class KrellkamMonitor : public MonitorBase
