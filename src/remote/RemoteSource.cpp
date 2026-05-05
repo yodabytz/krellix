@@ -12,8 +12,8 @@ Q_LOGGING_CATEGORY(lcRemote, "krellix.remote")
 
 namespace {
 
-constexpr qint64 kMaxLineBytes        = 256 * 1024;
-constexpr qint64 kMaxBufferBytes      = 1024 * 1024;   // hard cap before drop
+constexpr qint64 kMaxLineBytes        = 1024 * 1024;
+constexpr qint64 kMaxBufferBytes      = 2 * 1024 * 1024;   // hard cap before drop
 constexpr int    kMaxParseErrorsBeforeReset = 5;
 constexpr int    kBaseReconnectMs     = 1000;
 constexpr int    kMaxReconnectMs      = 30 * 1000;
@@ -234,6 +234,19 @@ void RemoteSource::parseLine(const QByteArray &line)
     }
     m_net = net;
 
+    QList<NetPortSample> netPorts;
+    for (const QJsonValue &v : obj.value(QStringLiteral("net_ports")).toArray()) {
+        const QJsonObject n = v.toObject();
+        NetPortSample s;
+        s.protocol = n.value(QStringLiteral("proto")).toString();
+        s.localPort = static_cast<quint16>(n.value(QStringLiteral("local")).toInt());
+        s.remotePort = static_cast<quint16>(n.value(QStringLiteral("remote")).toInt());
+        s.state = n.value(QStringLiteral("state")).toString();
+        if (!s.protocol.isEmpty() && s.localPort > 0)
+            netPorts.append(s);
+    }
+    m_netPorts = netPorts;
+
     QList<DiskSample> disk;
     for (const QJsonValue &v : obj.value(QStringLiteral("disk")).toArray()) {
         const QJsonObject d = v.toObject();
@@ -259,6 +272,7 @@ void RemoteSource::resetCachedState()
     m_cpu.clear();
     m_mem  = MemInfo{};
     m_net.clear();
+    m_netPorts.clear();
     m_disk.clear();
     m_proc = ProcInfo{};
     // -1 is the "unknown" sentinel UptimeMonitor uses to render "?".

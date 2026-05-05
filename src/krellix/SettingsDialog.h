@@ -103,6 +103,7 @@ private:
     QCheckBox   *m_clockEnabled  = nullptr;
     QCheckBox   *m_uptimeEnabled  = nullptr;
     QCheckBox   *m_netEnabled     = nullptr;
+    QCheckBox   *m_netPortsEnabled = nullptr;
     QCheckBox   *m_diskEnabled    = nullptr;
     QCheckBox   *m_sensorsEnabled = nullptr;
     QCheckBox   *m_batteryEnabled = nullptr;

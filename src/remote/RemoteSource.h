@@ -4,6 +4,7 @@
 #include "sysdep/DiskStat.h"
 #include "sysdep/MemStat.h"
 #include "sysdep/NetStat.h"
+#include "sysdep/NetPortStat.h"
 #include "sysdep/ProcStat.h"
 
 #include <QByteArray>
@@ -45,6 +46,7 @@ public:
     QList<CpuSample>  cpuSamples()  const { return m_cpu; }
     MemInfo           memInfo()     const { return m_mem; }
     QList<NetSample>  netSamples()  const { return m_net; }
+    QList<NetPortSample> netPortSamples() const { return m_netPorts; }
     QList<DiskSample> diskSamples() const { return m_disk; }
     ProcInfo          procInfo()    const { return m_proc; }
 
@@ -78,6 +80,7 @@ private:
     QList<CpuSample>  m_cpu;
     MemInfo           m_mem;
     QList<NetSample>  m_net;
+    QList<NetPortSample> m_netPorts;
     QList<DiskSample> m_disk;
     ProcInfo          m_proc;
 

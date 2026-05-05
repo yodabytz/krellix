@@ -13,6 +13,7 @@
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
+#include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHostAddress>
@@ -64,6 +65,7 @@ const QList<QPair<QString, QString>> kMonitorOrderItems = {
     {QStringLiteral("mem"),     QStringLiteral("Memory + Swap")},
     {QStringLiteral("uptime"),  QStringLiteral("Uptime")},
     {QStringLiteral("net"),     QStringLiteral("Net")},
+    {QStringLiteral("netports"), QStringLiteral("Net Ports")},
     {QStringLiteral("krellkam"), QStringLiteral("Krellkam")},
     {QStringLiteral("krelldacious"), QStringLiteral("Krelldacious")},
     {QStringLiteral("krellweather"), QStringLiteral("Krellweather")},
@@ -222,6 +224,7 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
         m_procEnabled    = new QCheckBox(QStringLiteral("Proc (process/user count)"),       page);
         m_uptimeEnabled  = new QCheckBox(QStringLiteral("Uptime"),                         page);
         m_netEnabled     = new QCheckBox(QStringLiteral("Net (per-interface RX/TX)"),      page);
+        m_netPortsEnabled = new QCheckBox(QStringLiteral("Net Ports (connection counts)"),  page);
         m_diskEnabled    = new QCheckBox(QStringLiteral("Disk I/O (per-disk read/write)"), page);
         m_sensorsEnabled = new QCheckBox(QStringLiteral("Sensors (temps via /sys/class/hwmon)"), page);
         m_batteryEnabled = new QCheckBox(QStringLiteral("Battery (laptops)"),              page);
@@ -232,6 +235,7 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
         layout->addWidget(m_memEnabled);
         layout->addWidget(m_uptimeEnabled);
         layout->addWidget(m_netEnabled);
+        layout->addWidget(m_netPortsEnabled);
         layout->addWidget(m_diskEnabled);
         layout->addWidget(m_sensorsEnabled);
         layout->addWidget(m_batteryEnabled);
@@ -384,6 +388,68 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
                 connect(showAll, &QCheckBox::toggled, cb, &QCheckBox::setDisabled);
             }
         }
+
+        auto *portsGroup = new QGroupBox(QStringLiteral("Port connection watches"), page);
+        auto *portsGrid = new QGridLayout(portsGroup);
+        portsGrid->addWidget(new QLabel(QStringLiteral("On"), portsGroup), 0, 0);
+        portsGrid->addWidget(new QLabel(QStringLiteral("Label"), portsGroup), 0, 1);
+        portsGrid->addWidget(new QLabel(QStringLiteral("Protocol"), portsGroup), 0, 2);
+        portsGrid->addWidget(new QLabel(QStringLiteral("Ports / ranges"), portsGroup), 0, 3);
+
+        QSettings ps;
+        for (int i = 1; i <= 8; ++i) {
+            const bool defEnabled = i == 1;
+            const QString defLabel = i == 1 ? QStringLiteral("SSH") : QString();
+            const QString defPorts = i == 1 ? QStringLiteral("22") : QString();
+            const QString base = QStringLiteral("monitors/netports/watch%1/").arg(i);
+
+            auto *enabled = new QCheckBox(portsGroup);
+            enabled->setChecked(ps.value(base + QStringLiteral("enabled"), defEnabled).toBool());
+            portsGrid->addWidget(enabled, i, 0);
+
+            auto *label = new QLineEdit(portsGroup);
+            label->setClearButtonEnabled(true);
+            label->setPlaceholderText(QStringLiteral("SSH"));
+            label->setText(ps.value(base + QStringLiteral("label"), defLabel).toString());
+            portsGrid->addWidget(label, i, 1);
+
+            auto *protocol = new QComboBox(portsGroup);
+            protocol->addItem(QStringLiteral("TCP"), QStringLiteral("tcp"));
+            protocol->addItem(QStringLiteral("UDP"), QStringLiteral("udp"));
+            protocol->addItem(QStringLiteral("TCP + UDP"), QStringLiteral("all"));
+            const QString proto = ps.value(base + QStringLiteral("protocol"),
+                                           QStringLiteral("tcp")).toString().toLower();
+            const int protoIdx = protocol->findData(proto);
+            protocol->setCurrentIndex(protoIdx >= 0 ? protoIdx : 0);
+            portsGrid->addWidget(protocol, i, 2);
+
+            auto *ports = new QLineEdit(portsGroup);
+            ports->setClearButtonEnabled(true);
+            ports->setPlaceholderText(QStringLiteral("22, 80, 8000-8010"));
+            ports->setText(ps.value(base + QStringLiteral("ports"), defPorts).toString());
+            portsGrid->addWidget(ports, i, 3);
+
+            connect(enabled, &QCheckBox::toggled, this, [this, base](bool v) {
+                QSettings().setValue(base + QStringLiteral("enabled"), v);
+                emit settingsApplied();
+            });
+            connect(label, &QLineEdit::editingFinished, this, [this, label, base]() {
+                QSettings().setValue(base + QStringLiteral("label"), label->text().trimmed());
+                emit settingsApplied();
+            });
+            connect(protocol, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                    this, [this, protocol, base](int) {
+                        QSettings().setValue(base + QStringLiteral("protocol"),
+                                             protocol->currentData().toString());
+                        emit settingsApplied();
+                    });
+            connect(ports, &QLineEdit::editingFinished, this, [this, ports, base]() {
+                QSettings().setValue(base + QStringLiteral("ports"), ports->text().trimmed());
+                emit settingsApplied();
+            });
+        }
+
+        layout->addWidget(portsGroup);
         layout->addStretch(1);
         addPage(QStringLiteral("Network"), page);
     }
@@ -722,9 +788,10 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
         QSignalBlocker b15(m_procEnabled);
         QSignalBlocker b16(m_uptimeEnabled);
         QSignalBlocker b17(m_netEnabled);
-        QSignalBlocker b18(m_diskEnabled);
-        QSignalBlocker b19(m_sensorsEnabled);
-        QSignalBlocker b20(m_batteryEnabled);
+        QSignalBlocker b18(m_netPortsEnabled);
+        QSignalBlocker b19(m_diskEnabled);
+        QSignalBlocker b20(m_sensorsEnabled);
+        QSignalBlocker b21(m_batteryEnabled);
         loadFromSettings();
     }
 
@@ -782,6 +849,7 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
     wireMonitorToggle(m_memEnabled,     "mem");
     wireMonitorToggle(m_uptimeEnabled,  "uptime");
     wireMonitorToggle(m_netEnabled,     "net");
+    wireMonitorToggle(m_netPortsEnabled, "netports");
     wireMonitorToggle(m_diskEnabled,    "disk");
     wireMonitorToggle(m_sensorsEnabled, "sensors");
     wireMonitorToggle(m_batteryEnabled, "battery");
@@ -1047,6 +1115,7 @@ void SettingsDialog::loadFromSettings()
     m_clockEnabled  ->setChecked(s.value(QStringLiteral("monitors/clock"),   true).toBool());
     m_uptimeEnabled ->setChecked(s.value(QStringLiteral("monitors/uptime"),  true).toBool());
     m_netEnabled    ->setChecked(s.value(QStringLiteral("monitors/net"),     true).toBool());
+    m_netPortsEnabled->setChecked(s.value(QStringLiteral("monitors/netports"), true).toBool());
     m_diskEnabled   ->setChecked(s.value(QStringLiteral("monitors/disk"),    true).toBool());
     m_sensorsEnabled->setChecked(s.value(QStringLiteral("monitors/sensors"), true).toBool());
     m_batteryEnabled->setChecked(s.value(QStringLiteral("monitors/battery"), true).toBool());

@@ -11,6 +11,7 @@
 #include "monitors/MemMonitor.h"
 #include "monitors/MonitorBase.h"
 #include "monitors/NetMonitor.h"
+#include "monitors/NetPortMonitor.h"
 #include "monitors/ProcMonitor.h"
 #include "monitors/SensorsMonitor.h"
 #include "monitors/UptimeMonitor.h"
@@ -51,6 +52,7 @@ QStringList defaultMonitorOrder()
         QStringLiteral("mem"),
         QStringLiteral("uptime"),
         QStringLiteral("net"),
+        QStringLiteral("netports"),
         QStringLiteral("krellkam"),
         QStringLiteral("krelldacious"),
         QStringLiteral("krellweather"),
@@ -236,6 +238,7 @@ void MainWindow::buildBuiltins(const QStringList &enabledIds, bool clockOnly)
         else if (id == QStringLiteral("mem")) addMonitor(new MemMonitor(m_theme, this));
         else if (id == QStringLiteral("uptime")) addMonitor(new UptimeMonitor(m_theme, this));
         else if (id == QStringLiteral("net")) addMonitor(new NetMonitor(m_theme, this));
+        else if (id == QStringLiteral("netports")) addMonitor(new NetPortMonitor(m_theme, this));
         else if (id == QStringLiteral("disk")) addMonitor(new DiskMonitor(m_theme, this));
         else if (id == QStringLiteral("sensors")) addMonitor(new SensorsMonitor(m_theme, this));
         else if (id == QStringLiteral("battery")) addMonitor(new BatteryMonitor(m_theme, this));
@@ -301,6 +304,7 @@ void MainWindow::buildPanelStack(const QStringList &enabledIds)
             else if (id == QStringLiteral("mem")) addMonitor(new MemMonitor(m_theme, this));
             else if (id == QStringLiteral("uptime")) addMonitor(new UptimeMonitor(m_theme, this));
             else if (id == QStringLiteral("net")) addMonitor(new NetMonitor(m_theme, this));
+            else if (id == QStringLiteral("netports")) addMonitor(new NetPortMonitor(m_theme, this));
             else if (id == QStringLiteral("disk")) addMonitor(new DiskMonitor(m_theme, this));
             else if (id == QStringLiteral("sensors")) addMonitor(new SensorsMonitor(m_theme, this));
             else if (id == QStringLiteral("battery")) addMonitor(new BatteryMonitor(m_theme, this));
@@ -329,6 +333,7 @@ void MainWindow::buildPanelStack(const QStringList &enabledIds)
             else if (id == QStringLiteral("mem")) addMonitor(new MemMonitor(m_theme, this));
             else if (id == QStringLiteral("uptime")) addMonitor(new UptimeMonitor(m_theme, this));
             else if (id == QStringLiteral("net")) addMonitor(new NetMonitor(m_theme, this));
+            else if (id == QStringLiteral("netports")) addMonitor(new NetPortMonitor(m_theme, this));
             else if (id == QStringLiteral("disk")) addMonitor(new DiskMonitor(m_theme, this));
             else if (id == QStringLiteral("sensors")) addMonitor(new SensorsMonitor(m_theme, this));
             else if (id == QStringLiteral("battery")) addMonitor(new BatteryMonitor(m_theme, this));
@@ -427,7 +432,8 @@ void MainWindow::refreshLiveSettings()
             if (lm.monitor
                 && (lm.monitor->id() == QStringLiteral("krellweather")
                     || lm.monitor->id() == QStringLiteral("krellwire")
-                    || lm.monitor->id() == QStringLiteral("krellmail")))
+                    || lm.monitor->id() == QStringLiteral("krellmail")
+                    || lm.monitor->id() == QStringLiteral("netports")))
                 lm.monitor->tick();
         }
         m_layout->invalidate();

@@ -4,6 +4,7 @@
 #include "sysdep/DiskStat.h"
 #include "sysdep/MemStat.h"
 #include "sysdep/NetStat.h"
+#include "sysdep/NetPortStat.h"
 #include "sysdep/ProcStat.h"
 #include "sysdep/UptimeStat.h"
 #include "theme/Theme.h"
@@ -138,6 +139,7 @@ int main(int argc, char *argv[])
         CpuStat::setReadOverride(   []() { auto* r = RemoteSource::instance(); return r ? r->cpuSamples()  : QList<CpuSample>{};  });
         MemStat::setReadOverride(   []() { auto* r = RemoteSource::instance(); return r ? r->memInfo()     : MemInfo{};           });
         NetStat::setReadOverride(   []() { auto* r = RemoteSource::instance(); return r ? r->netSamples()  : QList<NetSample>{};  });
+        NetPortStat::setReadOverride([]() { auto* r = RemoteSource::instance(); return r ? r->netPortSamples() : QList<NetPortSample>{}; });
         DiskStat::setReadOverride(  []() { auto* r = RemoteSource::instance(); return r ? r->diskSamples() : QList<DiskSample>{}; });
         ProcStat::setReadOverride(  []() { auto* r = RemoteSource::instance(); return r ? r->procInfo()    : ProcInfo{};          });
         UptimeStat::setReadOverride([]() { auto* r = RemoteSource::instance(); return r ? r->uptimeSeconds() : qint64(-1);        });

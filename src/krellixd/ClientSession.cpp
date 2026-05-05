@@ -4,6 +4,7 @@
 #include "sysdep/DiskStat.h"
 #include "sysdep/MemStat.h"
 #include "sysdep/NetStat.h"
+#include "sysdep/NetPortStat.h"
 #include "sysdep/ProcStat.h"
 #include "sysdep/UptimeStat.h"
 
@@ -39,6 +40,7 @@ QJsonObject helloObject(int intervalMs)
     mon << QStringLiteral("cpu") << QStringLiteral("mem")
         << QStringLiteral("proc")
         << QStringLiteral("uptime") << QStringLiteral("net")
+        << QStringLiteral("net_ports")
         << QStringLiteral("disk");
     o.insert(QStringLiteral("monitors"), mon);
     return o;
@@ -106,6 +108,18 @@ QJsonObject sampleObject()
         netArr.append(n);
     }
     o.insert(QStringLiteral("net"), netArr);
+
+    QJsonArray netPortArr;
+    for (const NetPortSample &s : NetPortStat::read()) {
+        QJsonObject n;
+        n.insert(QStringLiteral("proto"), s.protocol);
+        n.insert(QStringLiteral("local"), int(s.localPort));
+        n.insert(QStringLiteral("remote"), int(s.remotePort));
+        if (!s.state.isEmpty())
+            n.insert(QStringLiteral("state"), s.state);
+        netPortArr.append(n);
+    }
+    o.insert(QStringLiteral("net_ports"), netPortArr);
 
     QJsonArray diskArr;
     for (const DiskSample &s : DiskStat::read()) {

@@ -77,6 +77,8 @@ set(KRELLIX_SOURCES
     src/sysdep/UptimeStat.h
     src/sysdep/NetStat.cpp
     src/sysdep/NetStat.h
+    src/sysdep/NetPortStat.cpp
+    src/sysdep/NetPortStat.h
     src/sysdep/DockerNet.cpp
     src/sysdep/DockerNet.h
     src/sysdep/DiskStat.cpp
@@ -101,6 +103,8 @@ set(KRELLIX_SOURCES
     src/monitors/UptimeMonitor.h
     src/monitors/NetMonitor.cpp
     src/monitors/NetMonitor.h
+    src/monitors/NetPortMonitor.cpp
+    src/monitors/NetPortMonitor.h
     src/monitors/DiskMonitor.cpp
     src/monitors/DiskMonitor.h
     src/monitors/SensorsMonitor.cpp
@@ -157,6 +161,8 @@ qt_add_executable(krellixd
     src/sysdep/ProcStat.h
     src/sysdep/NetStat.cpp
     src/sysdep/NetStat.h
+    src/sysdep/NetPortStat.cpp
+    src/sysdep/NetPortStat.h
     src/sysdep/DockerNet.cpp
     src/sysdep/DockerNet.h
     src/sysdep/DiskStat.cpp
