@@ -5,6 +5,8 @@
 #include "widgets/Decal.h"
 #include "widgets/Panel.h"
 
+#include <QFontMetrics>
+#include <QPainter>
 #include <QRegularExpression>
 #include <QSettings>
 #include <QVBoxLayout>
@@ -12,7 +14,6 @@
 namespace {
 
 constexpr int kMaxWatches = 8;
-constexpr int kDisplayLabelChars = 5;
 
 QList<QPair<int, int>> parsePorts(QString spec)
 {
@@ -53,14 +54,99 @@ bool protocolMatches(const QString &watchProtocol, const QString &sampleProtocol
     return watchProtocol == QLatin1String("all") || watchProtocol == sampleProtocol;
 }
 
-QString formatWatchRow(const QString &label, int count)
+void drawStyledText(QPainter &p,
+                    const Theme::TextStyle &style,
+                    const QColor &fallback,
+                    const QRect &rect,
+                    int flags,
+                    const QString &text)
 {
-    QString shortLabel = label.trimmed().left(kDisplayLabelChars);
-    shortLabel = shortLabel.leftJustified(kDisplayLabelChars, QLatin1Char(' '), true);
-    return QStringLiteral("%1 %2").arg(shortLabel).arg(count);
+    const QColor fg = style.color.isValid() ? style.color : fallback;
+    if (style.shadow.present) {
+        QRect shadowRect = rect.translated(style.shadow.offsetX, style.shadow.offsetY);
+        p.setPen(style.shadow.color);
+        p.drawText(shadowRect, flags, text);
+    }
+    p.setPen(fg);
+    p.drawText(rect, flags, text);
 }
 
 } // namespace
+
+class NetPortRow : public QWidget
+{
+public:
+    explicit NetPortRow(Theme *theme, QWidget *parent = nullptr)
+        : QWidget(parent)
+        , m_theme(theme)
+    {
+        Q_ASSERT(m_theme);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        setAttribute(Qt::WA_OpaquePaintEvent, false);
+        connect(m_theme, &Theme::themeChanged, this, [this] {
+            updateGeometry();
+            update();
+        });
+    }
+
+    void setRow(const QString &label, int count)
+    {
+        const QString cleanLabel = label.trimmed();
+        if (m_label == cleanLabel && m_count == count) return;
+        m_label = cleanLabel;
+        m_count = qMax(0, count);
+        setToolTip(m_label);
+        update();
+    }
+
+    QSize sizeHint() const override
+    {
+        const QFontMetrics fm(m_theme->font(QStringLiteral("label")));
+        return QSize(fm.horizontalAdvance(QStringLiteral("99  WWWWW")) + 4,
+                     fm.height() + 2);
+    }
+
+    QSize minimumSizeHint() const override
+    {
+        const QFontMetrics fm(m_theme->font(QStringLiteral("label")));
+        return QSize(0, fm.height() + 2);
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        if (m_label.isEmpty()) return;
+
+        QPainter p(this);
+        p.setRenderHint(QPainter::TextAntialiasing, true);
+        p.setFont(m_theme->font(QStringLiteral("label")));
+
+        const QFontMetrics fm(p.font());
+        const int countW = fm.horizontalAdvance(QStringLiteral("99"));
+        const int gapW = qMax(3, fm.horizontalAdvance(QStringLiteral(" ")));
+        const QRect countRect(0, 0, countW, height());
+        const QRect labelRect(countW + gapW, 0, qMax(0, width() - countW - gapW), height());
+        const QString countText = QString::number(m_count).rightJustified(2, QLatin1Char(' '), true);
+
+        drawStyledText(p,
+                       m_theme->textStyle(QStringLiteral("text_secondary")),
+                       m_theme->color(QStringLiteral("text_secondary")),
+                       countRect,
+                       Qt::AlignRight | Qt::AlignVCenter,
+                       countText);
+        drawStyledText(p,
+                       m_theme->textStyle(QStringLiteral("text_primary")),
+                       m_theme->color(QStringLiteral("text_primary")),
+                       labelRect,
+                       Qt::AlignLeft | Qt::AlignVCenter,
+                       m_label);
+    }
+
+private:
+    Theme *m_theme = nullptr;
+    QString m_label;
+    int m_count = 0;
+};
 
 NetPortMonitor::NetPortMonitor(Theme *theme, QObject *parent)
     : MonitorBase(theme, parent)
@@ -132,7 +218,13 @@ void NetPortMonitor::rebuildRows(const QList<Watch> &watches)
 {
     if (!m_rowsLayout) return;
 
-    for (const QPointer<Decal> &row : m_rows) {
+    if (m_emptyRow) {
+        m_rowsLayout->removeWidget(m_emptyRow);
+        m_emptyRow->deleteLater();
+        m_emptyRow.clear();
+    }
+
+    for (const QPointer<NetPortRow> &row : m_rows) {
         if (!row) continue;
         m_rowsLayout->removeWidget(row);
         row->deleteLater();
@@ -145,15 +237,13 @@ void NetPortMonitor::rebuildRows(const QList<Watch> &watches)
         d->setAlignment(Qt::AlignHCenter);
         d->setText(QStringLiteral("add port watches in Settings"));
         m_rowsLayout->addWidget(d);
-        m_rows.append(d);
+        m_emptyRow = d;
         return;
     }
 
     for (const Watch &watch : watches) {
-        auto *d = new Decal(theme(), QStringLiteral("label"),
-                            QStringLiteral("text_primary"), m_rowsWidget);
-        d->setAlignment(Qt::AlignLeft);
-        d->setToolTip(watch.label);
+        auto *d = new NetPortRow(theme(), m_rowsWidget);
+        d->setRow(watch.label, 0);
         m_rowsLayout->addWidget(d);
         m_rows.append(d);
     }
@@ -196,7 +286,6 @@ void NetPortMonitor::tick()
         if (!m_rows.at(i)) continue;
         const Watch &watch = m_watches.at(i);
         const int count = countMatches(watch, samples);
-        m_rows.at(i)->setToolTip(watch.label);
-        m_rows.at(i)->setText(formatWatchRow(watch.label, count));
+        m_rows.at(i)->setRow(watch.label, count);
     }
 }

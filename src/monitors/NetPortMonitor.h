@@ -6,9 +6,10 @@
 #include <QPointer>
 #include <QString>
 
-class Decal;
 class Panel;
 class QVBoxLayout;
+class NetPortRow;
+class Decal;
 struct NetPortSample;
 
 class NetPortMonitor : public MonitorBase
@@ -41,7 +42,8 @@ private:
     QPointer<Panel> m_panel;
     QPointer<QWidget> m_rowsWidget;
     QVBoxLayout *m_rowsLayout = nullptr;
-    QList<QPointer<Decal>> m_rows;
+    QPointer<Decal> m_emptyRow;
+    QList<QPointer<NetPortRow>> m_rows;
     QList<Watch> m_watches;
 
     Q_DISABLE_COPY_MOVE(NetPortMonitor)
