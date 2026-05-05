@@ -12,6 +12,7 @@
 namespace {
 
 constexpr int kMaxWatches = 8;
+constexpr int kDisplayLabelChars = 5;
 
 QList<QPair<int, int>> parsePorts(QString spec)
 {
@@ -50,6 +51,13 @@ bool portInRanges(int port, const QList<QPair<int, int>> &ranges)
 bool protocolMatches(const QString &watchProtocol, const QString &sampleProtocol)
 {
     return watchProtocol == QLatin1String("all") || watchProtocol == sampleProtocol;
+}
+
+QString formatWatchRow(const QString &label, int count)
+{
+    QString shortLabel = label.trimmed().left(kDisplayLabelChars);
+    shortLabel = shortLabel.leftJustified(kDisplayLabelChars, QLatin1Char(' '), true);
+    return QStringLiteral("%1 %2").arg(shortLabel).arg(count);
 }
 
 } // namespace
@@ -144,10 +152,10 @@ void NetPortMonitor::rebuildRows(const QList<Watch> &watches)
     for (const Watch &watch : watches) {
         auto *d = new Decal(theme(), QStringLiteral("label"),
                             QStringLiteral("text_primary"), m_rowsWidget);
-        d->setAlignment(Qt::AlignHCenter);
+        d->setAlignment(Qt::AlignLeft);
+        d->setToolTip(watch.label);
         m_rowsLayout->addWidget(d);
         m_rows.append(d);
-        Q_UNUSED(watch);
     }
 }
 
@@ -188,6 +196,7 @@ void NetPortMonitor::tick()
         if (!m_rows.at(i)) continue;
         const Watch &watch = m_watches.at(i);
         const int count = countMatches(watch, samples);
-        m_rows.at(i)->setText(QStringLiteral("%1  %2").arg(watch.label).arg(count));
+        m_rows.at(i)->setToolTip(watch.label);
+        m_rows.at(i)->setText(formatWatchRow(watch.label, count));
     }
 }
