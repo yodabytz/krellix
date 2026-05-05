@@ -5,6 +5,7 @@
 
 #include <QHash>
 #include <QImage>
+#include <QDateTime>
 #include <QList>
 #include <QNetworkAccessManager>
 #include <QPointer>
@@ -54,6 +55,11 @@ private:
         QString source;
         QImage image;
         QString status;
+        bool fetching = false;
+    };
+    struct YoutubeStream {
+        QString url;
+        QDateTime resolvedAt;
     };
 
     void requestSource(int index);
@@ -62,6 +68,8 @@ private:
     void requestYoutubeSource(int index, const QString &source);
     void requestYoutubeFrame(const QString &source,
                              std::function<void(const QByteArray &, const QString &)> callback);
+    void requestYoutubeFrameFromStream(const QString &streamUrl,
+                                       std::function<void(const QByteArray &, const QString &)> callback);
     void requestCommandSource(int index, const QString &source);
     void setSlotImage(int index, const QByteArray &bytes);
     void setSlotError(int index, const QString &status);
@@ -74,6 +82,7 @@ private:
     QList<KrellkamSource> m_sources;
     QList<Slot> m_slots;
     QNetworkAccessManager m_net;
+    QHash<QString, YoutubeStream> m_youtubeStreams;
 };
 
 class KrellkamMonitor : public MonitorBase

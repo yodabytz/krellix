@@ -454,8 +454,13 @@ KrellSpectrumWidget::~KrellSpectrumWidget() = default;
 
 void KrellSpectrumWidget::setConfig(const KrellSpectrumConfig &config)
 {
+    const QString previousMode = m_config.visualMode;
     m_config = config;
     m_config.visualMode = normalizedMode(m_config.visualMode);
+    if (m_config.visualMode != normalizedMode(previousMode)) {
+        m_blurTrails.clear();
+        m_blurTrailSize = QSize();
+    }
     m_processor.configure(m_config.bands, m_config.smoothing, m_config.sensitivity);
     updateGeometry();
     update();
@@ -520,6 +525,8 @@ void KrellSpectrumWidget::paintEvent(QPaintEvent *)
 
 void KrellSpectrumWidget::onThemeChanged()
 {
+    m_blurTrails.clear();
+    m_blurTrailSize = QSize();
     updateGeometry();
     update();
 }
@@ -697,6 +704,10 @@ void KrellSpectrumWidget::paintBlurScope(QPainter &p, const QRect &rect)
 {
     const QVector<float> &wave = m_processor.waveform();
     if (wave.size() < 2) return;
+    if (m_blurTrailSize != rect.size()) {
+        m_blurTrails.clear();
+        m_blurTrailSize = rect.size();
+    }
 
     const qreal mid = rect.center().y();
     const qreal amp = rect.height() * 0.43;

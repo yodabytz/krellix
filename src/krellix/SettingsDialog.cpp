@@ -24,6 +24,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QProcess>
 #include <QPushButton>
 #include <QRandomGenerator>
 #include <QSettings>
@@ -1281,6 +1282,8 @@ void SettingsDialog::rebuildKrellmailAccounts()
 
         row.status = new QLabel(row.group);
         row.status->setWordWrap(true);
+        row.status->setTextInteractionFlags(Qt::TextSelectableByMouse
+                                            | Qt::LinksAccessibleByMouse);
         form->addRow(QString(), row.status);
         outer->addLayout(form);
         m_krellmailAccountsLayout->addWidget(row.group);
@@ -1399,7 +1402,9 @@ void SettingsDialog::beginKrellmailOAuth(int index)
     const QString clientId = row.oauthClientId->text().trimmed();
     const QString user = row.user->text().trimmed();
     if (clientId.isEmpty() || user.isEmpty()) {
-        row.status->setText(QStringLiteral("OAuth needs a Gmail user and client ID"));
+        row.auth->setCurrentIndex(qMax(0, row.auth->findData(QStringLiteral("oauth"))));
+        row.status->setText(QStringLiteral(
+            "OAuth needs the full Gmail address and a Google desktop OAuth client ID."));
         return;
     }
 
@@ -1431,8 +1436,15 @@ void SettingsDialog::beginKrellmailOAuth(int index)
     query.addQueryItem(QStringLiteral("state"), m_krellmailOAuthState);
     authUrl.setQuery(query);
 
+    const QString authUrlText = authUrl.toString(QUrl::FullyEncoded);
     row.status->setText(QStringLiteral("Waiting for Google authorization..."));
-    QDesktopServices::openUrl(authUrl);
+    bool opened = QDesktopServices::openUrl(authUrl);
+    if (!opened)
+        opened = QProcess::startDetached(QStringLiteral("xdg-open"), {authUrlText});
+    if (!opened) {
+        row.status->setText(QStringLiteral(
+            "Could not open a browser. Copy this URL:\n%1").arg(authUrlText));
+    }
 }
 
 void SettingsDialog::handleKrellmailOAuthCallback()

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QElapsedTimer>
 #include <QString>
 #include <QWidget>
 
@@ -51,7 +52,8 @@ private:
     QString m_colorKey;
 
     QTimer       *m_scrollTimer = nullptr;   // child of this widget
-    int           m_scrollOffset = 0;
+    QElapsedTimer m_scrollClock;
+    double        m_scrollOffset = 0.0;
     bool          m_scrolling    = false;
     bool          m_alwaysScroll = false;
     Qt::Alignment m_alignment    = Qt::AlignLeft;

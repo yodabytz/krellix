@@ -11,11 +11,14 @@
 #include <QShowEvent>
 #include <QTimer>
 
+#include <cmath>
+
 namespace {
 constexpr int kScrollGapPx        = 24;
 constexpr int kDefaultScrollPps   = 30;     // pixels/sec
-constexpr int kMinIntervalMs      = 10;
-constexpr int kMaxIntervalMs      = 200;
+constexpr int kDefaultScrollFps   = 12;
+constexpr int kMinIntervalMs      = 33;
+constexpr int kMaxIntervalMs      = 250;
 }
 
 Decal::Decal(Theme *theme,
@@ -47,7 +50,7 @@ void Decal::setText(const QString &text)
     m_text = text;
     const int loop = textPixelWidth() + kScrollGapPx;
     if (loop > 0)
-        m_scrollOffset %= loop;
+        m_scrollOffset = std::fmod(m_scrollOffset, static_cast<double>(loop));
     updateGeometry();
     updateScrollState();
     update();
@@ -83,13 +86,21 @@ void Decal::onScrollTick()
         QSettings().value(QStringLiteral("appearance/scroll_pps"),
                           kDefaultScrollPps).toInt(),
         1000);
-    const int interval = qBound(kMinIntervalMs, 1000 / pps, kMaxIntervalMs);
+    const int fps = qBound(4,
+        QSettings().value(QStringLiteral("appearance/scroll_fps"),
+                          kDefaultScrollFps).toInt(),
+        30);
+    const int interval = qBound(kMinIntervalMs, 1000 / fps, kMaxIntervalMs);
     if (m_scrollTimer->interval() != interval)
         m_scrollTimer->setInterval(interval);
 
     const int tw = textPixelWidth();
     if (tw <= 0) return;
-    m_scrollOffset = (m_scrollOffset + 1) % (tw + kScrollGapPx);
+    const qint64 elapsed = m_scrollClock.isValid() ? m_scrollClock.restart() : interval;
+    if (!m_scrollClock.isValid())
+        m_scrollClock.start();
+    const double loop = static_cast<double>(tw + kScrollGapPx);
+    m_scrollOffset = std::fmod(m_scrollOffset + (pps * elapsed / 1000.0), loop);
     update();
 }
 
@@ -108,6 +119,7 @@ void Decal::updateScrollState()
     if (shouldScroll == m_scrolling) return;
     m_scrolling = shouldScroll;
     if (m_scrolling) {
+        m_scrollClock.start();
         if (!m_scrollTimer->isActive()) m_scrollTimer->start();
     } else {
         if (m_scrollTimer->isActive()) m_scrollTimer->stop();
@@ -190,7 +202,7 @@ void Decal::paintEvent(QPaintEvent *)
     // first underneath, then the foreground on top.
     const int tw   = textPixelWidth();
     const int loop = tw + kScrollGapPx;
-    const int x1   = m_scrolling ? -m_scrollOffset : 0;
+    const int x1   = m_scrolling ? -static_cast<int>(std::round(m_scrollOffset)) : 0;
     const int x2   = x1 + loop;
     const int yPos = m_scrolling ? yBaseline : 0;
 

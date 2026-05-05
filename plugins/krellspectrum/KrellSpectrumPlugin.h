@@ -137,6 +137,7 @@ private:
     KrellSpectrumConfig m_config;
     KrellSpectrumProcessor m_processor;
     QString m_status;
+    QSize m_blurTrailSize;
     QVector<QPainterPath> m_blurTrails;
     QElapsedTimer m_lastPaint;
     bool m_haveData = false;
