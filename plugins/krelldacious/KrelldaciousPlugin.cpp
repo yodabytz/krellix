@@ -1,6 +1,7 @@
 #include "KrelldaciousPlugin.h"
 
 #include "theme/Theme.h"
+#include "widgets/Decal.h"
 #include "widgets/Panel.h"
 
 #include <QDBusArgument>
@@ -14,6 +15,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QPushButton>
+#include <QProcess>
 #include <QSettings>
 #include <QSizePolicy>
 #include <QSlider>
@@ -309,9 +311,19 @@ QWidget *KrelldaciousMonitor::createWidget(QWidget *parent)
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(pad);
 
-    m_track = new QLabel(QStringLiteral("(waiting for Audacious)"), body);
-    m_track->setAlignment(Qt::AlignCenter);
-    m_track->setWordWrap(true);
+    m_track = new Decal(theme(), QStringLiteral("label"), QStringLiteral("text_primary"), body);
+    m_track->setAlignment(Qt::AlignHCenter);
+    m_track->setAlwaysScroll(true);
+
+    m_openAudacious = new QLabel(body);
+    m_openAudacious->setAlignment(Qt::AlignCenter);
+    m_openAudacious->setTextFormat(Qt::RichText);
+    m_openAudacious->setTextInteractionFlags(Qt::LinksAccessibleByMouse);
+    m_openAudacious->setOpenExternalLinks(false);
+    m_openAudacious->setText(QStringLiteral("<a href=\"open\">Open Audacious</a>"));
+    connect(m_openAudacious, &QLabel::linkActivated, this, [](const QString &) {
+        QProcess::startDetached(QStringLiteral("audacious"));
+    });
 
     auto *buttons = new QHBoxLayout;
     buttons->setContentsMargins(0, 0, 0, 0);
@@ -333,6 +345,7 @@ QWidget *KrelldaciousMonitor::createWidget(QWidget *parent)
     styleVolume(m_volume, theme());
 
     layout->addWidget(m_track);
+    layout->addWidget(m_openAudacious);
     layout->addLayout(buttons);
     layout->addWidget(m_volume);
     panel->addWidget(body);
@@ -366,8 +379,11 @@ void KrelldaciousMonitor::applyThemeColors()
 {
     const QColor primary = textColor(theme(), QStringLiteral("text_primary"));
     if (m_track) {
-        m_track->setStyleSheet(QStringLiteral(
-            "font-size: 10px; font-weight: 600; color: %1;")
+        m_track->update();
+    }
+    if (m_openAudacious) {
+        m_openAudacious->setStyleSheet(QStringLiteral(
+            "QLabel { font-size: 9px; font-weight: 700; color: %1; background: transparent; }")
             .arg(cssColor(primary)));
     }
     if (m_volume)
@@ -380,7 +396,8 @@ void KrelldaciousMonitor::tick()
     const QString playback =
         playerProperty(QStringLiteral("PlaybackStatus"), &ok).toString();
     if (!ok) {
-        if (m_track) m_track->setText(QStringLiteral("Start Audacious to control music"));
+        if (m_track) m_track->setText(QStringLiteral("Audacious is not running"));
+        if (m_openAudacious) m_openAudacious->show();
         if (m_prev) m_prev->setEnabled(false);
         if (m_playPause) m_playPause->setEnabled(false);
         if (m_next) m_next->setEnabled(false);
@@ -392,6 +409,7 @@ void KrelldaciousMonitor::tick()
     if (m_playPause) m_playPause->setEnabled(true);
     if (m_next) m_next->setEnabled(true);
     if (m_volume) m_volume->setEnabled(true);
+    if (m_openAudacious) m_openAudacious->hide();
 
     if (m_playPause) {
         m_playPause->setProperty("playing", playback == QStringLiteral("Playing"));

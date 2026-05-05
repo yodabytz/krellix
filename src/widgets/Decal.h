@@ -26,6 +26,7 @@ public:
     // (Marquee scrolling always draws from the left.) Defaults to AlignLeft.
     void setAlignment(Qt::Alignment alignment);
     Qt::Alignment alignment() const { return m_alignment; }
+    void setAlwaysScroll(bool alwaysScroll);
 
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
@@ -52,6 +53,7 @@ private:
     QTimer       *m_scrollTimer = nullptr;   // child of this widget
     int           m_scrollOffset = 0;
     bool          m_scrolling    = false;
+    bool          m_alwaysScroll = false;
     Qt::Alignment m_alignment    = Qt::AlignLeft;
 
     Q_DISABLE_COPY_MOVE(Decal)

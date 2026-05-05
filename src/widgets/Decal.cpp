@@ -45,7 +45,9 @@ void Decal::setText(const QString &text)
 {
     if (m_text == text) return;
     m_text = text;
-    m_scrollOffset = 0;
+    const int loop = textPixelWidth() + kScrollGapPx;
+    if (loop > 0)
+        m_scrollOffset %= loop;
     updateGeometry();
     updateScrollState();
     update();
@@ -55,6 +57,14 @@ void Decal::setAlignment(Qt::Alignment alignment)
 {
     if (m_alignment == alignment) return;
     m_alignment = alignment;
+    update();
+}
+
+void Decal::setAlwaysScroll(bool alwaysScroll)
+{
+    if (m_alwaysScroll == alwaysScroll) return;
+    m_alwaysScroll = alwaysScroll;
+    updateScrollState();
     update();
 }
 
@@ -92,7 +102,9 @@ int Decal::textPixelWidth() const
 void Decal::updateScrollState()
 {
     const int tw = textPixelWidth();
-    const bool shouldScroll = (tw > width()) && isVisible() && !m_text.isEmpty();
+    const bool shouldScroll = ((tw > width()) || m_alwaysScroll)
+        && isVisible()
+        && !m_text.isEmpty();
     if (shouldScroll == m_scrolling) return;
     m_scrolling = shouldScroll;
     if (m_scrolling) {

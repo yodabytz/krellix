@@ -432,10 +432,11 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
                 auto *type = new QComboBox(row);
                 type->addItem(QStringLiteral("Auto/Image"), QStringLiteral("auto"));
                 type->addItem(QStringLiteral("MJPEG"), QStringLiteral("mjpeg"));
+                type->addItem(QStringLiteral("YouTube live"), QStringLiteral("youtube"));
                 type->addItem(QStringLiteral("Command"), QStringLiteral("command"));
                 auto *edit = new QLineEdit(row);
                 edit->setClearButtonEnabled(true);
-                edit->setPlaceholderText(QStringLiteral("File path, image URL, MJPEG URL, or command"));
+                edit->setPlaceholderText(QStringLiteral("File path, image URL, MJPEG URL, YouTube URL, or command"));
                 rowLayout->addWidget(title);
                 rowLayout->addWidget(type);
                 rowLayout->addWidget(edit, 1);
@@ -609,6 +610,8 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
             m_krellspectrumVisualMode->addItem(QStringLiteral("Filled waveform"), QStringLiteral("filled_waveform"));
             m_krellspectrumVisualMode->addItem(QStringLiteral("Circular"), QStringLiteral("circular"));
             m_krellspectrumVisualMode->addItem(QStringLiteral("Particles"), QStringLiteral("particles"));
+            m_krellspectrumVisualMode->addItem(QStringLiteral("Blurscope"), QStringLiteral("blur_scope"));
+            m_krellspectrumVisualMode->addItem(QStringLiteral("Centered bars"), QStringLiteral("center_bars"));
             form->addRow(QStringLiteral("Visual mode:"), m_krellspectrumVisualMode);
 
             m_krellspectrumBandCount = new QComboBox(group);

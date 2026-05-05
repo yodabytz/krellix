@@ -282,8 +282,8 @@ QWidget *KrellweatherMonitor::createWidget(QWidget *parent)
 
     auto *body = new QWidget(panel);
     auto *layout = new QVBoxLayout(body);
-    layout->setContentsMargins(2, 2, 2, 2);
-    layout->setSpacing(1);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
 
     m_location = new QLabel(stationCode(), body);
     m_location->setAlignment(Qt::AlignCenter);
@@ -302,7 +302,7 @@ QWidget *KrellweatherMonitor::createWidget(QWidget *parent)
 
     m_detail = new QLabel(QStringLiteral("waiting for weather"), body);
     m_detail->setAlignment(Qt::AlignCenter);
-    m_detail->setWordWrap(true);
+    m_detail->setWordWrap(false);
 
     applyThemeColors();
     connect(theme(), &Theme::themeChanged, this, [this]() {

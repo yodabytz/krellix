@@ -131,6 +131,10 @@ QString normalizedMode(QString mode)
     if (mode == QStringLiteral("filled")) return QStringLiteral("filled_waveform");
     if (mode == QStringLiteral("radial")) return QStringLiteral("circular");
     if (mode == QStringLiteral("dots")) return QStringLiteral("particles");
+    if (mode == QStringLiteral("blurscope") || mode == QStringLiteral("blur_scope"))
+        return QStringLiteral("blur_scope");
+    if (mode == QStringLiteral("center") || mode == QStringLiteral("center_bars"))
+        return QStringLiteral("center_bars");
     return mode.isEmpty() ? QStringLiteral("bars") : mode;
 }
 
@@ -509,6 +513,8 @@ void KrellSpectrumWidget::paintEvent(QPaintEvent *)
     else if (mode == QStringLiteral("filled_waveform")) paintWaveform(p, r, true);
     else if (mode == QStringLiteral("circular")) paintRadial(p, r);
     else if (mode == QStringLiteral("particles")) paintDots(p, r);
+    else if (mode == QStringLiteral("blur_scope")) paintBlurScope(p, r);
+    else if (mode == QStringLiteral("center_bars")) paintCenterBars(p, r);
     else paintBars(p, r, false);
 }
 
@@ -548,14 +554,6 @@ void KrellSpectrumWidget::paintBackground(QPainter &p, const QRect &rect) const
 {
     const QColor fallback = m_theme->color(QStringLiteral("chart_bg"), QColor(4, 8, 11));
     p.fillRect(rect, m_theme->brush(QStringLiteral("chart_bg"), rect, fallback));
-    QColor grid = m_theme->color(QStringLiteral("chart_grid"), QColor(80, 95, 105));
-    grid.setAlpha(70);
-    p.setPen(QPen(grid, 1));
-    const int lines = qBound(2, 2 + static_cast<int>(m_processor.level() * 5.0), 7);
-    for (int i = 1; i < lines; ++i) {
-        const int y = rect.top() + rect.height() * i / lines;
-        p.drawLine(rect.left(), y, rect.right(), y);
-    }
 }
 
 void KrellSpectrumWidget::paintStatus(QPainter &p, const QRect &rect) const
@@ -692,6 +690,69 @@ void KrellSpectrumWidget::paintDots(QPainter &p, const QRect &rect)
         color.setAlpha(qBound(80, 120 + static_cast<int>(v * 130), 245));
         p.setBrush(color);
         p.drawEllipse(QPointF(x, y), size, size);
+    }
+}
+
+void KrellSpectrumWidget::paintBlurScope(QPainter &p, const QRect &rect)
+{
+    const QVector<float> &wave = m_processor.waveform();
+    if (wave.size() < 2) return;
+
+    const qreal mid = rect.center().y();
+    const qreal amp = rect.height() * 0.43;
+    QPainterPath path;
+    for (int i = 0; i < wave.size(); ++i) {
+        const qreal x = rect.left() + i * rect.width() / qMax(1, wave.size() - 1);
+        const qreal sample = qBound(-1.0,
+                                    static_cast<double>(wave.at(i)) * m_config.sensitivity,
+                                    1.0);
+        const qreal y = mid - sample * amp;
+        if (i == 0) path.moveTo(x, y);
+        else path.lineTo(x, y);
+    }
+
+    m_blurTrails.prepend(path);
+    while (m_blurTrails.size() > 9)
+        m_blurTrails.removeLast();
+
+    QColor color = baseColor();
+    for (int i = m_blurTrails.size() - 1; i >= 0; --i) {
+        QColor trail = color.lighter(105 + i * 4);
+        trail.setAlpha(qBound(18, 145 - i * 16, 150));
+        p.setPen(QPen(trail, qMax(1.0, 3.4 - i * 0.25), Qt::SolidLine,
+                      Qt::RoundCap, Qt::RoundJoin));
+        p.drawPath(m_blurTrails.at(i));
+    }
+    color.setAlpha(245);
+    p.setPen(QPen(color.lighter(m_processor.beat() ? 155 : 125), 1.2,
+                  Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    p.drawPath(path);
+}
+
+void KrellSpectrumWidget::paintCenterBars(QPainter &p, const QRect &rect)
+{
+    const QVector<float> &values = m_processor.bands();
+    if (values.isEmpty()) return;
+    const int count = values.size();
+    const qreal gap = qMax(1.0, rect.width() / 140.0);
+    const qreal w = qMax(1.0, (rect.width() - gap * (count - 1)) / count);
+    const qreal mid = rect.center().y();
+    const qreal maxHalf = qMax(1.0, rect.height() * 0.48);
+
+    for (int i = 0; i < count; ++i) {
+        const float v = values.at(i);
+        const qreal h = qMax(1.0, static_cast<qreal>(v) * maxHalf);
+        const QRectF br(rect.left() + i * (w + gap), mid - h, w, h * 2.0);
+        QColor color = bandColor(i, count, v);
+        if (m_config.colorMode == QStringLiteral("gradient")) {
+            QLinearGradient g(br.topLeft(), br.bottomLeft());
+            g.setColorAt(0.0, color.lighter(150));
+            g.setColorAt(0.5, color);
+            g.setColorAt(1.0, QColor(90, 230, 145, color.alpha()));
+            p.fillRect(br, g);
+        } else {
+            p.fillRect(br, color);
+        }
     }
 }
 

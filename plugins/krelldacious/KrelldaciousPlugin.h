@@ -8,6 +8,7 @@
 class QLabel;
 class QPushButton;
 class QSlider;
+class Decal;
 
 class KrelldaciousMonitor : public MonitorBase
 {
@@ -29,7 +30,8 @@ private:
     void setAudaciousVolume(int percent);
     QVariant playerProperty(const QString &name, bool *ok = nullptr) const;
 
-    QPointer<QLabel> m_track;
+    QPointer<Decal> m_track;
+    QPointer<QLabel> m_openAudacious;
     QPointer<QPushButton> m_prev;
     QPointer<QPushButton> m_playPause;
     QPointer<QPushButton> m_next;

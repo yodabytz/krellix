@@ -11,6 +11,8 @@
 #include <QUrl>
 #include <QWidget>
 
+#include <functional>
+
 class QLabel;
 
 struct KrellkamSource {
@@ -57,6 +59,9 @@ private:
     void requestSource(int index);
     void requestImageSource(int index, const QString &source);
     void requestMjpegSource(int index, const QString &source);
+    void requestYoutubeSource(int index, const QString &source);
+    void requestYoutubeFrame(const QString &source,
+                             std::function<void(const QByteArray &, const QString &)> callback);
     void requestCommandSource(int index, const QString &source);
     void setSlotImage(int index, const QByteArray &bytes);
     void setSlotError(int index, const QString &status);

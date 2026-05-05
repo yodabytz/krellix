@@ -15,11 +15,13 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QTimer>
 #include <QUrlQuery>
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <memory>
 
 namespace {
 
@@ -75,6 +77,19 @@ bool isRemote(const QString &source)
     return url.isValid()
         && (url.scheme() == QStringLiteral("http")
             || url.scheme() == QStringLiteral("https"));
+}
+
+bool isYoutubeUrl(const QString &source)
+{
+    const QUrl url(source);
+    const QString host = url.host().toLower();
+    return host.contains(QStringLiteral("youtube.com"))
+        || host.contains(QStringLiteral("youtu.be"));
+}
+
+bool executableExists(const QString &program)
+{
+    return !QStandardPaths::findExecutable(program).isEmpty();
 }
 
 int indexOfBytes(const QByteArray &bytes, const QByteArray &needle, int from = 0)
@@ -236,6 +251,10 @@ void KrellkamField::requestSource(int index)
         requestMjpegSource(index, source);
         return;
     }
+    if (type == QStringLiteral("youtube") || (type == QStringLiteral("auto") && isYoutubeUrl(source))) {
+        requestYoutubeSource(index, source);
+        return;
+    }
     requestImageSource(index, source);
 }
 
@@ -302,6 +321,87 @@ void KrellkamField::requestMjpegSource(int index, const QString &source)
         }
         (void) tryExtractMjpegFrame(index, *buffer);
     });
+}
+
+void KrellkamField::requestYoutubeSource(int index, const QString &source)
+{
+    requestYoutubeFrame(source, [this, index](const QByteArray &image, const QString &error) {
+        if (!error.isEmpty()) {
+            setSlotError(index, error);
+            return;
+        }
+        setSlotImage(index, image);
+    });
+}
+
+void KrellkamField::requestYoutubeFrame(const QString &source,
+                                        std::function<void(const QByteArray &, const QString &)> callback)
+{
+    if (!executableExists(QStringLiteral("yt-dlp"))) {
+        callback({}, QStringLiteral("yt-dlp not installed"));
+        return;
+    }
+    if (!executableExists(QStringLiteral("ffmpeg"))) {
+        callback({}, QStringLiteral("ffmpeg not installed"));
+        return;
+    }
+
+    auto *resolver = new QProcess(this);
+    resolver->setProgram(QStringLiteral("yt-dlp"));
+    resolver->setArguments({QStringLiteral("-f"),
+                            QStringLiteral("best[height<=720]/best"),
+                            QStringLiteral("-g"),
+                            source});
+    resolver->setProcessChannelMode(QProcess::SeparateChannels);
+    connect(resolver,
+            QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, resolver, callback](int exitCode, QProcess::ExitStatus status) {
+                const QString streamUrl = QString::fromLocal8Bit(resolver->readAllStandardOutput())
+                                              .split(QLatin1Char('\n'), Qt::SkipEmptyParts)
+                                              .value(0)
+                                              .trimmed();
+                const QString err = QString::fromLocal8Bit(resolver->readAllStandardError()).trimmed();
+                resolver->deleteLater();
+                if (status != QProcess::NormalExit || exitCode != 0 || streamUrl.isEmpty()) {
+                    callback({}, err.isEmpty() ? QStringLiteral("yt-dlp failed") : err.left(160));
+                    return;
+                }
+
+                auto *ffmpeg = new QProcess(this);
+                ffmpeg->setProgram(QStringLiteral("ffmpeg"));
+                ffmpeg->setArguments({QStringLiteral("-hide_banner"),
+                                      QStringLiteral("-loglevel"), QStringLiteral("error"),
+                                      QStringLiteral("-i"), streamUrl,
+                                      QStringLiteral("-frames:v"), QStringLiteral("1"),
+                                      QStringLiteral("-f"), QStringLiteral("image2pipe"),
+                                      QStringLiteral("-vcodec"), QStringLiteral("mjpeg"),
+                                      QStringLiteral("-")});
+                ffmpeg->setProcessChannelMode(QProcess::SeparateChannels);
+                connect(ffmpeg,
+                        QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                        this, [ffmpeg, callback](int code, QProcess::ExitStatus ffStatus) {
+                            const QByteArray image = ffmpeg->readAllStandardOutput();
+                            const QString errText = QString::fromLocal8Bit(ffmpeg->readAllStandardError()).trimmed();
+                            ffmpeg->deleteLater();
+                            if (ffStatus != QProcess::NormalExit || code != 0 || image.isEmpty()) {
+                                callback({}, errText.isEmpty()
+                                    ? QStringLiteral("ffmpeg failed")
+                                    : errText.left(160));
+                                return;
+                            }
+                            callback(image, QString());
+                        });
+                QTimer::singleShot(12000, ffmpeg, [ffmpeg]() {
+                    if (ffmpeg->state() != QProcess::NotRunning)
+                        ffmpeg->kill();
+                });
+                ffmpeg->start();
+            });
+    QTimer::singleShot(12000, resolver, [resolver]() {
+        if (resolver->state() != QProcess::NotRunning)
+            resolver->kill();
+    });
+    resolver->start();
 }
 
 void KrellkamField::requestCommandSource(int index, const QString &source)
@@ -431,6 +531,32 @@ void KrellkamField::openViewer(int index)
     const QSize target = slot.image.size().scaled(QSize(760, 520), Qt::KeepAspectRatio);
     image->setPixmap(pix.scaled(target, Qt::KeepAspectRatio, Qt::SmoothTransformation));
     layout->addWidget(image, 1);
+
+    QTimer *liveTimer = nullptr;
+    if (slot.type == QStringLiteral("youtube") || isYoutubeUrl(slot.source)) {
+        liveTimer = new QTimer(dialog);
+        liveTimer->setInterval(qBound(1500,
+            QSettings().value(QStringLiteral("plugins/krellkam/youtube_viewer_ms"), 2500).toInt(),
+            15000));
+        QPointer<QLabel> viewer(image);
+        QPointer<QDialog> liveDialog(dialog);
+        auto inFlight = std::make_shared<bool>(false);
+        auto refreshLive = [this, source = slot.source, viewer, liveDialog, inFlight]() {
+            if (!viewer || !liveDialog || *inFlight) return;
+            *inFlight = true;
+            requestYoutubeFrame(source, [viewer, inFlight](const QByteArray &bytes, const QString &error) {
+                *inFlight = false;
+                if (!viewer || !error.isEmpty()) return;
+                QImage frame;
+                if (!frame.loadFromData(bytes)) return;
+                const QPixmap framePix = QPixmap::fromImage(frame);
+                viewer->setPixmap(framePix.scaled(viewer->size(), Qt::KeepAspectRatio,
+                                                  Qt::SmoothTransformation));
+            });
+        };
+        connect(liveTimer, &QTimer::timeout, dialog, refreshLive);
+        liveTimer->start();
+    }
 
     auto *close = new QPushButton(QStringLiteral("Close"), dialog);
     connect(close, &QPushButton::clicked, dialog, &QDialog::close);

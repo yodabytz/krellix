@@ -5,6 +5,7 @@
 
 #include <QColor>
 #include <QElapsedTimer>
+#include <QPainterPath>
 #include <QPointer>
 #include <QProcess>
 #include <QThread>
@@ -129,11 +130,14 @@ private:
     void paintWaveform(QPainter &p, const QRect &rect, bool filled);
     void paintRadial(QPainter &p, const QRect &rect);
     void paintDots(QPainter &p, const QRect &rect);
+    void paintBlurScope(QPainter &p, const QRect &rect);
+    void paintCenterBars(QPainter &p, const QRect &rect);
 
     Theme *m_theme = nullptr;
     KrellSpectrumConfig m_config;
     KrellSpectrumProcessor m_processor;
     QString m_status;
+    QVector<QPainterPath> m_blurTrails;
     QElapsedTimer m_lastPaint;
     bool m_haveData = false;
 };
