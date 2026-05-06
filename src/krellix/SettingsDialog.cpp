@@ -1557,6 +1557,7 @@ void SettingsDialog::finishKrellmailOAuthFromCallbackUrl(int index)
 {
     if (index < 0 || index >= m_krellmailAccounts.size()) return;
     KrellmailAccountWidgets &row = m_krellmailAccounts[index];
+    saveKrellmailAccount(index);
     if (!m_krellmailOAuth) {
         row.status->setText(QStringLiteral("Krellmail OAuth service is not available"));
         return;

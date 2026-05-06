@@ -266,6 +266,11 @@ void KrellmailOAuthBroker::exchangeCode(const QString &code, const QString &stat
     QNetworkRequest tokenRequest(QUrl(QStringLiteral("https://oauth2.googleapis.com/token")));
     tokenRequest.setHeader(QNetworkRequest::ContentTypeHeader,
                            QStringLiteral("application/x-www-form-urlencoded"));
+    const QString savedSecret =
+        QSettings().value(accountKey(m_accountIndex, QStringLiteral("oauth_client_secret"))).toString().trimmed();
+    if (!savedSecret.isEmpty())
+        m_clientSecret = savedSecret;
+
     QUrlQuery body;
     body.addQueryItem(QStringLiteral("client_id"), m_clientId);
     if (!m_clientSecret.isEmpty())
@@ -300,6 +305,12 @@ void KrellmailOAuthBroker::finishTokenReply(QNetworkReply *reply)
             detail = QString::fromUtf8(payload.left(300));
         if (detail.isEmpty())
             detail = reply->errorString();
+        if (detail.contains(QStringLiteral("client_secret"), Qt::CaseInsensitive)
+            && m_clientSecret.isEmpty()) {
+            detail = QStringLiteral(
+                "Google requires an OAuth secret for this client, but Krellmail sent none. "
+                "Enter the OAuth secret, click Authorize Gmail again, and use the new browser approval.");
+        }
         emit statusChanged(account, QStringLiteral("OAuth token failed: %1").arg(detail));
         m_exchangeInProgress = false;
         return;
