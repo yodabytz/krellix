@@ -5,6 +5,7 @@
 #include <QString>
 
 class PluginLoader;
+class KrellmailOAuthBroker;
 class Theme;
 
 class QCheckBox;
@@ -15,12 +16,9 @@ class QLineEdit;
 class QLabel;
 class QListWidget;
 class QDoubleSpinBox;
-class QNetworkAccessManager;
-class QNetworkReply;
 class QPushButton;
 class QSpinBox;
 class QStackedWidget;
-class QTcpServer;
 class QVBoxLayout;
 
 // Single-pane settings dialog covering the basic GKrellM-style toggles:
@@ -35,7 +33,7 @@ class SettingsDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit SettingsDialog(Theme *theme, QWidget *parent = nullptr);
+    explicit SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAuth, QWidget *parent = nullptr);
     ~SettingsDialog() override;
 
 signals:
@@ -70,11 +68,9 @@ private:
     void addKrellmailAccount();
     void removeKrellmailAccount(int index);
     void beginKrellmailOAuth(int index);
-    void handleKrellmailOAuthCallback();
     void finishKrellmailOAuthFromCallbackUrl(int index);
-    void exchangeKrellmailOAuthCode(const QString &code, const QString &state,
-                                    const QString &redirectUri);
-    void finishKrellmailOAuth(QNetworkReply *reply);
+    void setKrellmailOAuthStatus(int index, const QString &message);
+    void markKrellmailOAuthAuthorized(int index);
 
     struct KrellmailAccountWidgets {
         QGroupBox *group = nullptr;
@@ -142,12 +138,7 @@ private:
     QVBoxLayout *m_krellmailAccountsLayout = nullptr;
     QPushButton *m_krellmailAddAccount = nullptr;
     QList<KrellmailAccountWidgets> m_krellmailAccounts;
-    QTcpServer *m_krellmailOAuthServer = nullptr;
-    QNetworkAccessManager *m_krellmailOAuthNetwork = nullptr;
-    int m_krellmailOAuthAccount = -1;
-    QString m_krellmailOAuthVerifier;
-    QString m_krellmailOAuthState;
-    QString m_krellmailOAuthRedirectUri;
+    KrellmailOAuthBroker *m_krellmailOAuth = nullptr;
     QCheckBox   *m_krellspectrumEnabled = nullptr;
     QComboBox   *m_krellspectrumVisualMode = nullptr;
     QComboBox   *m_krellspectrumBandCount = nullptr;

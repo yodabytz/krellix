@@ -6,6 +6,7 @@
 #include <QWidget>
 
 class AlertBanner;
+class KrellmailOAuthBroker;
 class MonitorBase;
 class PluginLoader;
 class RemoteSource;
@@ -85,6 +86,7 @@ private:
     QStringList   m_cliEnabledIds;             // remembered from constructor
     Theme         *m_theme;
     PluginLoader  *m_pluginLoader = nullptr;
+    KrellmailOAuthBroker *m_krellmailOAuth = nullptr;
     QVBoxLayout   *m_layout       = nullptr;
     AlertBanner   *m_alertBanner  = nullptr;
     QTimer        *m_alertDebounce = nullptr;

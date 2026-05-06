@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 
+#include "krellix/KrellmailOAuthBroker.h"
 #include "krellix/PluginLoader.h"
 #include "krellix/SettingsDialog.h"
 #include "remote/RemoteSource.h"
@@ -92,6 +93,7 @@ MainWindow::MainWindow(Theme *theme,
     , m_cliEnabledIds(enabledMonitorIds)
     , m_theme(theme)
     , m_pluginLoader(new PluginLoader(this))
+    , m_krellmailOAuth(new KrellmailOAuthBroker(this))
 {
     Q_ASSERT(m_theme);
 
@@ -707,7 +709,7 @@ void MainWindow::showAbout()
 
 void MainWindow::showSettings()
 {
-    auto *dlg = new SettingsDialog(m_theme, this);
+    auto *dlg = new SettingsDialog(m_theme, m_krellmailOAuth, this);
     dlg->setAttribute(Qt::WA_DeleteOnClose);
 
     connect(dlg, &SettingsDialog::themeNameChanged, this,

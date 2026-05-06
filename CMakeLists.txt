@@ -44,6 +44,8 @@ qt_standard_project_setup()
 
 set(KRELLIX_SOURCES
     src/krellix/main.cpp
+    src/krellix/KrellmailOAuthBroker.cpp
+    src/krellix/KrellmailOAuthBroker.h
     src/krellix/MainWindow.cpp
     src/krellix/MainWindow.h
     src/krellix/PluginLoader.cpp
