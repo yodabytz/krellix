@@ -8,6 +8,7 @@ class PluginLoader;
 class Theme;
 
 class QCheckBox;
+class QCloseEvent;
 class QComboBox;
 class QGroupBox;
 class QLineEdit;
@@ -47,6 +48,9 @@ signals:
 
 private slots:
     void onAccept();
+
+protected:
+    void closeEvent(QCloseEvent *event) override;
 
 private:
     void loadFromSettings();

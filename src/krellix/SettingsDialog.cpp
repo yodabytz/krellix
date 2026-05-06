@@ -7,6 +7,7 @@
 #include "theme/Theme.h"
 
 #include <QCheckBox>
+#include <QCloseEvent>
 #include <QComboBox>
 #include <QCryptographicHash>
 #include <QDesktopServices>
@@ -103,11 +104,12 @@ QString krellmailAccountKey(int index, const QString &name)
 bool listenKrellmailOAuth(QTcpServer *server)
 {
     if (!server) return false;
+    const QHostAddress loopback(QStringLiteral("127.0.0.1"));
     for (quint16 port = kKrellmailOAuthFirstPort; port <= kKrellmailOAuthLastPort; ++port) {
-        if (server->listen(QHostAddress::LocalHost, port))
+        if (server->listen(loopback, port))
             return true;
     }
-    return server->listen(QHostAddress::LocalHost, 0);
+    return server->listen(loopback, 0);
 }
 
 int defaultMailPort(const QString &protocol, bool ssl)
@@ -1139,6 +1141,21 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
 }
 
 SettingsDialog::~SettingsDialog() = default;
+
+void SettingsDialog::closeEvent(QCloseEvent *event)
+{
+    if (m_krellmailOAuthServer && m_krellmailOAuthServer->isListening()) {
+        event->ignore();
+        if (m_krellmailOAuthAccount >= 0 && m_krellmailOAuthAccount < m_krellmailAccounts.size()) {
+            m_krellmailAccounts[m_krellmailOAuthAccount].status->setText(QStringLiteral(
+                "Finish Google authorization or paste the failed callback URL before closing settings."));
+        }
+        raise();
+        activateWindow();
+        return;
+    }
+    QDialog::closeEvent(event);
+}
 
 void SettingsDialog::loadFromSettings()
 {
