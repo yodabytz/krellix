@@ -10,6 +10,7 @@
 #include <QJsonValue>
 #include <QLinearGradient>
 #include <QLoggingCategory>
+#include <QImageReader>
 #include <QRegularExpression>
 #include <QSet>
 #include <QStandardPaths>
@@ -26,6 +27,29 @@ Q_LOGGING_CATEGORY(lcTheme, "krellix.theme")
 namespace {
 
 constexpr int kMaxJsonBytes = 256 * 1024;  // hard cap on theme.json size
+constexpr qint64 kMaxImageBytes = 10LL * 1024LL * 1024LL;
+constexpr qint64 kMaxImagePixels = 4096LL * 4096LL;
+
+QPixmap loadBoundedPixmap(const QString &path)
+{
+    const QFileInfo info(path);
+    if (!info.exists() || !info.isFile() || info.size() <= 0 || info.size() > kMaxImageBytes)
+        return {};
+
+    QImageReader reader(path);
+    const QSize size = reader.size();
+    if (size.isValid()
+        && static_cast<qint64>(size.width()) * size.height() > kMaxImagePixels) {
+        return {};
+    }
+
+    const QImage image = reader.read();
+    if (image.isNull())
+        return {};
+    if (static_cast<qint64>(image.width()) * image.height() > kMaxImagePixels)
+        return {};
+    return QPixmap::fromImage(image);
+}
 
 QColor colorFromString(const QString &s, const QColor &fallback)
 {
@@ -444,8 +468,8 @@ QPixmap Theme::pixmap(const QString &key) const
         m_pixmapCache.insert(key, QPixmap());
         return {};
     }
-    QPixmap pm;
-    if (!pm.load(full)) {
+    QPixmap pm = loadBoundedPixmap(full);
+    if (pm.isNull()) {
         qCWarning(lcTheme) << "failed to load image" << full;
         m_pixmapCache.insert(key, QPixmap());
         return {};
@@ -580,7 +604,9 @@ Theme::Surface Theme::surface(const QString &key,
                 // that pixmap() uses so the v2 entry doesn't bypass
                 // sandboxing.
                 const QString full = assetPath(sp.relImage);
-                if (!full.isEmpty() && out.image.load(full)) {
+                if (!full.isEmpty())
+                    out.image = loadBoundedPixmap(full);
+                if (!out.image.isNull()) {
                     foundSpec = true;
                     break;
                 }
@@ -593,7 +619,9 @@ Theme::Surface Theme::surface(const QString &key,
         const QString rel = m_imagePaths.value(k);
         if (!rel.isEmpty()) {
             const QString full = assetPath(rel);
-            if (!full.isEmpty() && out.image.load(full)) {
+            if (!full.isEmpty())
+                out.image = loadBoundedPixmap(full);
+            if (!out.image.isNull()) {
                 foundSpec = true;
                 break;
             }

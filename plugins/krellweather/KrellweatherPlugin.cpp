@@ -24,6 +24,8 @@
 namespace {
 
 constexpr const char *kMetarUrl = "https://aviationweather.gov/api/data/metar";
+constexpr int kFetchTimeoutMs = 15000;
+constexpr qsizetype kMaxWeatherBytes = 256 * 1024;
 
 enum class WeatherIconKind {
     Unknown,
@@ -354,6 +356,7 @@ void KrellweatherMonitor::fetch()
 
     QNetworkRequest req(url);
     req.setRawHeader("User-Agent", "krellix-krellweather/0.1");
+    req.setTransferTimeout(kFetchTimeoutMs);
     QNetworkReply *reply = m_net.get(req);
     m_reply = reply;
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
@@ -384,6 +387,10 @@ void KrellweatherMonitor::handleReply(QNetworkReply *reply)
 
     if (error != QNetworkReply::NoError || httpStatus == 204) {
         setMessage(stationCode(), QStringLiteral("Weather unavailable"));
+        return;
+    }
+    if (payload.size() > kMaxWeatherBytes) {
+        setMessage(stationCode(), QStringLiteral("Weather response too large"));
         return;
     }
 
@@ -458,8 +465,8 @@ void KrellweatherMonitor::renderWeather(const QJsonObject &obj)
     const QString detail = QStringLiteral("%1  %2").arg(wx, windText(obj));
 
     if (m_location) m_location->setText(code);
-    if (m_icon)
-        static_cast<WeatherIconWidget *>(m_icon.data())->setKind(iconKindForWeather(obj));
+    if (auto *icon = static_cast<WeatherIconWidget *>(m_icon.data()))
+        icon->setKind(iconKindForWeather(obj));
     if (m_primary) m_primary->setText(temp);
     if (m_detail) m_detail->setText(detail);
 }
@@ -467,8 +474,8 @@ void KrellweatherMonitor::renderWeather(const QJsonObject &obj)
 void KrellweatherMonitor::setMessage(const QString &line1, const QString &line2)
 {
     if (m_location) m_location->setText(line1);
-    if (m_icon)
-        static_cast<WeatherIconWidget *>(m_icon.data())->setKind(WeatherIconKind::Unknown);
+    if (auto *icon = static_cast<WeatherIconWidget *>(m_icon.data()))
+        icon->setKind(WeatherIconKind::Unknown);
     if (m_primary) m_primary->setText(QStringLiteral("--"));
     if (m_detail) m_detail->setText(line2);
 }

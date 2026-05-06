@@ -5,6 +5,7 @@
 #include "widgets/Krell.h"
 #include "widgets/Panel.h"
 
+#include <QSettings>
 #include <QString>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -23,6 +24,12 @@ QString humanBps(double bps)
 constexpr double kMinAdaptiveBps = 1024.0;
 constexpr double kAdaptiveDecay  = 0.99;
 constexpr double kAdaptiveGrow   = 1.10;
+
+bool diskEnabled(const QString &name)
+{
+    return QSettings().value(QStringLiteral("monitors/disk/devices/") + name,
+                             true).toBool();
+}
 
 } // namespace
 
@@ -53,7 +60,11 @@ QWidget *DiskMonitor::createWidget(QWidget *parent)
         return container;
     }
 
+    bool added = false;
     for (const DiskSample &s : samples) {
+        if (!diskEnabled(s.name))
+            continue;
+
         auto *p = new Panel(theme(), container);
         p->setSurfaceKey(QStringLiteral("panel_bg_disk"));
         p->setTitle(s.name);
@@ -70,6 +81,17 @@ QWidget *DiskMonitor::createWidget(QWidget *parent)
 
         m_disks.insert(s.name, ui);
         m_prevSamples.insert(s.name, s);
+        vbox->addWidget(p);
+        added = true;
+    }
+
+    if (!added) {
+        auto *p = new Panel(theme(), container);
+        p->setSurfaceKey(QStringLiteral("panel_bg_disk"));
+        p->setTitle(QStringLiteral("Disk"));
+        Decal *d = p->addDecal(QStringLiteral("label"),
+                               QStringLiteral("text_secondary"));
+        d->setText(QStringLiteral("(no disks enabled)"));
         vbox->addWidget(p);
     }
 

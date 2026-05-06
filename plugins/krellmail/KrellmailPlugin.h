@@ -93,6 +93,7 @@ private:
     void failCurrent(const QString &message);
     void startNextAccount();
     void requestOAuthToken(const KrellmailAccount &account);
+    void cancelOAuthReply();
     void sendLine(const QByteArray &line);
     QByteArray xoauth2InitialResponse(const KrellmailAccount &account, const QString &accessToken) const;
     void processLine(const QByteArray &line);
@@ -103,6 +104,7 @@ private:
     QPointer<QLabel> m_detail;
     QSslSocket *m_socket = nullptr;
     QNetworkAccessManager m_oauthManager;
+    QPointer<QNetworkReply> m_oauthReply;
     QTimer m_timeout;
     QVector<KrellmailAccount> m_accounts;
     int m_accountIndex = -1;
@@ -112,6 +114,8 @@ private:
     QByteArray m_buffer;
     QByteArray m_imapTag;
     QString m_oauthAccessToken;
+    quint64 m_checkGeneration = 0;
+    quint64 m_oauthGeneration = 0;
     State m_state = State::Idle;
     bool m_fetching = false;
     bool m_tearingDown = false;

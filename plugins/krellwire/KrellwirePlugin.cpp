@@ -388,6 +388,13 @@ void KrellwireMonitor::fetch()
         req.setRawHeader("User-Agent", "krellix-krellwire/0.1");
         QNetworkReply *reply = m_net.get(req);
         m_replies.append(reply);
+        m_payloads.insert(reply, QByteArray());
+        connect(reply, &QNetworkReply::readyRead, this, [this, reply]() {
+            QByteArray &payload = m_payloads[reply];
+            payload.append(reply->readAll());
+            if (payload.size() > kMaxFeedBytes)
+                reply->abort();
+        });
         connect(reply, &QNetworkReply::finished, this, [this, reply]() {
             handleReply(reply);
         });
@@ -408,7 +415,8 @@ void KrellwireMonitor::handleReply(QNetworkReply *reply)
         return;
 
     const QUrl sourceUrl = reply->url();
-    const QByteArray payload = reply->readAll();
+    QByteArray payload = m_payloads.take(reply);
+    payload.append(reply->readAll());
     const bool ok = reply->error() == QNetworkReply::NoError;
     reply->deleteLater();
 
@@ -444,13 +452,15 @@ void KrellwireMonitor::cancelReplies()
         reply->deleteLater();
     }
     m_replies.clear();
+    m_payloads.clear();
 }
 
 void KrellwireMonitor::publishItems()
 {
-    if (!m_ticker)
+    auto *ticker = static_cast<KrellwireTicker *>(m_ticker.data());
+    if (!ticker)
         return;
-    static_cast<KrellwireTicker *>(m_ticker.data())->setItems(m_items);
+    ticker->setItems(m_items);
 }
 
 QString KrellwirePlugin::pluginId() const

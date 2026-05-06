@@ -7,6 +7,7 @@
 #include <QFileInfo>
 #include <QLoggingCategory>
 #include <QPluginLoader>
+#include <QProcessEnvironment>
 #include <QStandardPaths>
 
 #ifndef KRELLIX_PLUGIN_SYSTEM_DIR
@@ -40,8 +41,10 @@ QStringList PluginLoader::searchPaths()
 
     paths << QString::fromUtf8(KRELLIX_PLUGIN_SYSTEM_DIR);
 
-    // Convenience for development from a build tree.
-    paths << QDir::currentPath() + QStringLiteral("/plugins");
+    if (QProcessEnvironment::systemEnvironment()
+            .value(QStringLiteral("KRELLIX_DEV_PLUGINS")) == QLatin1String("1")) {
+        paths << QDir::currentPath() + QStringLiteral("/plugins");
+    }
 
     return paths;
 }

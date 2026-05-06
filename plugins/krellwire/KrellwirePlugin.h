@@ -5,6 +5,7 @@
 
 #include <QNetworkAccessManager>
 #include <QPointer>
+#include <QHash>
 #include <QVector>
 
 #include <vector>
@@ -41,6 +42,7 @@ private:
     QPointer<QWidget> m_ticker;
     QNetworkAccessManager m_net;
     QVector<QPointer<QNetworkReply>> m_replies;
+    QHash<QNetworkReply *, QByteArray> m_payloads;
     std::vector<KrellwireFeedItem> m_items;
     bool m_fetching = false;
     bool m_tearingDown = false;

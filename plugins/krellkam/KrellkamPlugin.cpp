@@ -25,6 +25,9 @@
 namespace {
 
 constexpr int kMaxSources = 5;
+constexpr qint64 kMaxImageBytes = 10LL * 1024LL * 1024LL;
+constexpr qint64 kMaxImagePixels = 4096LL * 4096LL;
+constexpr int kFetchTimeoutMs = 15000;
 
 QList<KrellkamSource> configuredSources()
 {
@@ -244,6 +247,11 @@ void KrellkamField::requestSource(int index)
 
     if (type.isEmpty()) type = QStringLiteral("auto");
     if (type == QStringLiteral("command")) {
+        if (!QSettings().value(QStringLiteral("plugins/krellkam/allow_command_sources"),
+                               false).toBool()) {
+            setSlotError(index, QStringLiteral("command source disabled"));
+            return;
+        }
         requestCommandSource(index, source);
         return;
     }
@@ -266,6 +274,10 @@ void KrellkamField::requestImageSource(int index, const QString &source)
             setSlotError(index, QStringLiteral("cannot read image"));
             return;
         }
+        if (f.size() > kMaxImageBytes) {
+            setSlotError(index, QStringLiteral("image too large"));
+            return;
+        }
         setSlotImage(index, f.readAll());
         return;
     }
@@ -283,14 +295,32 @@ void KrellkamField::requestImageSource(int index, const QString &source)
     req.setRawHeader("Cache-Control", "no-cache, no-store, max-age=0");
     req.setRawHeader("Pragma", "no-cache");
     req.setRawHeader("User-Agent", "krellix-krellkam/0.1");
+    req.setMaximumRedirectsAllowed(3);
+    req.setTransferTimeout(kFetchTimeoutMs);
     QNetworkReply *reply = m_net.get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, index]() {
+    auto *payload = new QByteArray;
+    connect(reply, &QObject::destroyed, this, [payload]() { delete payload; });
+    connect(reply, &QNetworkReply::readyRead, this, [this, reply, payload, index]() {
+        payload->append(reply->readAll());
+        if (payload->size() > kMaxImageBytes) {
+            setSlotError(index, QStringLiteral("image too large"));
+            reply->abort();
+        }
+    });
+    connect(reply, &QNetworkReply::finished, this, [this, reply, payload, index]() {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
+            if (reply->error() == QNetworkReply::OperationCanceledError)
+                return;
             setSlotError(index, reply->errorString());
             return;
         }
-        setSlotImage(index, reply->readAll());
+        payload->append(reply->readAll());
+        if (payload->size() > kMaxImageBytes) {
+            setSlotError(index, QStringLiteral("image too large"));
+            return;
+        }
+        setSlotImage(index, *payload);
     });
 }
 
@@ -300,6 +330,8 @@ void KrellkamField::requestMjpegSource(int index, const QString &source)
     req.setAttribute(QNetworkRequest::CacheLoadControlAttribute,
                      QNetworkRequest::AlwaysNetwork);
     req.setRawHeader("User-Agent", "krellix-krellkam/0.1");
+    req.setMaximumRedirectsAllowed(3);
+    req.setTransferTimeout(kFetchTimeoutMs);
 
     QNetworkReply *reply = m_net.get(req);
     auto *buffer = new QByteArray;
@@ -364,6 +396,13 @@ void KrellkamField::requestYoutubeFrame(const QString &source,
                             QStringLiteral("-g"),
                             source});
     resolver->setProcessChannelMode(QProcess::SeparateChannels);
+    connect(resolver, &QProcess::errorOccurred, this,
+            [resolver, callback](QProcess::ProcessError) {
+                const QString err = resolver->errorString();
+                resolver->disconnect();
+                resolver->deleteLater();
+                callback({}, err.isEmpty() ? QStringLiteral("yt-dlp failed") : err.left(160));
+            });
     connect(resolver,
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, [this, resolver, source, callback](int exitCode, QProcess::ExitStatus status) {
@@ -405,6 +444,13 @@ void KrellkamField::requestYoutubeFrameFromStream(
                           QStringLiteral("-vcodec"), QStringLiteral("mjpeg"),
                           QStringLiteral("-")});
     ffmpeg->setProcessChannelMode(QProcess::SeparateChannels);
+    connect(ffmpeg, &QProcess::errorOccurred, this,
+            [ffmpeg, callback](QProcess::ProcessError) {
+                const QString err = ffmpeg->errorString();
+                ffmpeg->disconnect();
+                ffmpeg->deleteLater();
+                callback({}, err.isEmpty() ? QStringLiteral("ffmpeg failed") : err.left(160));
+            });
     connect(ffmpeg,
             QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, [ffmpeg, callback](int code, QProcess::ExitStatus ffStatus) {
@@ -431,6 +477,15 @@ void KrellkamField::requestCommandSource(int index, const QString &source)
     auto *proc = new QProcess(this);
     proc->setProgram(QStringLiteral("/bin/sh"));
     proc->setArguments({QStringLiteral("-c"), source});
+    connect(proc, &QProcess::errorOccurred, this,
+            [this, proc, index](QProcess::ProcessError) {
+                const QString err = proc->errorString();
+                proc->disconnect();
+                proc->deleteLater();
+                setSlotError(index, err.isEmpty()
+                    ? QStringLiteral("command failed")
+                    : err.left(160));
+            });
     connect(proc, &QProcess::finished, this,
             [this, proc, index](int exitCode, QProcess::ExitStatus status) {
                 proc->deleteLater();
@@ -454,9 +509,17 @@ void KrellkamField::requestCommandSource(int index, const QString &source)
 void KrellkamField::setSlotImage(int index, const QByteArray &bytes)
 {
     if (index < 0 || index >= m_slots.size()) return;
+    if (bytes.size() > kMaxImageBytes) {
+        setSlotError(index, QStringLiteral("image too large"));
+        return;
+    }
     QImage image;
     if (!image.loadFromData(bytes)) {
         setSlotError(index, QStringLiteral("bad image"));
+        return;
+    }
+    if (static_cast<qint64>(image.width()) * image.height() > kMaxImagePixels) {
+        setSlotError(index, QStringLiteral("image too large"));
         return;
     }
     m_slots[index].image = image;

@@ -111,6 +111,7 @@ private:
     QStackedWidget *m_pluginStack = nullptr;
     QListWidget *m_orderList     = nullptr;
     QCheckBox   *m_krellkamEnabled = nullptr;
+    QCheckBox   *m_krellkamAllowCommands = nullptr;
     QSpinBox    *m_krellkamUpdateMs = nullptr;
     QSpinBox    *m_krellkamFieldHeight = nullptr;
     QList<QLineEdit *> m_krellkamTitles;

@@ -25,6 +25,9 @@ namespace {
 constexpr int kMaxAccounts = 3;
 constexpr int kMaxDynamicAccounts = 10;
 constexpr int kTimeoutMs = 12000;
+constexpr qsizetype kMaxMailLineBytes = 64 * 1024;
+constexpr qsizetype kMaxMailBufferBytes = 256 * 1024;
+constexpr qsizetype kMaxOAuthBytes = 512 * 1024;
 
 QString accountKey(int index, const QString &name)
 {
@@ -281,6 +284,7 @@ void KrellmailMonitor::shutdown()
 {
     m_tearingDown = true;
     m_timeout.stop();
+    cancelOAuthReply();
     if (m_socket) {
         m_socket->disconnect(this);
         m_socket->abort();
@@ -324,6 +328,7 @@ void KrellmailMonitor::startCheck(bool force)
     if (m_fetching) {
         if (!force) return;
         m_timeout.stop();
+        cancelOAuthReply();
         if (m_socket) {
             m_socket->disconnect(this);
             m_socket->abort();
@@ -334,6 +339,7 @@ void KrellmailMonitor::startCheck(bool force)
         m_state = State::Idle;
     }
     m_accounts = readAccounts();
+    ++m_checkGeneration;
     m_accountIndex = -1;
     m_totalCount = 0;
     m_errorCount = 0;
@@ -353,6 +359,7 @@ void KrellmailMonitor::finishCheck()
     m_fetching = false;
     m_state = State::Idle;
     m_timeout.stop();
+    cancelOAuthReply();
     if (m_socket) {
         m_socket->disconnect(this);
         m_socket->abort();
@@ -372,6 +379,7 @@ void KrellmailMonitor::failCurrent(const QString &message)
 void KrellmailMonitor::startNextAccount()
 {
     m_timeout.stop();
+    cancelOAuthReply();
     m_buffer.clear();
     m_oauthAccessToken.clear();
     if (m_socket) {
@@ -416,6 +424,7 @@ void KrellmailMonitor::requestOAuthToken(const KrellmailAccount &account)
     QNetworkRequest request(QUrl(QStringLiteral("https://oauth2.googleapis.com/token")));
     request.setHeader(QNetworkRequest::ContentTypeHeader,
                       QStringLiteral("application/x-www-form-urlencoded"));
+    request.setTransferTimeout(kTimeoutMs);
 
     QUrlQuery body;
     body.addQueryItem(QStringLiteral("client_id"), account.oauthClientId);
@@ -424,10 +433,34 @@ void KrellmailMonitor::requestOAuthToken(const KrellmailAccount &account)
 
     m_state = State::ImapOAuthToken;
     m_timeout.start(kTimeoutMs);
+    const quint64 generation = m_checkGeneration;
+    m_oauthGeneration = generation;
     QNetworkReply *reply = m_oauthManager.post(request, body.query(QUrl::FullyEncoded).toUtf8());
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+    m_oauthReply = reply;
+    connect(reply, &QNetworkReply::readyRead, this, [this, reply]() {
+        if (reply->bytesAvailable() > kMaxOAuthBytes)
+            reply->abort();
+    });
+    connect(reply, &QNetworkReply::finished, this, [this, reply, generation]() {
+        if (generation != m_oauthGeneration || generation != m_checkGeneration) {
+            reply->deleteLater();
+            return;
+        }
         onOAuthFinished(reply);
     });
+}
+
+void KrellmailMonitor::cancelOAuthReply()
+{
+    if (!m_oauthReply)
+        return;
+    QNetworkReply *reply = m_oauthReply.data();
+    m_oauthReply = nullptr;
+    if (!reply)
+        return;
+    reply->disconnect(this);
+    reply->abort();
+    reply->deleteLater();
 }
 
 void KrellmailMonitor::sendLine(const QByteArray &line)
@@ -466,8 +499,16 @@ void KrellmailMonitor::onReadyRead()
 {
     if (!m_socket) return;
     m_buffer.append(m_socket->readAll());
+    if (m_buffer.size() > kMaxMailBufferBytes) {
+        failCurrent(QStringLiteral("mail response too large"));
+        return;
+    }
     int nl = -1;
     while ((nl = m_buffer.indexOf('\n')) >= 0) {
+        if (nl > kMaxMailLineBytes) {
+            failCurrent(QStringLiteral("mail response line too large"));
+            return;
+        }
         QByteArray line = m_buffer.left(nl);
         m_buffer.remove(0, nl + 1);
         while (line.endsWith('\r') || line.endsWith('\n'))
@@ -486,6 +527,8 @@ void KrellmailMonitor::onSocketError(QAbstractSocket::SocketError)
 void KrellmailMonitor::onOAuthFinished(QNetworkReply *reply)
 {
     if (!reply) return;
+    if (m_oauthReply == reply)
+        m_oauthReply = nullptr;
     reply->deleteLater();
     if (m_tearingDown || !m_fetching)
         return;
@@ -493,6 +536,10 @@ void KrellmailMonitor::onOAuthFinished(QNetworkReply *reply)
         return;
 
     const QByteArray payload = reply->readAll();
+    if (payload.size() > kMaxOAuthBytes) {
+        failCurrent(QStringLiteral("OAuth response too large"));
+        return;
+    }
     if (reply->error() != QNetworkReply::NoError) {
         QString message = reply->errorString();
         const QJsonDocument doc = QJsonDocument::fromJson(payload);

@@ -2,6 +2,7 @@
 
 #include "krellix/PluginLoader.h"
 #include "sysdep/CpuStat.h"
+#include "sysdep/DiskStat.h"
 #include "sysdep/NetStat.h"
 #include "theme/Theme.h"
 
@@ -237,6 +238,26 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
         layout->addWidget(m_netEnabled);
         layout->addWidget(m_netPortsEnabled);
         layout->addWidget(m_diskEnabled);
+        const QList<DiskSample> disks = DiskStat::read();
+        if (disks.isEmpty()) {
+            layout->addWidget(new QLabel(QStringLiteral("    (no whole disks detected)"), page));
+        } else {
+            QSettings ds;
+            layout->addWidget(new QLabel(QStringLiteral("Drives / SSDs:"), page));
+            for (const DiskSample &disk : disks) {
+                auto *cb = new QCheckBox(disk.name, page);
+                cb->setChecked(ds.value(QStringLiteral("monitors/disk/devices/") + disk.name,
+                                        true).toBool());
+                cb->setEnabled(ds.value(QStringLiteral("monitors/disk"), true).toBool());
+                layout->addWidget(cb);
+                const QString name = disk.name;
+                connect(cb, &QCheckBox::toggled, this, [this, name](bool v) {
+                    QSettings().setValue(QStringLiteral("monitors/disk/devices/") + name, v);
+                    emit panelStackChanged();
+                });
+                connect(m_diskEnabled, &QCheckBox::toggled, cb, &QCheckBox::setEnabled);
+            }
+        }
         layout->addWidget(m_sensorsEnabled);
         layout->addWidget(m_batteryEnabled);
         layout->addStretch(1);
@@ -475,6 +496,12 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
 
             m_krellkamEnabled = new QCheckBox(QStringLiteral("Show Krellkam panel"), group);
             form->addRow(QString(), m_krellkamEnabled);
+
+            m_krellkamAllowCommands =
+                new QCheckBox(QStringLiteral("Allow command sources"), group);
+            m_krellkamAllowCommands->setToolTip(QStringLiteral(
+                "Command sources run local shell commands. Leave this off unless the commands are trusted."));
+            form->addRow(QString(), m_krellkamAllowCommands);
 
             m_krellkamUpdateMs = new QSpinBox(group);
             m_krellkamUpdateMs->setRange(kMinPluginUpdateMs, kMaxPluginUpdateMs);
@@ -869,6 +896,12 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
             emit panelStackChanged();
         });
     }
+    if (m_krellkamAllowCommands) {
+        connect(m_krellkamAllowCommands, &QCheckBox::toggled, this, [this](bool v) {
+            QSettings().setValue(QStringLiteral("plugins/krellkam/allow_command_sources"), v);
+            emit settingsApplied();
+        });
+    }
     if (m_krellkamUpdateMs) {
         connect(m_krellkamUpdateMs, QOverload<int>::of(&QSpinBox::valueChanged),
                 this, [this](int v) {
@@ -1123,6 +1156,10 @@ void SettingsDialog::loadFromSettings()
     if (m_krellkamEnabled) {
         m_krellkamEnabled->setChecked(
             s.value(QStringLiteral("plugins/krellkam/enabled"), true).toBool());
+    }
+    if (m_krellkamAllowCommands) {
+        m_krellkamAllowCommands->setChecked(
+            s.value(QStringLiteral("plugins/krellkam/allow_command_sources"), false).toBool());
     }
     if (m_krellkamUpdateMs) {
         m_krellkamUpdateMs->setValue(
