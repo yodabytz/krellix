@@ -79,7 +79,8 @@ QString KrellmailOAuthBroker::redirectUri() const
     return m_redirectUri;
 }
 
-void KrellmailOAuthBroker::begin(int accountIndex, const QString &user, const QString &clientId)
+void KrellmailOAuthBroker::begin(int accountIndex, const QString &user, const QString &clientId,
+                                 const QString &clientSecret)
 {
     if (accountIndex < 0)
         return;
@@ -93,8 +94,10 @@ void KrellmailOAuthBroker::begin(int accountIndex, const QString &user, const QS
     m_server = new QTcpServer(this);
     m_accountIndex = accountIndex;
     m_clientId = clientId.trimmed();
+    m_clientSecret = clientSecret.trimmed();
     m_verifier = randomUrlToken(48);
     m_state = randomUrlToken(24);
+    m_exchangeInProgress = false;
 
     if (!listen()) {
         fail(QStringLiteral("Could not start local OAuth callback: %1").arg(m_server->errorString()));
@@ -161,9 +164,11 @@ void KrellmailOAuthBroker::resetServer()
     }
     m_accountIndex = -1;
     m_clientId.clear();
+    m_clientSecret.clear();
     m_verifier.clear();
     m_state.clear();
     m_redirectUri.clear();
+    m_exchangeInProgress = false;
 }
 
 bool KrellmailOAuthBroker::listen()
@@ -244,10 +249,15 @@ void KrellmailOAuthBroker::exchangeCode(const QString &code, const QString &stat
 {
     if (m_accountIndex < 0)
         return;
+    if (m_exchangeInProgress) {
+        emit statusChanged(m_accountIndex, QStringLiteral("OAuth code already received; waiting for token response..."));
+        return;
+    }
     if (code.isEmpty() || state != m_state) {
         fail(QStringLiteral("OAuth failed: callback state did not match"));
         return;
     }
+    m_exchangeInProgress = true;
     if (m_server)
         m_server->close();
     if (!m_network)
@@ -258,6 +268,8 @@ void KrellmailOAuthBroker::exchangeCode(const QString &code, const QString &stat
                            QStringLiteral("application/x-www-form-urlencoded"));
     QUrlQuery body;
     body.addQueryItem(QStringLiteral("client_id"), m_clientId);
+    if (!m_clientSecret.isEmpty())
+        body.addQueryItem(QStringLiteral("client_secret"), m_clientSecret);
     body.addQueryItem(QStringLiteral("code"), code);
     body.addQueryItem(QStringLiteral("code_verifier"), m_verifier);
     body.addQueryItem(QStringLiteral("grant_type"), QStringLiteral("authorization_code"));
@@ -280,7 +292,16 @@ void KrellmailOAuthBroker::finishTokenReply(QNetworkReply *reply)
     const QJsonDocument doc = QJsonDocument::fromJson(payload);
     const QString refreshToken = doc.object().value(QStringLiteral("refresh_token")).toString();
     if (reply->error() != QNetworkReply::NoError || refreshToken.isEmpty()) {
-        emit statusChanged(account, QStringLiteral("OAuth token failed: %1").arg(reply->errorString()));
+        const QJsonObject obj = doc.object();
+        QString detail = obj.value(QStringLiteral("error_description")).toString();
+        if (detail.isEmpty())
+            detail = obj.value(QStringLiteral("error")).toString();
+        if (detail.isEmpty() && !payload.isEmpty())
+            detail = QString::fromUtf8(payload.left(300));
+        if (detail.isEmpty())
+            detail = reply->errorString();
+        emit statusChanged(account, QStringLiteral("OAuth token failed: %1").arg(detail));
+        m_exchangeInProgress = false;
         return;
     }
 

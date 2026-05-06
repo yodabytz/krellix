@@ -82,6 +82,7 @@ private:
         QLineEdit *user = nullptr;
         QLineEdit *password = nullptr;
         QLineEdit *oauthClientId = nullptr;
+        QLineEdit *oauthClientSecret = nullptr;
         QLineEdit *oauthCallbackUrl = nullptr;
         QPushButton *authorize = nullptr;
         QPushButton *oauthComplete = nullptr;

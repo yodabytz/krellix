@@ -19,7 +19,8 @@ public:
     int activeAccount() const;
     QString redirectUri() const;
 
-    void begin(int accountIndex, const QString &user, const QString &clientId);
+    void begin(int accountIndex, const QString &user, const QString &clientId,
+               const QString &clientSecret);
     void finishFromCallbackUrl(int accountIndex, const QString &callbackUrl);
 
 signals:
@@ -41,7 +42,9 @@ private:
     QNetworkAccessManager *m_network = nullptr;
     int m_accountIndex = -1;
     QString m_clientId;
+    QString m_clientSecret;
     QString m_verifier;
     QString m_state;
     QString m_redirectUri;
+    bool m_exchangeInProgress = false;
 };

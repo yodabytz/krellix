@@ -1390,6 +1390,12 @@ void SettingsDialog::rebuildKrellmailAccounts()
         row.oauthClientId->setPlaceholderText(QStringLiteral("Google OAuth desktop client ID"));
         form->addRow(QStringLiteral("OAuth client ID:"), row.oauthClientId);
 
+        row.oauthClientSecret = new QLineEdit(row.group);
+        row.oauthClientSecret->setEchoMode(QLineEdit::Password);
+        row.oauthClientSecret->setClearButtonEnabled(true);
+        row.oauthClientSecret->setPlaceholderText(QStringLiteral("Optional Google OAuth client secret"));
+        form->addRow(QStringLiteral("OAuth secret:"), row.oauthClientSecret);
+
         row.authorize = new QPushButton(QStringLiteral("Authorize Gmail"), row.group);
         form->addRow(QString(), row.authorize);
 
@@ -1423,6 +1429,7 @@ void SettingsDialog::rebuildKrellmailAccounts()
         row.user->setText(s.value(krellmailAccountKey(i, QStringLiteral("username"))).toString());
         row.password->setText(s.value(krellmailAccountKey(i, QStringLiteral("password"))).toString());
         row.oauthClientId->setText(s.value(krellmailAccountKey(i, QStringLiteral("oauth_client_id"))).toString());
+        row.oauthClientSecret->setText(s.value(krellmailAccountKey(i, QStringLiteral("oauth_client_secret"))).toString());
         row.status->setText(s.value(krellmailAccountKey(i, QStringLiteral("oauth_refresh_token"))).toString().isEmpty()
                             ? QStringLiteral("Not authorized")
                             : QStringLiteral("Gmail authorized"));
@@ -1435,6 +1442,7 @@ void SettingsDialog::rebuildKrellmailAccounts()
             const bool oauth = widgets.auth->currentData().toString() == QLatin1String("oauth");
             widgets.password->setEnabled(!oauth);
             widgets.oauthClientId->setEnabled(oauth);
+            widgets.oauthClientSecret->setEnabled(oauth);
             widgets.authorize->setEnabled(oauth);
             widgets.oauthCallbackUrl->setEnabled(oauth);
             widgets.oauthComplete->setEnabled(oauth);
@@ -1458,6 +1466,7 @@ void SettingsDialog::rebuildKrellmailAccounts()
         connect(row.user, &QLineEdit::textChanged, this, save);
         connect(row.password, &QLineEdit::textChanged, this, save);
         connect(row.oauthClientId, &QLineEdit::textChanged, this, save);
+        connect(row.oauthClientSecret, &QLineEdit::textChanged, this, save);
         connect(row.authorize, &QPushButton::clicked, this, [this, index]() {
             saveKrellmailAccount(index);
             beginKrellmailOAuth(index);
@@ -1483,6 +1492,7 @@ void SettingsDialog::saveKrellmailAccount(int index)
     s.setValue(krellmailAccountKey(index, QStringLiteral("username")), row.user->text().trimmed());
     s.setValue(krellmailAccountKey(index, QStringLiteral("password")), row.password->text());
     s.setValue(krellmailAccountKey(index, QStringLiteral("oauth_client_id")), row.oauthClientId->text().trimmed());
+    s.setValue(krellmailAccountKey(index, QStringLiteral("oauth_client_secret")), row.oauthClientSecret->text().trimmed());
     emit settingsApplied();
 }
 
@@ -1511,6 +1521,7 @@ void SettingsDialog::removeKrellmailAccount(int index)
         const QStringList keys = {QStringLiteral("protocol"), QStringLiteral("auth"), QStringLiteral("host"),
                                   QStringLiteral("port"), QStringLiteral("ssl"), QStringLiteral("username"),
                                   QStringLiteral("password"), QStringLiteral("oauth_client_id"),
+                                  QStringLiteral("oauth_client_secret"),
                                   QStringLiteral("oauth_refresh_token")};
         for (const QString &key : keys)
             s.setValue(krellmailAccountKey(dst, key), s.value(krellmailAccountKey(src, key)));
@@ -1538,7 +1549,8 @@ void SettingsDialog::beginKrellmailOAuth(int index)
 
     row.oauthCallbackUrl->clear();
     row.status->setText(QStringLiteral("Starting OAuth listener..."));
-    m_krellmailOAuth->begin(index, row.user->text().trimmed(), row.oauthClientId->text().trimmed());
+    m_krellmailOAuth->begin(index, row.user->text().trimmed(), row.oauthClientId->text().trimmed(),
+                            row.oauthClientSecret->text().trimmed());
 }
 
 void SettingsDialog::finishKrellmailOAuthFromCallbackUrl(int index)
