@@ -312,6 +312,12 @@ QVector<KrellmailAccount> KrellmailMonitor::readAccounts() const
         account.ssl = s.value(accountKey(i, QStringLiteral("ssl")), true).toBool();
         account.port = s.value(accountKey(i, QStringLiteral("port")),
                                defaultPort(account.protocol, account.ssl)).toInt();
+        if (account.auth == QLatin1String("oauth")) {
+            account.protocol = QStringLiteral("imap");
+            account.host = QStringLiteral("imap.gmail.com");
+            account.ssl = true;
+            account.port = 993;
+        }
         account.username = s.value(accountKey(i, QStringLiteral("username"))).toString();
         account.password = s.value(accountKey(i, QStringLiteral("password"))).toString();
         account.oauthClientId = s.value(accountKey(i, QStringLiteral("oauth_client_id"))).toString().trimmed();
@@ -650,7 +656,7 @@ void KrellmailMonitor::processLine(const QByteArray &line)
             if (isGmailHost(account.host)) {
                 m_state = State::ImapGmailSearch;
                 m_imapTag = "a003";
-                sendLine(m_imapTag + " SEARCH X-GM-RAW \"in:unread\"");
+                sendLine(m_imapTag + " SEARCH X-GM-RAW \"in:inbox is:unread\"");
             } else {
                 m_state = State::ImapSearch;
                 m_imapTag = "a003";

@@ -1483,12 +1483,15 @@ void SettingsDialog::saveKrellmailAccount(int index)
 {
     if (index < 0 || index >= m_krellmailAccounts.size()) return;
     const KrellmailAccountWidgets &row = m_krellmailAccounts.at(index);
+    const bool oauth = row.auth->currentData().toString() == QLatin1String("oauth");
     QSettings s;
-    s.setValue(krellmailAccountKey(index, QStringLiteral("protocol")), row.protocol->currentData().toString());
+    s.setValue(krellmailAccountKey(index, QStringLiteral("protocol")),
+               oauth ? QStringLiteral("imap") : row.protocol->currentData().toString());
     s.setValue(krellmailAccountKey(index, QStringLiteral("auth")), row.auth->currentData().toString());
-    s.setValue(krellmailAccountKey(index, QStringLiteral("host")), row.host->text().trimmed());
-    s.setValue(krellmailAccountKey(index, QStringLiteral("port")), row.port->value());
-    s.setValue(krellmailAccountKey(index, QStringLiteral("ssl")), row.ssl->isChecked());
+    s.setValue(krellmailAccountKey(index, QStringLiteral("host")),
+               oauth ? QStringLiteral("imap.gmail.com") : row.host->text().trimmed());
+    s.setValue(krellmailAccountKey(index, QStringLiteral("port")), oauth ? 993 : row.port->value());
+    s.setValue(krellmailAccountKey(index, QStringLiteral("ssl")), oauth ? true : row.ssl->isChecked());
     s.setValue(krellmailAccountKey(index, QStringLiteral("username")), row.user->text().trimmed());
     s.setValue(krellmailAccountKey(index, QStringLiteral("password")), row.password->text());
     s.setValue(krellmailAccountKey(index, QStringLiteral("oauth_client_id")), row.oauthClientId->text().trimmed());
