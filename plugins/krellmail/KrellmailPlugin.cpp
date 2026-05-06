@@ -315,6 +315,7 @@ QVector<KrellmailAccount> KrellmailMonitor::readAccounts() const
         account.username = s.value(accountKey(i, QStringLiteral("username"))).toString();
         account.password = s.value(accountKey(i, QStringLiteral("password"))).toString();
         account.oauthClientId = s.value(accountKey(i, QStringLiteral("oauth_client_id"))).toString().trimmed();
+        account.oauthClientSecret = s.value(accountKey(i, QStringLiteral("oauth_client_secret"))).toString().trimmed();
         account.oauthRefreshToken = s.value(accountKey(i, QStringLiteral("oauth_refresh_token"))).toString().trimmed();
         if (!account.host.isEmpty() && !account.username.isEmpty())
             accounts.append(account);
@@ -428,6 +429,8 @@ void KrellmailMonitor::requestOAuthToken(const KrellmailAccount &account)
 
     QUrlQuery body;
     body.addQueryItem(QStringLiteral("client_id"), account.oauthClientId);
+    if (!account.oauthClientSecret.isEmpty())
+        body.addQueryItem(QStringLiteral("client_secret"), account.oauthClientSecret);
     body.addQueryItem(QStringLiteral("refresh_token"), account.oauthRefreshToken);
     body.addQueryItem(QStringLiteral("grant_type"), QStringLiteral("refresh_token"));
 

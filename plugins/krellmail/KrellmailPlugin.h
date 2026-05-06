@@ -24,6 +24,7 @@ struct KrellmailAccount {
     QString username;
     QString password;
     QString oauthClientId;
+    QString oauthClientSecret;
     QString oauthRefreshToken;
 };
 
