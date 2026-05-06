@@ -67,6 +67,9 @@ private:
     void removeKrellmailAccount(int index);
     void beginKrellmailOAuth(int index);
     void handleKrellmailOAuthCallback();
+    void finishKrellmailOAuthFromCallbackUrl(int index);
+    void exchangeKrellmailOAuthCode(const QString &code, const QString &state,
+                                    const QString &redirectUri);
     void finishKrellmailOAuth(QNetworkReply *reply);
 
     struct KrellmailAccountWidgets {
@@ -79,7 +82,9 @@ private:
         QLineEdit *user = nullptr;
         QLineEdit *password = nullptr;
         QLineEdit *oauthClientId = nullptr;
+        QLineEdit *oauthCallbackUrl = nullptr;
         QPushButton *authorize = nullptr;
+        QPushButton *oauthComplete = nullptr;
         QPushButton *remove = nullptr;
         QLabel *status = nullptr;
     };
@@ -138,6 +143,7 @@ private:
     int m_krellmailOAuthAccount = -1;
     QString m_krellmailOAuthVerifier;
     QString m_krellmailOAuthState;
+    QString m_krellmailOAuthRedirectUri;
     QCheckBox   *m_krellspectrumEnabled = nullptr;
     QComboBox   *m_krellspectrumVisualMode = nullptr;
     QComboBox   *m_krellspectrumBandCount = nullptr;

@@ -14,6 +14,7 @@
 #include <QDir>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
+#include <QFrame>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -29,6 +30,7 @@
 #include <QProcess>
 #include <QPushButton>
 #include <QRandomGenerator>
+#include <QScrollArea>
 #include <QSettings>
 #include <QSignalBlocker>
 #include <QSpinBox>
@@ -58,6 +60,8 @@ constexpr int kMinScrollPps    = 5;
 constexpr int kMaxScrollPps    = 200;
 constexpr int kDefaultScrollPps = 30;
 constexpr int kMaxKrellmailAccounts = 10;
+constexpr quint16 kKrellmailOAuthFirstPort = 53682;
+constexpr quint16 kKrellmailOAuthLastPort = 53691;
 
 const QList<QPair<QString, QString>> kMonitorOrderItems = {
     {QStringLiteral("host"),    QStringLiteral("Host")},
@@ -94,6 +98,16 @@ QList<CpuSample> sortedCoreSamples(const QList<CpuSample> &samples)
 QString krellmailAccountKey(int index, const QString &name)
 {
     return QStringLiteral("plugins/krellmail/account%1/%2").arg(index + 1).arg(name);
+}
+
+bool listenKrellmailOAuth(QTcpServer *server)
+{
+    if (!server) return false;
+    for (quint16 port = kKrellmailOAuthFirstPort; port <= kKrellmailOAuthLastPort; ++port) {
+        if (server->listen(QHostAddress::LocalHost, port))
+            return true;
+    }
+    return server->listen(QHostAddress::LocalHost, 0);
 }
 
 int defaultMailPort(const QString &protocol, bool ssl)
@@ -134,7 +148,9 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
     Q_ASSERT(m_theme);
     setWindowTitle(QStringLiteral("krellix — Settings"));
     setModal(true);
-    resize(640, 460);
+    resize(700, 560);
+    setMinimumSize(560, 380);
+    setSizeGripEnabled(true);
 
     // ---------------- Outer layout: sidebar + stack + buttons ----------------
     auto *root = new QVBoxLayout(this);
@@ -151,7 +167,14 @@ SettingsDialog::SettingsDialog(Theme *theme, QWidget *parent)
 
     auto addPage = [sidebar, stack](const QString &title, QWidget *page) {
         sidebar->addItem(title);
-        stack->addWidget(page);
+        auto *scroll = new QScrollArea(stack);
+        scroll->setWidgetResizable(true);
+        scroll->setFrameShape(QFrame::NoFrame);
+        scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        page->setParent(scroll);
+        scroll->setWidget(page);
+        stack->addWidget(scroll);
     };
 
     // ---------------- General page ----------------
@@ -1386,6 +1409,14 @@ void SettingsDialog::rebuildKrellmailAccounts()
         row.authorize = new QPushButton(QStringLiteral("Authorize Gmail"), row.group);
         form->addRow(QString(), row.authorize);
 
+        row.oauthCallbackUrl = new QLineEdit(row.group);
+        row.oauthCallbackUrl->setClearButtonEnabled(true);
+        row.oauthCallbackUrl->setPlaceholderText(QStringLiteral("Paste failed 127.0.0.1 callback URL here"));
+        form->addRow(QStringLiteral("Callback URL:"), row.oauthCallbackUrl);
+
+        row.oauthComplete = new QPushButton(QStringLiteral("Finish pasted callback"), row.group);
+        form->addRow(QString(), row.oauthComplete);
+
         row.status = new QLabel(row.group);
         row.status->setWordWrap(true);
         row.status->setTextInteractionFlags(Qt::TextSelectableByMouse
@@ -1421,6 +1452,8 @@ void SettingsDialog::rebuildKrellmailAccounts()
             widgets.password->setEnabled(!oauth);
             widgets.oauthClientId->setEnabled(oauth);
             widgets.authorize->setEnabled(oauth);
+            widgets.oauthCallbackUrl->setEnabled(oauth);
+            widgets.oauthComplete->setEnabled(oauth);
             if (oauth) {
                 widgets.protocol->setCurrentIndex(qMax(0, widgets.protocol->findData(QStringLiteral("imap"))));
                 widgets.host->setText(QStringLiteral("imap.gmail.com"));
@@ -1444,6 +1477,9 @@ void SettingsDialog::rebuildKrellmailAccounts()
         connect(row.authorize, &QPushButton::clicked, this, [this, index]() {
             saveKrellmailAccount(index);
             beginKrellmailOAuth(index);
+        });
+        connect(row.oauthComplete, &QPushButton::clicked, this, [this, index]() {
+            finishKrellmailOAuthFromCallbackUrl(index);
         });
         connect(row.remove, &QPushButton::clicked, this, [this, index]() { removeKrellmailAccount(index); });
     }
@@ -1516,7 +1552,7 @@ void SettingsDialog::beginKrellmailOAuth(int index)
 
     delete m_krellmailOAuthServer;
     m_krellmailOAuthServer = new QTcpServer(this);
-    if (!m_krellmailOAuthServer->listen(QHostAddress::LocalHost, 0)) {
+    if (!listenKrellmailOAuth(m_krellmailOAuthServer)) {
         row.status->setText(QStringLiteral("Could not start local OAuth callback"));
         return;
     }
@@ -1529,9 +1565,10 @@ void SettingsDialog::beginKrellmailOAuth(int index)
 
     QUrl authUrl(QStringLiteral("https://accounts.google.com/o/oauth2/v2/auth"));
     QUrlQuery query;
+    m_krellmailOAuthRedirectUri =
+        QStringLiteral("http://127.0.0.1:%1/").arg(m_krellmailOAuthServer->serverPort());
     query.addQueryItem(QStringLiteral("client_id"), clientId);
-    query.addQueryItem(QStringLiteral("redirect_uri"),
-                       QStringLiteral("http://127.0.0.1:%1/").arg(m_krellmailOAuthServer->serverPort()));
+    query.addQueryItem(QStringLiteral("redirect_uri"), m_krellmailOAuthRedirectUri);
     query.addQueryItem(QStringLiteral("response_type"), QStringLiteral("code"));
     query.addQueryItem(QStringLiteral("scope"), QStringLiteral("https://mail.google.com/"));
     query.addQueryItem(QStringLiteral("access_type"), QStringLiteral("offline"));
@@ -1543,7 +1580,10 @@ void SettingsDialog::beginKrellmailOAuth(int index)
     authUrl.setQuery(query);
 
     const QString authUrlText = authUrl.toString(QUrl::FullyEncoded);
-    row.status->setText(QStringLiteral("Waiting for Google authorization..."));
+    row.status->setText(QStringLiteral(
+        "Waiting for Google authorization on %1. If the browser cannot connect, paste the final address-bar URL into Callback URL and press Finish.")
+        .arg(m_krellmailOAuthRedirectUri));
+    row.oauthCallbackUrl->clear();
     bool opened = QDesktopServices::openUrl(authUrl);
     if (!opened)
         opened = QProcess::startDetached(QStringLiteral("xdg-open"), {authUrlText});
@@ -1563,16 +1603,27 @@ void SettingsDialog::handleKrellmailOAuthCallback()
     const QList<QByteArray> lines = request.split('\n');
     const QByteArray first = lines.isEmpty() ? QByteArray() : lines.first();
     const QList<QByteArray> parts = first.split(' ');
-    QUrl url(QStringLiteral("http://127.0.0.1") + QString::fromUtf8(parts.size() > 1 ? parts.at(1) : QByteArray("/")));
+    QUrl url(QStringLiteral("http://127.0.0.1:%1").arg(m_krellmailOAuthServer->serverPort())
+             + QString::fromUtf8(parts.size() > 1 ? parts.at(1) : QByteArray("/")));
     QUrlQuery query(url);
 
     const QString code = query.queryItemValue(QStringLiteral("code"));
     const QString state = query.queryItemValue(QStringLiteral("state"));
-    const QString redirectUri =
-        QStringLiteral("http://127.0.0.1:%1/").arg(m_krellmailOAuthServer->serverPort());
-    const QString response = code.isEmpty()
-        ? QStringLiteral("HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\n\r\nKrellmail authorization failed.")
-        : QStringLiteral("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nKrellmail is authorized. You can close this window.");
+    if (code.isEmpty()) {
+        const QString response = QStringLiteral(
+            "HTTP/1.1 404 Not Found\r\nContent-Type: text/html; charset=utf-8\r\n\r\n"
+            "<html><body><h3>Krellmail OAuth listener is running.</h3>"
+            "<p>Return to Google authorization and allow access.</p></body></html>");
+        socket->write(response.toUtf8());
+        socket->disconnectFromHost();
+        socket->deleteLater();
+        return;
+    }
+
+    const QString response = QStringLiteral(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\r\n"
+        "<html><body><h3>Krellmail is authorized.</h3>"
+        "<p>You can close this window and return to Krellix.</p></body></html>");
     socket->write(response.toUtf8());
     socket->disconnectFromHost();
     socket->deleteLater();
@@ -1585,6 +1636,40 @@ void SettingsDialog::handleKrellmailOAuthCallback()
         return;
     }
 
+    exchangeKrellmailOAuthCode(code, state, m_krellmailOAuthRedirectUri);
+}
+
+void SettingsDialog::finishKrellmailOAuthFromCallbackUrl(int index)
+{
+    if (index < 0 || index >= m_krellmailAccounts.size()) return;
+    KrellmailAccountWidgets &row = m_krellmailAccounts[index];
+    const QUrl url(row.oauthCallbackUrl->text().trimmed());
+    const QUrlQuery query(url);
+    const QString code = query.queryItemValue(QStringLiteral("code"));
+    const QString state = query.queryItemValue(QStringLiteral("state"));
+    if (code.isEmpty() || state.isEmpty()) {
+        row.status->setText(QStringLiteral("Callback URL does not contain an OAuth code"));
+        return;
+    }
+    if (index != m_krellmailOAuthAccount || state != m_krellmailOAuthState
+        || m_krellmailOAuthRedirectUri.isEmpty()) {
+        row.status->setText(QStringLiteral("Callback URL does not match the active OAuth request"));
+        return;
+    }
+    if (m_krellmailOAuthServer)
+        m_krellmailOAuthServer->close();
+    exchangeKrellmailOAuthCode(code, state, m_krellmailOAuthRedirectUri);
+}
+
+void SettingsDialog::exchangeKrellmailOAuthCode(const QString &code, const QString &state,
+                                                const QString &redirectUri)
+{
+    if (m_krellmailOAuthAccount < 0 || m_krellmailOAuthAccount >= m_krellmailAccounts.size())
+        return;
+    if (code.isEmpty() || state != m_krellmailOAuthState) {
+        m_krellmailAccounts[m_krellmailOAuthAccount].status->setText(QStringLiteral("OAuth failed"));
+        return;
+    }
     if (!m_krellmailOAuthNetwork)
         m_krellmailOAuthNetwork = new QNetworkAccessManager(this);
     const KrellmailAccountWidgets &row = m_krellmailAccounts.at(m_krellmailOAuthAccount);
@@ -1597,6 +1682,7 @@ void SettingsDialog::handleKrellmailOAuthCallback()
     body.addQueryItem(QStringLiteral("code_verifier"), m_krellmailOAuthVerifier);
     body.addQueryItem(QStringLiteral("grant_type"), QStringLiteral("authorization_code"));
     body.addQueryItem(QStringLiteral("redirect_uri"), redirectUri);
+    m_krellmailAccounts[m_krellmailOAuthAccount].status->setText(QStringLiteral("Exchanging OAuth code..."));
     QNetworkReply *reply = m_krellmailOAuthNetwork->post(tokenRequest, body.query(QUrl::FullyEncoded).toUtf8());
     connect(reply, &QNetworkReply::finished, this, [this, reply]() { finishKrellmailOAuth(reply); });
 }
