@@ -266,33 +266,12 @@ void NetPortMonitor::rebuildRows(const QList<Watch> &watches)
     }
 }
 
-int NetPortMonitor::countMatches(const Watch &watch,
-                                 const QList<NetPortSample> &samples) const
-{
-    const QList<QPair<int, int>> ranges = parsePorts(watch.ports);
-    if (ranges.isEmpty()) return 0;
-
-    int count = 0;
-    for (const NetPortSample &sample : samples) {
-        if (!protocolMatches(watch.protocol, sample.protocol))
-            continue;
-        if (!portInRanges(sample.localPort, ranges))
-            continue;
-        if (sample.protocol == QLatin1String("tcp")
-            && sample.state != QLatin1String("01"))
-            continue;
-        ++count;
-    }
-    return count;
-}
-
-QStringList NetPortMonitor::remoteAddressesForWatch(const Watch &watch,
-                                                    const QList<NetPortSample> &samples) const
+QStringList NetPortMonitor::connectionEntriesForWatch(const Watch &watch,
+                                                      const QList<NetPortSample> &samples) const
 {
     const QList<QPair<int, int>> ranges = parsePorts(watch.ports);
     if (ranges.isEmpty()) return {};
 
-    QSet<QString> seen;
     QStringList out;
     for (const NetPortSample &sample : samples) {
         if (!protocolMatches(watch.protocol, sample.protocol))
@@ -302,14 +281,13 @@ QStringList NetPortMonitor::remoteAddressesForWatch(const Watch &watch,
         if (sample.protocol == QLatin1String("tcp")
             && sample.state != QLatin1String("01"))
             continue;
-        if (sample.remoteAddress.isEmpty())
-            continue;
-        if (seen.contains(sample.remoteAddress))
-            continue;
-        seen.insert(sample.remoteAddress);
+
+        const QString remote = sample.remoteAddress.isEmpty()
+                                   ? QStringLiteral("(unknown)")
+                                   : sample.remoteAddress;
         out.append(sample.remotePort > 0
-                       ? QStringLiteral("%1:%2").arg(sample.remoteAddress).arg(sample.remotePort)
-                       : sample.remoteAddress);
+                       ? QStringLiteral("%1:%2").arg(remote).arg(sample.remotePort)
+                       : remote);
     }
     out.sort(Qt::CaseInsensitive);
     if (out.size() > 12) {
@@ -336,7 +314,7 @@ void NetPortMonitor::tick()
     for (int i = 0; i < m_watches.size() && i < m_rows.size(); ++i) {
         if (!m_rows.at(i)) continue;
         const Watch &watch = m_watches.at(i);
-        const int count = countMatches(watch, samples);
-        m_rows.at(i)->setRow(watch.label, count, remoteAddressesForWatch(watch, samples));
+        const QStringList connections = connectionEntriesForWatch(watch, samples);
+        m_rows.at(i)->setRow(watch.label, connections.size(), connections);
     }
 }
