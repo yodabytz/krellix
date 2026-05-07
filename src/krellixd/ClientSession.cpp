@@ -19,6 +19,8 @@
 #include <QTcpSocket>
 #include <QTimer>
 
+#include <netdb.h>
+
 Q_LOGGING_CATEGORY(lcSession, "krellixd.session")
 
 namespace {
@@ -27,6 +29,32 @@ namespace {
 // them. We never need to read more than a hello byte.
 constexpr qint64 kMaxClientSendBytes = 4 * 1024;
 
+bool usableDomainName(const QString &domain)
+{
+    if (domain.isEmpty()
+        || domain == QLatin1String("localdomain")
+        || domain.contains(QLatin1Char(' '))
+        || !domain.contains(QLatin1Char('.'))) {
+        return false;
+    }
+    return QHostAddress(domain).isNull();
+}
+
+QString resolveCanonicalHostname(const QString &host)
+{
+    struct addrinfo hints{};
+    hints.ai_flags = AI_CANONNAME;
+    hints.ai_family = AF_UNSPEC;
+    struct addrinfo *result = nullptr;
+    QString out;
+    if (getaddrinfo(host.toUtf8().constData(), nullptr, &hints, &result) == 0
+        && result && result->ai_canonname) {
+        out = QString::fromUtf8(result->ai_canonname);
+    }
+    if (result) freeaddrinfo(result);
+    return out;
+}
+
 QString daemonHostname()
 {
     const QString host = QSysInfo::machineHostName();
@@ -34,11 +62,13 @@ QString daemonHostname()
         return host;
 
     const QString domain = QHostInfo::localDomainName().trimmed();
-    if (!domain.isEmpty()
-        && domain != QLatin1String("localdomain")
-        && !domain.contains(QLatin1Char(' '))) {
+    if (usableDomainName(domain)) {
         return host + QLatin1Char('.') + domain;
     }
+
+    const QString canonical = resolveCanonicalHostname(host);
+    if (canonical.contains(QLatin1Char('.')))
+        return canonical;
 
     return host;
 }

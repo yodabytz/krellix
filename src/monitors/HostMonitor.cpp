@@ -7,6 +7,7 @@
 #include <QHostInfo>
 #include <QSettings>
 #include <QSysInfo>
+#include <QHostAddress>
 
 #include <netdb.h>
 #include <sys/socket.h>
@@ -42,6 +43,17 @@ QString resolveFqdn()
     return out;
 }
 
+bool usableDomainName(const QString &domain)
+{
+    if (domain.isEmpty()
+        || domain == QLatin1String("localdomain")
+        || domain.contains(QLatin1Char(' '))
+        || !domain.contains(QLatin1Char('.'))) {
+        return false;
+    }
+    return QHostAddress(domain).isNull();
+}
+
 QString bestLocalHostname(bool fqdn)
 {
     const QString host = QSysInfo::machineHostName();
@@ -49,9 +61,7 @@ QString bestLocalHostname(bool fqdn)
         return host;
 
     const QString domain = QHostInfo::localDomainName().trimmed();
-    if (!domain.isEmpty()
-        && domain != QLatin1String("localdomain")
-        && !domain.contains(QLatin1Char(' '))) {
+    if (usableDomainName(domain)) {
         return host + QLatin1Char('.') + domain;
     }
 
