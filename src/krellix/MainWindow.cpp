@@ -24,6 +24,7 @@
 #include <QApplication>
 #include <QCloseEvent>
 #include <QContextMenuEvent>
+#include <QHash>
 #include <QKeySequence>
 #include <QLayoutItem>
 #include <QMenu>
@@ -82,6 +83,24 @@ QStringList configuredMonitorOrder()
             out.append(id);
     }
     return out;
+}
+
+bool isBuiltinMonitorId(const QString &id)
+{
+    static const QSet<QString> ids = {
+        QStringLiteral("host"),
+        QStringLiteral("clock"),
+        QStringLiteral("cpu"),
+        QStringLiteral("proc"),
+        QStringLiteral("mem"),
+        QStringLiteral("uptime"),
+        QStringLiteral("net"),
+        QStringLiteral("netports"),
+        QStringLiteral("disk"),
+        QStringLiteral("sensors"),
+        QStringLiteral("battery"),
+    };
+    return ids.contains(id);
 }
 
 } // namespace
@@ -367,6 +386,82 @@ void MainWindow::buildPanelStack(const QStringList &enabledIds)
     fitToPanelStack();
 }
 
+QStringList MainWindow::desiredPanelOrder(const QList<MonitorBase *> &pluginMonitors) const
+{
+    const auto enabled = [this](const QString &id) {
+        if (!m_cliEnabledIds.isEmpty()) return m_cliEnabledIds.contains(id);
+        return QSettings().value(QStringLiteral("monitors/") + id, true).toBool();
+    };
+    const auto appendUnique = [](QStringList &ids, const QString &id) {
+        if (!id.isEmpty() && !ids.contains(id))
+            ids.append(id);
+    };
+
+    QSet<QString> pluginIds;
+    for (MonitorBase *m : pluginMonitors) {
+        if (m) pluginIds.insert(m->id());
+    }
+
+    QStringList out;
+    const bool clockAtTop =
+        QSettings().value(QStringLiteral("window/clock_at_top"), true).toBool();
+    if (clockAtTop) {
+        if (enabled(QStringLiteral("host")))
+            appendUnique(out, QStringLiteral("host"));
+        if (enabled(QStringLiteral("clock")))
+            appendUnique(out, QStringLiteral("clock"));
+    }
+
+    for (const QString &rawId : configuredMonitorOrder()) {
+        const QString id = rawId.startsWith(QStringLiteral("plugin:"))
+            ? rawId.mid(7)
+            : rawId;
+        if (pluginIds.contains(id)) {
+            appendUnique(out, id);
+        } else if (isBuiltinMonitorId(id)
+                   && enabled(id)
+                   && !(clockAtTop && id == QLatin1String("host"))
+                   && id != QLatin1String("clock")) {
+            appendUnique(out, id);
+        }
+    }
+
+    if (!clockAtTop && enabled(QStringLiteral("clock")))
+        appendUnique(out, QStringLiteral("clock"));
+
+    for (MonitorBase *m : pluginMonitors) {
+        if (m) appendUnique(out, m->id());
+    }
+
+    return out;
+}
+
+MainWindow::LiveMonitor *MainWindow::findLiveMonitor(const QString &id)
+{
+    for (LiveMonitor &lm : m_monitors) {
+        if (lm.monitor && lm.monitor->id() == id)
+            return &lm;
+    }
+    return nullptr;
+}
+
+bool MainWindow::addBuiltinMonitor(const QString &id)
+{
+    if (id == QStringLiteral("host")) addMonitor(new HostMonitor(m_theme, this));
+    else if (id == QStringLiteral("clock")) addMonitor(new ClockMonitor(m_theme, this));
+    else if (id == QStringLiteral("cpu")) addMonitor(new CpuMonitor(m_theme, this));
+    else if (id == QStringLiteral("proc")) addMonitor(new ProcMonitor(m_theme, this));
+    else if (id == QStringLiteral("mem")) addMonitor(new MemMonitor(m_theme, this));
+    else if (id == QStringLiteral("uptime")) addMonitor(new UptimeMonitor(m_theme, this));
+    else if (id == QStringLiteral("net")) addMonitor(new NetMonitor(m_theme, this));
+    else if (id == QStringLiteral("netports")) addMonitor(new NetPortMonitor(m_theme, this));
+    else if (id == QStringLiteral("disk")) addMonitor(new DiskMonitor(m_theme, this));
+    else if (id == QStringLiteral("sensors")) addMonitor(new SensorsMonitor(m_theme, this));
+    else if (id == QStringLiteral("battery")) addMonitor(new BatteryMonitor(m_theme, this));
+    else return false;
+    return true;
+}
+
 void MainWindow::clearPanelStack()
 {
     // Tear down per-monitor widgets and the monitors themselves. Each
@@ -400,8 +495,64 @@ void MainWindow::rebuildPanels()
     if (m_rebuildingPanels)
         return;
     m_rebuildingPanels = true;
-    clearPanelStack();
-    buildPanelStack(m_cliEnabledIds);
+
+    if (!m_topStrip) {
+        m_topStrip = new Panel(m_theme, this);
+        m_topStrip->setSurfaceKey(QStringLiteral("panel_bg_top"));
+        m_layout->addWidget(m_topStrip);
+    }
+    applyTopStripFromTheme();
+
+    const QList<MonitorBase *> pluginMonitors =
+        m_pluginLoader->createMonitorsForAll(m_theme, this);
+    QHash<QString, MonitorBase *> newPlugins;
+    for (MonitorBase *m : pluginMonitors) {
+        if (!m) continue;
+        if (findLiveMonitor(m->id()) || newPlugins.contains(m->id())) {
+            m->shutdown();
+            m->deleteLater();
+        } else {
+            newPlugins.insert(m->id(), m);
+        }
+    }
+
+    const QStringList desired = desiredPanelOrder(pluginMonitors);
+    for (const QString &id : desired) {
+        if (findLiveMonitor(id)) continue;
+        if (isBuiltinMonitorId(id)) {
+            (void) addBuiltinMonitor(id);
+        } else if (MonitorBase *m = newPlugins.take(id)) {
+            addMonitor(m);
+        }
+    }
+    for (MonitorBase *m : std::as_const(newPlugins)) {
+        if (!m) continue;
+        m->shutdown();
+        m->deleteLater();
+    }
+
+    for (const LiveMonitor &lm : m_monitors) {
+        if (lm.widget) {
+            m_layout->removeWidget(lm.widget);
+            lm.widget->setVisible(false);
+        }
+        if (lm.timer)
+            lm.timer->stop();
+    }
+
+    for (const QString &id : desired) {
+        LiveMonitor *lm = findLiveMonitor(id);
+        if (!lm || !lm->widget) continue;
+        m_layout->addWidget(lm->widget);
+        lm->widget->setVisible(true);
+        if (lm->timer && lm->monitor)
+            lm->timer->start(qMax(lm->monitor->tickIntervalMs(),
+                                  qMax(100, QSettings().value(
+                                      QStringLiteral("update/interval_ms"), 1000).toInt())));
+        if (lm->monitor)
+            lm->monitor->tick();
+    }
+
     applyFrameMargins();
     applyFixedWidth();
     fitToPanelStack();

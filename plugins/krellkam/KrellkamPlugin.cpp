@@ -161,7 +161,26 @@ KrellkamField::KrellkamField(Theme *theme, QWidget *parent)
     connect(m_theme, &Theme::themeChanged, this, &KrellkamField::onThemeChanged);
 }
 
-KrellkamField::~KrellkamField() = default;
+KrellkamField::~KrellkamField()
+{
+    stopProcesses();
+}
+
+void KrellkamField::stopProcesses()
+{
+    const QList<QProcess *> processes = findChildren<QProcess *>();
+    for (QProcess *process : processes) {
+        if (!process) continue;
+        process->disconnect(this);
+        if (process->state() == QProcess::NotRunning)
+            continue;
+        process->terminate();
+        if (!process->waitForFinished(500)) {
+            process->kill();
+            process->waitForFinished(500);
+        }
+    }
+}
 
 void KrellkamField::setSources(const QList<KrellkamSource> &sources)
 {
@@ -737,6 +756,12 @@ void KrellkamMonitor::tick()
     const QList<KrellkamSource> current = sources();
     m_field->setSources(current);
     m_field->refresh();
+}
+
+void KrellkamMonitor::shutdown()
+{
+    if (m_field)
+        m_field->stopProcesses();
 }
 
 QList<KrellkamSource> KrellkamMonitor::sources() const

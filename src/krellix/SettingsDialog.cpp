@@ -827,18 +827,21 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         QSettings().setValue(QStringLiteral("window/clock_at_top"), v);
         emit panelStackChanged();
     });
-    connect(m_militaryTime, &QCheckBox::toggled, this, [](bool v) {
+    connect(m_militaryTime, &QCheckBox::toggled, this, [this](bool v) {
         QSettings().setValue(QStringLiteral("clock/military"), v);
+        emit settingsApplied();
     });
-    connect(m_showFqdn, &QCheckBox::toggled, this, [](bool v) {
+    connect(m_showFqdn, &QCheckBox::toggled, this, [this](bool v) {
         QSettings().setValue(QStringLiteral("host/show_fqdn"), v);
+        emit settingsApplied();
     });
     connect(m_updateMs, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {
         QSettings().setValue(QStringLiteral("update/interval_ms"), v);
         emit settingsApplied();
     });
-    connect(m_scrollSpeed, QOverload<int>::of(&QSpinBox::valueChanged), this, [](int v) {
+    connect(m_scrollSpeed, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {
         QSettings().setValue(QStringLiteral("appearance/scroll_pps"), v);
+        emit settingsApplied();
     });
     connect(m_panelWidth, QOverload<int>::of(&QSpinBox::valueChanged), this, [this](int v) {
         QSettings().setValue(QStringLiteral("appearance/panel_width"), v);

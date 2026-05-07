@@ -37,6 +37,7 @@ public:
 
     void setSources(const QList<KrellkamSource> &sources);
     void refresh();
+    void stopProcesses();
 
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;
@@ -100,6 +101,7 @@ public:
     int tickIntervalMs() const override;
     QWidget *createWidget(QWidget *parent) override;
     void tick() override;
+    void shutdown() override;
 
 private:
     QList<KrellkamSource> sources() const;

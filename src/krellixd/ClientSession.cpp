@@ -10,6 +10,7 @@
 
 #include <QDateTime>
 #include <QHostAddress>
+#include <QHostInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -26,13 +27,29 @@ namespace {
 // them. We never need to read more than a hello byte.
 constexpr qint64 kMaxClientSendBytes = 4 * 1024;
 
+QString daemonHostname()
+{
+    const QString host = QSysInfo::machineHostName();
+    if (host.contains(QLatin1Char('.')))
+        return host;
+
+    const QString domain = QHostInfo::localDomainName().trimmed();
+    if (!domain.isEmpty()
+        && domain != QLatin1String("localdomain")
+        && !domain.contains(QLatin1Char(' '))) {
+        return host + QLatin1Char('.') + domain;
+    }
+
+    return host;
+}
+
 QJsonObject helloObject(int intervalMs)
 {
     QJsonObject o;
     o.insert(QStringLiteral("type"),        QStringLiteral("hello"));
     o.insert(QStringLiteral("version"),
              QString::fromUtf8(KRELLIX_VERSION));
-    o.insert(QStringLiteral("hostname"),    QSysInfo::machineHostName());
+    o.insert(QStringLiteral("hostname"),    daemonHostname());
     o.insert(QStringLiteral("kernel"),
              QSysInfo::kernelType() + QStringLiteral(" ") + QSysInfo::kernelVersion());
     o.insert(QStringLiteral("interval_ms"), intervalMs);
@@ -52,7 +69,7 @@ QJsonObject sampleObject()
     o.insert(QStringLiteral("type"), QStringLiteral("sample"));
     o.insert(QStringLiteral("ts"),
              QDateTime::currentSecsSinceEpoch());
-    o.insert(QStringLiteral("hostname"), QSysInfo::machineHostName());
+    o.insert(QStringLiteral("hostname"), daemonHostname());
     o.insert(QStringLiteral("kernel"),
              QSysInfo::kernelType() + QStringLiteral(" ") + QSysInfo::kernelVersion());
 
@@ -111,6 +128,12 @@ QJsonObject sampleObject()
 
     QJsonArray netPortArr;
     for (const NetPortSample &s : NetPortStat::read()) {
+        if (s.remoteAddress.isEmpty() || s.remotePort == 0)
+            continue;
+        if (s.protocol == QLatin1String("tcp")
+            && s.state != QLatin1String("01"))
+            continue;
+
         QJsonObject n;
         n.insert(QStringLiteral("proto"), s.protocol);
         n.insert(QStringLiteral("local"), int(s.localPort));

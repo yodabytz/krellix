@@ -4,6 +4,7 @@
 #include "widgets/Decal.h"
 #include "widgets/Panel.h"
 
+#include <QHostInfo>
 #include <QSettings>
 #include <QSysInfo>
 
@@ -39,6 +40,23 @@ QString resolveFqdn()
     }
     if (result) freeaddrinfo(result);
     return out;
+}
+
+QString bestLocalHostname(bool fqdn)
+{
+    const QString host = QSysInfo::machineHostName();
+    if (!fqdn || host.contains(QLatin1Char('.')))
+        return host;
+
+    const QString domain = QHostInfo::localDomainName().trimmed();
+    if (!domain.isEmpty()
+        && domain != QLatin1String("localdomain")
+        && !domain.contains(QLatin1Char(' '))) {
+        return host + QLatin1Char('.') + domain;
+    }
+
+    const QString resolved = resolveFqdn();
+    return resolved.isEmpty() ? host : resolved;
 }
 
 } // namespace
@@ -95,7 +113,7 @@ void HostMonitor::tick()
         // fall through to local readings until first remote sample arrives
     }
 
-    const QString name = fqdn ? resolveFqdn() : QSysInfo::machineHostName();
+    const QString name = bestLocalHostname(fqdn);
     m_hostnameDecal->setText(name);
     m_sysDecal->setText(QSysInfo::kernelType()
                         + QStringLiteral(" ")

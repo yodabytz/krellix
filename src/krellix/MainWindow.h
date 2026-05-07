@@ -73,6 +73,9 @@ private:
     void buildPanelStack(const QStringList &enabledIds);
     void clearPanelStack();
     void rebuildPanels();
+    QStringList desiredPanelOrder(const QList<MonitorBase *> &pluginMonitors) const;
+    LiveMonitor *findLiveMonitor(const QString &id);
+    bool addBuiltinMonitor(const QString &id);
     void refreshLiveSettings();
     void refreshMonitorTimers();
     void applyFixedWidth();
