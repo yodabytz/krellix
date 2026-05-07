@@ -99,6 +99,54 @@ int indexOfBytes(const QByteArray &bytes, const QByteArray &needle, int from = 0
     return bytes.indexOf(needle, from);
 }
 
+class KrellkamImageViewer final : public QLabel
+{
+public:
+    explicit KrellkamImageViewer(QWidget *parent = nullptr)
+        : QLabel(parent)
+    {
+        setAlignment(Qt::AlignCenter);
+        setMinimumSize(180, 120);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        setStyleSheet(QStringLiteral("QLabel { background: #050607; }"));
+    }
+
+    void setImage(const QImage &image)
+    {
+        m_image = image;
+        updatePixmap();
+    }
+
+    QSize sizeHint() const override
+    {
+        if (m_image.isNull())
+            return QLabel::sizeHint();
+        return m_image.size().scaled(QSize(760, 520), Qt::KeepAspectRatio);
+    }
+
+protected:
+    void resizeEvent(QResizeEvent *event) override
+    {
+        QLabel::resizeEvent(event);
+        updatePixmap();
+    }
+
+private:
+    void updatePixmap()
+    {
+        if (m_image.isNull() || width() <= 0 || height() <= 0)
+            return;
+
+        const QSize target = m_image.size().scaled(contentsRect().size(),
+                                                   Qt::KeepAspectRatio);
+        QLabel::setPixmap(QPixmap::fromImage(m_image).scaled(target,
+                                                             Qt::KeepAspectRatio,
+                                                             Qt::SmoothTransformation));
+    }
+
+    QImage m_image;
+};
+
 } // namespace
 
 KrellkamField::KrellkamField(Theme *theme, QWidget *parent)
@@ -534,13 +582,12 @@ void KrellkamField::updateViewers(int index)
         return;
 
     QList<QPointer<QLabel>> live;
-    const QPixmap pix = QPixmap::fromImage(m_slots.at(index).image);
     for (const QPointer<QLabel> &viewer : m_viewers.value(index)) {
         if (!viewer)
             continue;
         live.append(viewer);
-        viewer->setPixmap(pix.scaled(viewer->size(), Qt::KeepAspectRatio,
-                                     Qt::SmoothTransformation));
+        if (auto *imageViewer = dynamic_cast<KrellkamImageViewer *>(viewer.data()))
+            imageViewer->setImage(m_slots.at(index).image);
     }
 
     if (live.isEmpty())
@@ -628,15 +675,11 @@ void KrellkamField::openViewer(int index)
     layout->setContentsMargins(8, 8, 8, 8);
     layout->setSpacing(6);
 
-    auto *image = new QLabel(dialog);
-    image->setAlignment(Qt::AlignCenter);
-    image->setMinimumSize(320, 180);
-    image->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    image->setStyleSheet(QStringLiteral("QLabel { background: #050607; }"));
+    auto *image = new KrellkamImageViewer(dialog);
 
-    const QPixmap pix = QPixmap::fromImage(slot.image);
     const QSize target = slot.image.size().scaled(QSize(760, 520), Qt::KeepAspectRatio);
-    image->setPixmap(pix.scaled(target, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    image->setMinimumSize(slot.image.size().scaled(QSize(240, 180), Qt::KeepAspectRatio));
+    image->setImage(slot.image);
     layout->addWidget(image, 1);
 
     m_viewers[index].append(QPointer<QLabel>(image));
