@@ -5,6 +5,7 @@
 #include <QList>
 #include <QPointer>
 #include <QString>
+#include <QStringList>
 
 class Panel;
 class QVBoxLayout;
@@ -38,6 +39,8 @@ private:
     QList<Watch> configuredWatches() const;
     void rebuildRows(const QList<Watch> &watches);
     int countMatches(const Watch &watch, const QList<NetPortSample> &samples) const;
+    QStringList remoteAddressesForWatch(const Watch &watch,
+                                        const QList<NetPortSample> &samples) const;
 
     QPointer<Panel> m_panel;
     QPointer<QWidget> m_rowsWidget;

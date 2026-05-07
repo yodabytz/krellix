@@ -3,6 +3,7 @@
 #include <QByteArray>
 #include <QByteArrayList>
 #include <QFile>
+#include <QHostAddress>
 #include <QLoggingCategory>
 
 Q_LOGGING_CATEGORY(lcNetPortStat, "krellix.sysdep.netport")
@@ -20,6 +21,50 @@ quint16 hexPort(const QByteArray &address)
     bool ok = false;
     const uint value = address.mid(colon + 1).toUInt(&ok, 16);
     return ok && value <= 65535 ? static_cast<quint16>(value) : 0;
+}
+
+QString hexAddress(const QByteArray &address)
+{
+    const int colon = address.lastIndexOf(':');
+    const QByteArray hex = colon < 0 ? address : address.left(colon);
+
+    bool ok = false;
+    if (hex.size() == 8) {
+        const quint32 raw = hex.toUInt(&ok, 16);
+        if (!ok)
+            return {};
+        const quint32 addr = ((raw & 0x000000ffU) << 24)
+                           | ((raw & 0x0000ff00U) << 8)
+                           | ((raw & 0x00ff0000U) >> 8)
+                           | ((raw & 0xff000000U) >> 24);
+        if (addr == 0)
+            return {};
+        return QHostAddress(addr).toString();
+    }
+
+    if (hex.size() == 32) {
+        QByteArray bytes;
+        bytes.reserve(16);
+        for (int word = 0; word < 4; ++word) {
+            const int base = word * 8;
+            for (int i = 3; i >= 0; --i) {
+                const QByteArray part = hex.mid(base + i * 2, 2);
+                const int value = part.toInt(&ok, 16);
+                if (!ok)
+                    return {};
+                bytes.append(char(value));
+            }
+        }
+
+        Q_IPV6ADDR addr{};
+        std::copy(bytes.cbegin(), bytes.cend(), addr.c);
+        const QHostAddress host(addr);
+        if (host.isNull() || host == QHostAddress::AnyIPv6)
+            return {};
+        return host.toString();
+    }
+
+    return {};
 }
 
 void readSocketFile(const QString &path,
@@ -48,6 +93,7 @@ void readSocketFile(const QString &path,
                     s.protocol = protocol;
                     s.localPort = hexPort(parts.at(1));
                     s.remotePort = hexPort(parts.at(2));
+                    s.remoteAddress = hexAddress(parts.at(2));
                     s.state = QString::fromLatin1(parts.at(3)).toUpper();
                     if (s.localPort > 0)
                         out.append(s);

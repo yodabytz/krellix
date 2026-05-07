@@ -115,6 +115,8 @@ QJsonObject sampleObject()
         n.insert(QStringLiteral("proto"), s.protocol);
         n.insert(QStringLiteral("local"), int(s.localPort));
         n.insert(QStringLiteral("remote"), int(s.remotePort));
+        if (!s.remoteAddress.isEmpty())
+            n.insert(QStringLiteral("remote_addr"), s.remoteAddress);
         if (!s.state.isEmpty())
             n.insert(QStringLiteral("state"), s.state);
         netPortArr.append(n);

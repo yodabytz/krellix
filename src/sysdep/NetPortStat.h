@@ -7,6 +7,7 @@ struct NetPortSample {
     QString protocol;      // "tcp" or "udp"
     quint16 localPort = 0;
     quint16 remotePort = 0;
+    QString remoteAddress;
     QString state;         // TCP hex state; empty for UDP
 };
 

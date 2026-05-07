@@ -241,6 +241,7 @@ void RemoteSource::parseLine(const QByteArray &line)
         s.protocol = n.value(QStringLiteral("proto")).toString();
         s.localPort = static_cast<quint16>(n.value(QStringLiteral("local")).toInt());
         s.remotePort = static_cast<quint16>(n.value(QStringLiteral("remote")).toInt());
+        s.remoteAddress = n.value(QStringLiteral("remote_addr")).toString();
         s.state = n.value(QStringLiteral("state")).toString();
         if (!s.protocol.isEmpty() && s.localPort > 0)
             netPorts.append(s);

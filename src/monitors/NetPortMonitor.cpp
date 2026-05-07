@@ -9,6 +9,8 @@
 #include <QPainter>
 #include <QRegularExpression>
 #include <QSettings>
+#include <QSet>
+#include <QStringList>
 #include <QVBoxLayout>
 
 namespace {
@@ -89,13 +91,27 @@ public:
         });
     }
 
-    void setRow(const QString &label, int count)
+    void setRow(const QString &label, int count, const QStringList &remoteAddresses)
     {
         const QString cleanLabel = label.trimmed();
-        if (m_label == cleanLabel && m_count == count) return;
+        if (m_label == cleanLabel
+            && m_count == count
+            && m_remoteAddresses == remoteAddresses)
+            return;
         m_label = cleanLabel;
         m_count = qMax(0, count);
-        setToolTip(m_label);
+        m_remoteAddresses = remoteAddresses;
+
+        QStringList tooltip;
+        tooltip.append(QStringLiteral("%1: %2 connection%3")
+                           .arg(m_label)
+                           .arg(m_count)
+                           .arg(m_count == 1 ? QString() : QStringLiteral("s")));
+        if (!m_remoteAddresses.isEmpty()) {
+            tooltip.append(QString());
+            tooltip.append(m_remoteAddresses);
+        }
+        setToolTip(tooltip.join(QLatin1Char('\n')));
         update();
     }
 
@@ -145,6 +161,7 @@ protected:
 private:
     Theme *m_theme = nullptr;
     QString m_label;
+    QStringList m_remoteAddresses;
     int m_count = 0;
 };
 
@@ -243,7 +260,7 @@ void NetPortMonitor::rebuildRows(const QList<Watch> &watches)
 
     for (const Watch &watch : watches) {
         auto *d = new NetPortRow(theme(), m_rowsWidget);
-        d->setRow(watch.label, 0);
+        d->setRow(watch.label, 0, {});
         m_rowsLayout->addWidget(d);
         m_rows.append(d);
     }
@@ -269,6 +286,40 @@ int NetPortMonitor::countMatches(const Watch &watch,
     return count;
 }
 
+QStringList NetPortMonitor::remoteAddressesForWatch(const Watch &watch,
+                                                    const QList<NetPortSample> &samples) const
+{
+    const QList<QPair<int, int>> ranges = parsePorts(watch.ports);
+    if (ranges.isEmpty()) return {};
+
+    QSet<QString> seen;
+    QStringList out;
+    for (const NetPortSample &sample : samples) {
+        if (!protocolMatches(watch.protocol, sample.protocol))
+            continue;
+        if (!portInRanges(sample.localPort, ranges))
+            continue;
+        if (sample.protocol == QLatin1String("tcp")
+            && sample.state != QLatin1String("01"))
+            continue;
+        if (sample.remoteAddress.isEmpty())
+            continue;
+        if (seen.contains(sample.remoteAddress))
+            continue;
+        seen.insert(sample.remoteAddress);
+        out.append(sample.remotePort > 0
+                       ? QStringLiteral("%1:%2").arg(sample.remoteAddress).arg(sample.remotePort)
+                       : sample.remoteAddress);
+    }
+    out.sort(Qt::CaseInsensitive);
+    if (out.size() > 12) {
+        const int extra = out.size() - 12;
+        out = out.mid(0, 12);
+        out.append(QStringLiteral("... %1 more").arg(extra));
+    }
+    return out;
+}
+
 void NetPortMonitor::tick()
 {
     if (!m_rowsLayout) return;
@@ -286,6 +337,6 @@ void NetPortMonitor::tick()
         if (!m_rows.at(i)) continue;
         const Watch &watch = m_watches.at(i);
         const int count = countMatches(watch, samples);
-        m_rows.at(i)->setRow(watch.label, count);
+        m_rows.at(i)->setRow(watch.label, count, remoteAddressesForWatch(watch, samples));
     }
 }
