@@ -28,6 +28,7 @@ constexpr int kMaxSources = 5;
 constexpr qint64 kMaxImageBytes = 10LL * 1024LL * 1024LL;
 constexpr qint64 kMaxImagePixels = 4096LL * 4096LL;
 constexpr int kFetchTimeoutMs = 15000;
+constexpr int kYoutubeFrameMaxWidth = 1280;
 
 QList<KrellkamSource> configuredSources()
 {
@@ -440,7 +441,7 @@ void KrellkamField::requestYoutubeFrame(const QString &source,
     auto *resolver = new QProcess(this);
     resolver->setProgram(QStringLiteral("yt-dlp"));
     resolver->setArguments({QStringLiteral("-f"),
-                            QStringLiteral("best[height<=480]/best[height<=360]/worst"),
+                            QStringLiteral("best[height<=1080]/best[height<=720]/best[height<=480]/best"),
                             QStringLiteral("-g"),
                             source});
     resolver->setProcessChannelMode(QProcess::SeparateChannels);
@@ -487,7 +488,8 @@ void KrellkamField::requestYoutubeFrameFromStream(
                           QStringLiteral("-threads"), QStringLiteral("1"),
                           QStringLiteral("-i"), streamUrl,
                           QStringLiteral("-frames:v"), QStringLiteral("1"),
-                          QStringLiteral("-vf"), QStringLiteral("scale='min(480,iw)':-2"),
+                          QStringLiteral("-vf"),
+                          QStringLiteral("scale='min(%1,iw)':-2").arg(kYoutubeFrameMaxWidth),
                           QStringLiteral("-f"), QStringLiteral("image2pipe"),
                           QStringLiteral("-vcodec"), QStringLiteral("mjpeg"),
                           QStringLiteral("-")});
