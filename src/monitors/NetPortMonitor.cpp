@@ -281,13 +281,10 @@ QStringList NetPortMonitor::connectionEntriesForWatch(const Watch &watch,
         if (sample.protocol == QLatin1String("tcp")
             && sample.state != QLatin1String("01"))
             continue;
+        if (sample.remoteAddress.isEmpty() || sample.remotePort == 0)
+            continue;
 
-        const QString remote = sample.remoteAddress.isEmpty()
-                                   ? QStringLiteral("(unknown)")
-                                   : sample.remoteAddress;
-        out.append(sample.remotePort > 0
-                       ? QStringLiteral("%1:%2").arg(remote).arg(sample.remotePort)
-                       : remote);
+        out.append(QStringLiteral("%1:%2").arg(sample.remoteAddress).arg(sample.remotePort));
     }
     out.sort(Qt::CaseInsensitive);
     if (out.size() > 12) {
