@@ -20,7 +20,9 @@ Chart::Chart(Theme *theme, const QString &colorKey, QWidget *parent)
 {
     Q_ASSERT(m_theme);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    setAttribute(Qt::WA_OpaquePaintEvent, true);
+    // No Qt::WA_OpaquePaintEvent — same reason as Panel: translucent
+    // themes paint alpha < 1 and the optimization flag confuses Qt's
+    // focus / z-order repaint scheduling, leaving stale pixels.
     connect(m_theme, &Theme::themeChanged, this, &Chart::onThemeChanged);
     m_samples.assign(static_cast<std::size_t>(m_capacity), 0.0);
     m_seriesColors.clear();

@@ -84,7 +84,14 @@ Panel::Panel(Theme *theme, QWidget *parent)
 {
     Q_ASSERT(m_theme);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    setAttribute(Qt::WA_OpaquePaintEvent, true);
+    // No Qt::WA_OpaquePaintEvent: with translucent themes (frosted-
+    // glass, the imageless gradient themes) Panel paints alpha < 1
+    // and the OpaquePaintEvent optimization tells Qt the opposite,
+    // causing stale pixels to persist through focus / z-order
+    // changes. Going through Qt's standard double-buffered paint
+    // path costs a per-paint background-erase but eliminates the
+    // focus-state visual inconsistency on those themes; opaque
+    // themes paint over the erased buffer identically to before.
 
     m_layout = new QVBoxLayout(this);
     m_layout->setContentsMargins(
