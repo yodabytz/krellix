@@ -260,6 +260,29 @@ set_target_properties(krellweather PROPERTIES
 )
 install(TARGETS krellweather LIBRARY DESTINATION lib/krellix/plugins)
 
+add_library(krellmoon MODULE
+    plugins/krellmoon/KrellmoonPlugin.cpp
+    plugins/krellmoon/KrellmoonPlugin.h
+)
+target_include_directories(krellmoon PRIVATE src)
+target_link_libraries(krellmoon PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+)
+target_compile_definitions(krellmoon PRIVATE
+    QT_NO_CAST_FROM_ASCII
+    QT_NO_CAST_TO_ASCII
+    QT_NO_NARROWING_CONVERSIONS_IN_CONNECT
+)
+set_target_properties(krellmoon PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
+)
+install(TARGETS krellmoon LIBRARY DESTINATION lib/krellix/plugins)
+install(DIRECTORY plugins/krellmoon/assets/
+        DESTINATION share/krellix/plugins/krellmoon
+        FILES_MATCHING PATTERN "*.png")
+
 add_library(krellwire MODULE
     plugins/krellwire/KrellwirePlugin.cpp
     plugins/krellwire/KrellwirePlugin.h
