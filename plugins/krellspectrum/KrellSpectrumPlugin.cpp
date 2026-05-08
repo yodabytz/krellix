@@ -878,7 +878,7 @@ QString KrellSpectrumPlugin::pluginVersion() const
 
 QList<MonitorBase *> KrellSpectrumPlugin::createMonitors(Theme *theme, QObject *parent)
 {
-    if (!QSettings().value(QStringLiteral("plugins/krellspectrum/enabled"), true).toBool())
+    if (!QSettings().value(QStringLiteral("plugins/krellspectrum/enabled"), false).toBool())
         return {};
     return {new KrellSpectrumMonitor(theme, parent)};
 }

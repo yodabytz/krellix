@@ -497,7 +497,7 @@ QString KrellweatherPlugin::pluginVersion() const
 
 QList<MonitorBase *> KrellweatherPlugin::createMonitors(Theme *theme, QObject *parent)
 {
-    if (!QSettings().value(QStringLiteral("plugins/krellweather/enabled"), true).toBool())
+    if (!QSettings().value(QStringLiteral("plugins/krellweather/enabled"), false).toBool())
         return {};
     return {new KrellweatherMonitor(theme, parent)};
 }

@@ -480,7 +480,7 @@ QString KrellwirePlugin::pluginVersion() const
 
 QList<MonitorBase *> KrellwirePlugin::createMonitors(Theme *theme, QObject *parent)
 {
-    if (!QSettings().value(QStringLiteral("plugins/krellwire/enabled"), true).toBool())
+    if (!QSettings().value(QStringLiteral("plugins/krellwire/enabled"), false).toBool())
         return {};
     return {new KrellwireMonitor(theme, parent)};
 }

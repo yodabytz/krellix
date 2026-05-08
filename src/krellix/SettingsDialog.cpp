@@ -63,6 +63,7 @@ const QList<QPair<QString, QString>> kMonitorOrderItems = {
     {QStringLiteral("krellwire"), QStringLiteral("Krellwire")},
     {QStringLiteral("krellmail"), QStringLiteral("Krellmail")},
     {QStringLiteral("krellspectrum"), QStringLiteral("KrellSpectrum")},
+    {QStringLiteral("krellmoon"), QStringLiteral("Krellmoon")},
     {QStringLiteral("disk"),    QStringLiteral("Disk I/O")},
     {QStringLiteral("sensors"), QStringLiteral("Sensors")},
     {QStringLiteral("battery"), QStringLiteral("Battery")},
@@ -544,6 +545,23 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             m_pluginStack->addWidget(pluginPage);
         }
 
+        if (hasKrellmoonPlugin()) {
+            auto *pluginPage = new QWidget(m_pluginStack);
+            auto *pluginLayout = new QVBoxLayout(pluginPage);
+            auto *group = new QGroupBox(QStringLiteral("Krellmoon"), pluginPage);
+            auto *form = new QFormLayout(group);
+            m_krellmoonEnabled =
+                new QCheckBox(QStringLiteral("Show Krellmoon panel"), group);
+            form->addRow(QString(), m_krellmoonEnabled);
+            form->addRow(QStringLiteral("Display:"),
+                         new QLabel(QStringLiteral("Current moon phase image and label"),
+                                    group));
+            pluginLayout->addWidget(group);
+            pluginLayout->addStretch(1);
+            m_pluginList->addItem(QStringLiteral("Krellmoon"));
+            m_pluginStack->addWidget(pluginPage);
+        }
+
         if (hasKrellweatherPlugin()) {
             auto *pluginPage = new QWidget(m_pluginStack);
             auto *pluginLayout = new QVBoxLayout(pluginPage);
@@ -941,6 +959,12 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             emit panelStackChanged();
         });
     }
+    if (m_krellmoonEnabled) {
+        connect(m_krellmoonEnabled, &QCheckBox::toggled, this, [this](bool v) {
+            QSettings().setValue(QStringLiteral("plugins/krellmoon/enabled"), v);
+            emit panelStackChanged();
+        });
+    }
     if (m_krellweatherEnabled) {
         connect(m_krellweatherEnabled, &QCheckBox::toggled, this, [this](bool v) {
             QSettings().setValue(QStringLiteral("plugins/krellweather/enabled"), v);
@@ -1165,7 +1189,7 @@ void SettingsDialog::loadFromSettings()
 
     if (m_krellkamEnabled) {
         m_krellkamEnabled->setChecked(
-            s.value(QStringLiteral("plugins/krellkam/enabled"), true).toBool());
+            s.value(QStringLiteral("plugins/krellkam/enabled"), false).toBool());
     }
     if (m_krellkamAllowCommands) {
         m_krellkamAllowCommands->setChecked(
@@ -1197,11 +1221,15 @@ void SettingsDialog::loadFromSettings()
     }
     if (m_krelldaciousEnabled) {
         m_krelldaciousEnabled->setChecked(
-            s.value(QStringLiteral("plugins/krelldacious/enabled"), true).toBool());
+            s.value(QStringLiteral("plugins/krelldacious/enabled"), false).toBool());
+    }
+    if (m_krellmoonEnabled) {
+        m_krellmoonEnabled->setChecked(
+            s.value(QStringLiteral("plugins/krellmoon/enabled"), false).toBool());
     }
     if (m_krellweatherEnabled) {
         m_krellweatherEnabled->setChecked(
-            s.value(QStringLiteral("plugins/krellweather/enabled"), true).toBool());
+            s.value(QStringLiteral("plugins/krellweather/enabled"), false).toBool());
     }
     if (m_krellweatherStation) {
         const QString code = s.value(QStringLiteral("plugins/krellweather/station"),
@@ -1220,7 +1248,7 @@ void SettingsDialog::loadFromSettings()
     }
     if (m_krellwireEnabled) {
         m_krellwireEnabled->setChecked(
-            s.value(QStringLiteral("plugins/krellwire/enabled"), true).toBool());
+            s.value(QStringLiteral("plugins/krellwire/enabled"), false).toBool());
     }
     if (m_krellwireItems) {
         m_krellwireItems->setValue(
@@ -1246,7 +1274,7 @@ void SettingsDialog::loadFromSettings()
     }
     if (m_krellmailEnabled) {
         m_krellmailEnabled->setChecked(
-            s.value(QStringLiteral("plugins/krellmail/enabled"), true).toBool());
+            s.value(QStringLiteral("plugins/krellmail/enabled"), false).toBool());
     }
     if (m_krellmailUpdateMs) {
         m_krellmailUpdateMs->setValue(
@@ -1255,7 +1283,7 @@ void SettingsDialog::loadFromSettings()
     rebuildKrellmailAccounts();
     if (m_krellspectrumEnabled) {
         m_krellspectrumEnabled->setChecked(
-            s.value(QStringLiteral("plugins/krellspectrum/enabled"), true).toBool());
+            s.value(QStringLiteral("plugins/krellspectrum/enabled"), false).toBool());
     }
     if (m_krellspectrumVisualMode) {
         const QString mode = s.value(QStringLiteral("plugins/krellspectrum/visual_mode"),
@@ -1669,6 +1697,11 @@ bool SettingsDialog::hasKrellmailPlugin() const
 bool SettingsDialog::hasKrellSpectrumPlugin() const
 {
     return hasPlugin(QStringLiteral("krellspectrum"));
+}
+
+bool SettingsDialog::hasKrellmoonPlugin() const
+{
+    return hasPlugin(QStringLiteral("krellmoon"));
 }
 
 void SettingsDialog::onAccept()

@@ -786,7 +786,7 @@ QString KrellkamPlugin::pluginVersion() const
 
 QList<MonitorBase *> KrellkamPlugin::createMonitors(Theme *theme, QObject *parent)
 {
-    if (!QSettings().value(QStringLiteral("plugins/krellkam/enabled"), true).toBool())
+    if (!QSettings().value(QStringLiteral("plugins/krellkam/enabled"), false).toBool())
         return {};
     return {new KrellkamMonitor(theme, parent)};
 }

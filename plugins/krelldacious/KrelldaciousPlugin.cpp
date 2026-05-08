@@ -487,7 +487,7 @@ QString KrelldaciousPlugin::pluginVersion() const
 
 QList<MonitorBase *> KrelldaciousPlugin::createMonitors(Theme *theme, QObject *parent)
 {
-    if (!QSettings().value(QStringLiteral("plugins/krelldacious/enabled"), true).toBool())
+    if (!QSettings().value(QStringLiteral("plugins/krelldacious/enabled"), false).toBool())
         return {};
     return {new KrelldaciousMonitor(theme, parent)};
 }

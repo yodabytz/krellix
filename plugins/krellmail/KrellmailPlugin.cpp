@@ -749,7 +749,7 @@ QString KrellmailPlugin::pluginVersion() const
 
 QList<MonitorBase *> KrellmailPlugin::createMonitors(Theme *theme, QObject *parent)
 {
-    if (!QSettings().value(QStringLiteral("plugins/krellmail/enabled"), true).toBool())
+    if (!QSettings().value(QStringLiteral("plugins/krellmail/enabled"), false).toBool())
         return {};
     return {new KrellmailMonitor(theme, parent)};
 }

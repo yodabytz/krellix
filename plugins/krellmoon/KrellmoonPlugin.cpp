@@ -361,7 +361,9 @@ QString KrellmoonPlugin::pluginVersion() const
 
 QList<MonitorBase *> KrellmoonPlugin::createMonitors(Theme *theme, QObject *parent)
 {
-    if (!QSettings().value(QStringLiteral("plugins/krellmoon/enabled"), true).toBool())
+    // Default OFF — plugins must be explicitly enabled in Settings before
+    // they appear. Same convention as the rest of the plugin set.
+    if (!QSettings().value(QStringLiteral("plugins/krellmoon/enabled"), false).toBool())
         return {};
     return {new KrellmoonMonitor(theme, parent)};
 }

@@ -62,6 +62,7 @@ private:
     bool hasKrellwirePlugin() const;
     bool hasKrellmailPlugin() const;
     bool hasKrellSpectrumPlugin() const;
+    bool hasKrellmoonPlugin() const;
     int krellmailAccountCount() const;
     void rebuildKrellmailAccounts();
     void saveKrellmailAccount(int index);
@@ -142,6 +143,7 @@ private:
     KrellmailOAuthBroker *m_krellmailOAuth = nullptr;
     QCheckBox   *m_krellspectrumEnabled = nullptr;
     QComboBox   *m_krellspectrumVisualMode = nullptr;
+    QCheckBox   *m_krellmoonEnabled = nullptr;
     QComboBox   *m_krellspectrumBandCount = nullptr;
     QDoubleSpinBox *m_krellspectrumSensitivity = nullptr;
     QDoubleSpinBox *m_krellspectrumSmoothing = nullptr;
