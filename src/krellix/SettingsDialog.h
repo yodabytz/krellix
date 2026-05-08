@@ -144,6 +144,7 @@ private:
     QCheckBox   *m_krellspectrumEnabled = nullptr;
     QComboBox   *m_krellspectrumVisualMode = nullptr;
     QCheckBox   *m_krellmoonEnabled = nullptr;
+    QCheckBox   *m_krellmoonSouthernHemisphere = nullptr;
     QComboBox   *m_krellspectrumBandCount = nullptr;
     QDoubleSpinBox *m_krellspectrumSensitivity = nullptr;
     QDoubleSpinBox *m_krellspectrumSmoothing = nullptr;

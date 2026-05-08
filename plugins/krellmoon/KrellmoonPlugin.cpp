@@ -7,9 +7,11 @@
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLocale>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPixmap>
+#include <QSet>
 #include <QSettings>
 #include <QSizePolicy>
 #include <QStandardPaths>
@@ -31,6 +33,44 @@ QDateTime referenceNewMoon()
 }
 
 constexpr double kSynodicDays = 29.530588853;
+
+// Best-guess default for the southern_hemisphere setting on first run, derived
+// from the system locale's territory. Locale is heuristic — a user in Sydney
+// running en_US will guess wrong — so this is only the *default*; the explicit
+// setting in QSettings always wins. Coverage targets the populous and mostly-
+// south-of-equator countries. Travelers / mismatched locales can flip the
+// checkbox in Settings → Krellmoon.
+bool defaultSouthernHemisphereFromLocale()
+{
+    static const QSet<QString> southern = {
+        QStringLiteral("AU"), QStringLiteral("NZ"),
+        QStringLiteral("AR"), QStringLiteral("CL"),
+        QStringLiteral("UY"), QStringLiteral("PY"),
+        QStringLiteral("BO"), QStringLiteral("PE"),
+        QStringLiteral("BR"), QStringLiteral("ZA"),
+        QStringLiteral("NA"), QStringLiteral("BW"),
+        QStringLiteral("ZM"), QStringLiteral("ZW"),
+        QStringLiteral("MZ"), QStringLiteral("MG"),
+        QStringLiteral("AO"), QStringLiteral("MW"),
+        QStringLiteral("TZ"), QStringLiteral("ID"),
+        QStringLiteral("PG"), QStringLiteral("FJ"),
+        QStringLiteral("TL"), QStringLiteral("LS"),
+        QStringLiteral("SZ"), QStringLiteral("WS"),
+        QStringLiteral("TO"), QStringLiteral("VU"),
+    };
+    const QString name = QLocale::system().name();
+    const int us = name.indexOf(QLatin1Char('_'));
+    if (us < 0) return false;
+    const QString code = name.mid(us + 1, 2).toUpper();
+    return southern.contains(code);
+}
+
+bool readSouthernHemisphere()
+{
+    return QSettings().value(
+        QStringLiteral("plugins/krellmoon/southern_hemisphere"),
+        defaultSouthernHemisphereFromLocale()).toBool();
+}
 
 // Phase fraction in [0, 1): 0 = new, 0.25 = first quarter, 0.5 = full,
 // 0.75 = last quarter.
@@ -196,9 +236,13 @@ public:
 
     void setPhase(double k)
     {
-        if (qFuzzyCompare(k, m_phase)) return;
-        m_phase = k;
-        m_pixmap = loadMoonPixmap(m_phase);
+        if (!qFuzzyCompare(k, m_phase)) {
+            m_phase = k;
+            m_pixmap = loadMoonPixmap(m_phase);
+        }
+        // Always schedule a repaint — paintEvent re-reads the SH-flip setting
+        // on every paint, so even when the phase hasn't moved, a settings
+        // toggle that triggered a tick gets the new orientation rendered.
         update();
     }
 
@@ -206,6 +250,18 @@ protected:
     void paintEvent(QPaintEvent *) override
     {
         QPainter p(this);
+
+        // Southern-hemisphere viewers see the moon mirrored relative to the
+        // northern-oriented source images. Flip the painter horizontally so
+        // both the photographic PNGs and the procedural fallback land in the
+        // correct orientation. Read each paint — QSettings caches internally
+        // and repaints are infrequent (tick + theme change).
+        const bool flip = readSouthernHemisphere();
+        if (flip) {
+            p.translate(width(), 0);
+            p.scale(-1.0, 1.0);
+        }
+
         if (!m_pixmap.isNull()) {
             // Scale to widget bounds preserving aspect; SmoothTransformation
             // for the typical case of source larger than display size.

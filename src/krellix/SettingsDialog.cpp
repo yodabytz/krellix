@@ -21,8 +21,10 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QLocale>
 #include <QPushButton>
 #include <QScrollArea>
+#include <QSet>
 #include <QSettings>
 #include <QSignalBlocker>
 #include <QSpinBox>
@@ -48,6 +50,35 @@ constexpr int kMinScrollPps    = 5;
 constexpr int kMaxScrollPps    = 200;
 constexpr int kDefaultScrollPps = 30;
 constexpr int kMaxKrellmailAccounts = 10;
+
+// Mirrors the same helper inside KrellmoonPlugin.cpp — kept duplicated so the
+// settings dialog and the plugin agree on the default checkbox state on the
+// first launch (before the user has set the QSettings key explicitly). The
+// list is small and stable; sync if either copy changes.
+bool krellmoonDefaultSouthernHemisphereFromLocale()
+{
+    static const QSet<QString> southern = {
+        QStringLiteral("AU"), QStringLiteral("NZ"),
+        QStringLiteral("AR"), QStringLiteral("CL"),
+        QStringLiteral("UY"), QStringLiteral("PY"),
+        QStringLiteral("BO"), QStringLiteral("PE"),
+        QStringLiteral("BR"), QStringLiteral("ZA"),
+        QStringLiteral("NA"), QStringLiteral("BW"),
+        QStringLiteral("ZM"), QStringLiteral("ZW"),
+        QStringLiteral("MZ"), QStringLiteral("MG"),
+        QStringLiteral("AO"), QStringLiteral("MW"),
+        QStringLiteral("TZ"), QStringLiteral("ID"),
+        QStringLiteral("PG"), QStringLiteral("FJ"),
+        QStringLiteral("TL"), QStringLiteral("LS"),
+        QStringLiteral("SZ"), QStringLiteral("WS"),
+        QStringLiteral("TO"), QStringLiteral("VU"),
+    };
+    const QString name = QLocale::system().name();
+    const int us = name.indexOf(QLatin1Char('_'));
+    if (us < 0) return false;
+    const QString code = name.mid(us + 1, 2).toUpper();
+    return southern.contains(code);
+}
 
 const QList<QPair<QString, QString>> kMonitorOrderItems = {
     {QStringLiteral("host"),    QStringLiteral("Host")},
@@ -556,6 +587,14 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             form->addRow(QStringLiteral("Display:"),
                          new QLabel(QStringLiteral("Current moon phase image and label"),
                                     group));
+            m_krellmoonSouthernHemisphere =
+                new QCheckBox(QStringLiteral("Flip image for Southern Hemisphere viewing"),
+                              group);
+            m_krellmoonSouthernHemisphere->setToolTip(
+                QStringLiteral("In Australia, NZ, southern Africa, and most of "
+                               "South America the moon appears mirrored relative "
+                               "to its Northern-Hemisphere orientation."));
+            form->addRow(QString(), m_krellmoonSouthernHemisphere);
             pluginLayout->addWidget(group);
             pluginLayout->addStretch(1);
             m_pluginList->addItem(QStringLiteral("Krellmoon"));
@@ -965,6 +1004,17 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             emit panelStackChanged();
         });
     }
+    if (m_krellmoonSouthernHemisphere) {
+        connect(m_krellmoonSouthernHemisphere, &QCheckBox::toggled,
+                this, [this](bool v) {
+            QSettings().setValue(
+                QStringLiteral("plugins/krellmoon/southern_hemisphere"), v);
+            // settingsApplied triggers refreshLiveSettings which repaints the
+            // live monitors — the moon widget reads the setting on each paint
+            // so this kicks the orientation flip without rebuilding the panel.
+            emit settingsApplied();
+        });
+    }
     if (m_krellweatherEnabled) {
         connect(m_krellweatherEnabled, &QCheckBox::toggled, this, [this](bool v) {
             QSettings().setValue(QStringLiteral("plugins/krellweather/enabled"), v);
@@ -1226,6 +1276,11 @@ void SettingsDialog::loadFromSettings()
     if (m_krellmoonEnabled) {
         m_krellmoonEnabled->setChecked(
             s.value(QStringLiteral("plugins/krellmoon/enabled"), false).toBool());
+    }
+    if (m_krellmoonSouthernHemisphere) {
+        m_krellmoonSouthernHemisphere->setChecked(s.value(
+            QStringLiteral("plugins/krellmoon/southern_hemisphere"),
+            krellmoonDefaultSouthernHemisphereFromLocale()).toBool());
     }
     if (m_krellweatherEnabled) {
         m_krellweatherEnabled->setChecked(

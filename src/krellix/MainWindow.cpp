@@ -586,6 +586,7 @@ void MainWindow::refreshLiveSettings()
                 && (lm.monitor->id() == QStringLiteral("krellweather")
                     || lm.monitor->id() == QStringLiteral("krellwire")
                     || lm.monitor->id() == QStringLiteral("krellmail")
+                    || lm.monitor->id() == QStringLiteral("krellmoon")
                     || lm.monitor->id() == QStringLiteral("netports")))
                 lm.monitor->tick();
         }
