@@ -90,7 +90,12 @@ QString phaseName(double k)
     // either side, 1/64 of the cycle) so a phase that has just crossed
     // first quarter still reads as "FIRST QUARTER" briefly before flipping
     // to the next gibbous/crescent label.
-    constexpr double q = 1.0 / 64.0;
+    // ±~3.5 hours either side of an exact quarter moment. Wider bands
+    // (the previous 1/64 ≈ 22 hours) flipped the label to "LAST QUARTER"
+    // most of a day before the moon actually reached it, while almanacs
+    // would still call those nights waning gibbous. 0.005 keeps the
+    // quarter labels to roughly the calendar-day of the event.
+    constexpr double q = 0.005;
     if (k < q || k > 1.0 - q)        return QStringLiteral("NEW MOON");
     if (std::abs(k - 0.25) < q)      return QStringLiteral("FIRST QUARTER");
     if (std::abs(k - 0.5)  < q)      return QStringLiteral("FULL MOON");
@@ -114,7 +119,12 @@ int dayInCycle(double k)
 // Slug-form name for the 8 coarse phase image candidates.
 QString phaseSlug(double k)
 {
-    constexpr double q = 1.0 / 64.0;
+    // ±~3.5 hours either side of an exact quarter moment. Wider bands
+    // (the previous 1/64 ≈ 22 hours) flipped the label to "LAST QUARTER"
+    // most of a day before the moon actually reached it, while almanacs
+    // would still call those nights waning gibbous. 0.005 keeps the
+    // quarter labels to roughly the calendar-day of the event.
+    constexpr double q = 0.005;
     if (k < q || k > 1.0 - q)        return QStringLiteral("new");
     if (std::abs(k - 0.25) < q)      return QStringLiteral("first_quarter");
     if (std::abs(k - 0.5)  < q)      return QStringLiteral("full");
