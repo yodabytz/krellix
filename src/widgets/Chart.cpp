@@ -63,16 +63,24 @@ void Chart::appendSampleAt(int seriesIdx, double value)
 void Chart::setSeriesColors(const QList<QColor> &colors)
 {
     m_seriesColors = colors;
+    // Only reset sample data when the series TOPOLOGY actually changes —
+    // switching between single/multi mode, or changing the number of series
+    // (CPU core count, docker bridge count). When only the palette changes
+    // (theme switch with the same series count) the history stays put and
+    // re-renders in the new colors at the next paint.
     if (colors.isEmpty()) {
-        m_multiSamples.clear();
-        m_samples.assign(static_cast<std::size_t>(m_capacity), 0.0);
-    } else {
+        if (!m_multiSamples.empty()) {
+            m_multiSamples.clear();
+            m_samples.assign(static_cast<std::size_t>(m_capacity), 0.0);
+            m_head = 0;
+        }
+    } else if (static_cast<int>(m_multiSamples.size()) != colors.size()) {
         m_multiSamples.assign(
             static_cast<std::size_t>(colors.size()),
             std::vector<double>(static_cast<std::size_t>(m_capacity), 0.0));
         m_samples.clear();
+        m_head = 0;
     }
-    m_head = 0;
     update();
 }
 
@@ -110,12 +118,38 @@ void Chart::setCapacity(int samples)
 {
     const int clamped = qBound(16, samples, 4096);
     if (clamped == m_capacity) return;
+
+    // Preserve history across capacity changes (theme switches that change
+    // chart_height, layout reflows when monitors toggle, panel-width edits).
+    // The old behaviour zeroed every sample, which made any setting that
+    // touched chart geometry feel like the data restarted. Walk the ring in
+    // chronological order, copy the newest `min(oldN, clamped)` samples into
+    // the end of a new buffer so the chart stays right-anchored, zero-pad
+    // any leading slack when growing. Reset m_head to 0 — after the reflow
+    // index 0 is the oldest sample and the next write naturally wraps over
+    // it, matching the ring's intended semantics.
+    auto reflow = [&](std::vector<double> &ring) {
+        const int oldN = static_cast<int>(ring.size());
+        if (oldN == 0) {
+            ring.assign(static_cast<std::size_t>(clamped), 0.0);
+            return;
+        }
+        std::vector<double> next(static_cast<std::size_t>(clamped), 0.0);
+        const int copy = std::min(oldN, clamped);
+        for (int i = 0; i < copy; ++i) {
+            const int srcIdx = ((m_head - copy + i) % oldN + oldN) % oldN;
+            const int dstIdx = clamped - copy + i;
+            next[static_cast<std::size_t>(dstIdx)] =
+                ring[static_cast<std::size_t>(srcIdx)];
+        }
+        ring = std::move(next);
+    };
+
     m_capacity = clamped;
     if (m_multiSamples.empty()) {
-        m_samples.assign(static_cast<std::size_t>(m_capacity), 0.0);
+        reflow(m_samples);
     } else {
-        for (auto &ring : m_multiSamples)
-            ring.assign(static_cast<std::size_t>(m_capacity), 0.0);
+        for (auto &ring : m_multiSamples) reflow(ring);
     }
     m_head = 0;
     update();
