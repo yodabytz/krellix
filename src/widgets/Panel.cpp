@@ -243,14 +243,18 @@ void Panel::paintEvent(QPaintEvent *)
         }
         if (surf.opacity < 1.0) p.setOpacity(prevOpacity);
     } else {
-        // Fall back to color OR gradient when no image is bound. Look
-        // up the monitor-specific surface key first so imageless themes
-        // CAN give CPU/Mem/Net/etc. distinct gradients, but fall back
-        // through to the base "panel_bg" gradient when the variant
-        // isn't defined — otherwise newer monitors (proc, netports)
-        // and plugin panels (krellkam, krellweather, ...) would render
-        // the literal flat fallback color and look black on themes
-        // whose only gradient lives at "panel_bg".
+        // Fall back to color OR gradient when no image is bound. Use
+        // the 4-arg brush() overload so monitor-specific surface keys
+        // (panel_bg_proc, panel_bg_krellweather, ...) cleanly degrade
+        // to the base "panel_bg" gradient on themes that don't define
+        // the variant. Without that fallback chain, undefined
+        // per-monitor keys hit the literal QColor fallback and render
+        // a flat near-black on imageless gradient themes.
+        //
+        // ABI safety: the 4-arg overload is a separate symbol from
+        // the 3-arg one that plugin .so files link against; this
+        // change compiles the new krellix binary against the new
+        // overload without disturbing the old symbol.
         p.fillRect(r, m_theme->brush(m_surfaceKey, r,
                                      m_theme->color(QStringLiteral("panel_bg")),
                                      QStringLiteral("panel_bg")));

@@ -311,11 +311,11 @@ bool Theme::parseJsonFile(const QString &path)
             if (g.stops.size() >= 2) {
                 m_gradients.insert(it.key(), g);
                 // Mirror the first stop into m_colors so callers that
-                // still use color() get a sensible flat fallback. Always
-                // overwrite — loadDefaults() pre-populates m_colors with
-                // dark-green built-ins for the standard keys, and a
-                // gradient theme should never be reading those fallback
-                // values when it has its own colors defined.
+                // still use color() get a sensible flat fallback.
+                // Always overwrite — loadDefaults() pre-populates
+                // m_colors with built-in dark-green values for the
+                // standard keys, and the theme's own gradient color
+                // is authoritative over those defaults.
                 m_colors.insert(it.key(), g.stops.first().second);
             }
         }
@@ -390,15 +390,30 @@ QColor Theme::color(const QString &key, const QColor &fallback) const
     return m_colors.value(key, fallback);
 }
 
+// 3-arg overload — preserves the original symbol so already-built
+// plugin .so files keep linking. Forwards to the 4-arg form with an
+// empty fallback key (no chain — same behavior the plugins were
+// compiled to expect).
+QBrush Theme::brush(const QString &key,
+                    const QRectF &rect,
+                    const QColor &fallback) const
+{
+    return brush(key, rect, fallback, QString());
+}
+
 QBrush Theme::brush(const QString &key,
                     const QRectF &rect,
                     const QColor &fallback,
                     const QString &fallbackKey) const
 {
-    // Lookup chain: requested key → optional fallback key. First match
-    // (gradient OR flat color) wins. This lets a widget ask for a
-    // monitor-specific key like "panel_bg_proc" and degrade to the
-    // base "panel_bg" gradient on themes that don't define the variant.
+    // Lookup chain: requested key → optional fallback key. First
+    // match (gradient OR flat color in either) wins; otherwise the
+    // literal QColor `fallback`. This chain is what lets per-monitor
+    // surface keys (panel_bg_proc, panel_bg_krellweather, ...) cleanly
+    // degrade to the base panel_bg gradient on themes that don't
+    // define every variant — without it, those panels would render
+    // the literal fallback color (often a built-in default) and look
+    // black on imageless gradient themes like egan-grey.
     QStringList chain;
     chain << key;
     if (!fallbackKey.isEmpty() && fallbackKey != key) chain << fallbackKey;
@@ -407,9 +422,9 @@ QBrush Theme::brush(const QString &key,
         const auto gIt = m_gradients.constFind(k);
         if (gIt != m_gradients.constEnd() && rect.isValid()) {
             const Gradient &g = gIt.value();
-            // Map angle → start/end points on the rect. 0° = horizontal
-            // L→R, 90° = vertical T→B, 180° = horizontal R→L, 270° =
-            // vertical B→T. Cheap trig, calculated once per paint.
+            // Map angle → start/end points on the rect. 0° =
+            // horizontal L→R, 90° = vertical T→B. Cheap trig once
+            // per paint.
             const double rad = qDegreesToRadians(static_cast<double>(g.angle));
             const double dx  = std::cos(rad);
             const double dy  = std::sin(rad);
@@ -428,7 +443,6 @@ QBrush Theme::brush(const QString &key,
         if (cIt != m_colors.constEnd() && cIt.value().isValid())
             return QBrush(cIt.value());
     }
-    // Nothing matched — last-ditch fall back to the literal QColor.
     return fallback.isValid() ? QBrush(fallback) : QBrush();
 }
 
