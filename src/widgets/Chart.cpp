@@ -259,16 +259,17 @@ void Chart::paintEvent(QPaintEvent *)
         // No image anywhere — fill with the chart_bg solid or gradient.
         const QBrush bgBrush =
             m_theme->brush(QStringLiteral("chart_bg"), r, bg);
-        // When chart_bg is fully transparent (alpha 0) and no image is
-        // bound, the theme wants the chart area to read as MORE see-through
-        // than the panel underneath. CompositionMode_Source makes the
-        // transparent fill OVERWRITE the panel pixels Panel just painted,
-        // punching a true clear-through hole instead of compositing alpha=0
-        // over them (which is a no-op and leaves panel_bg fully visible).
-        // Gradient brushes can hit this path too; only solid alpha=0 fills
-        // are interesting, so gate on the brush's color alpha.
+        // When chart_bg is translucent (alpha < 255) and no image is bound,
+        // the theme wants the chart area to read at its OWN alpha, not
+        // chart_bg composited on top of the panel. CompositionMode_Source
+        // makes the fill OVERWRITE panel pixels — so a chart_bg of
+        // `#0affffff` (4% white) makes the chart 4% opaque, which is more
+        // see-through than a 10% panel. Without this, alpha < 255 would
+        // composite over panel_bg and make the chart area MORE opaque than
+        // the surrounding panel — the opposite of what translucent themes
+        // want. Gradient brushes still take the normal SourceOver path.
         if (bgBrush.style() == Qt::SolidPattern
-            && bgBrush.color().alpha() == 0) {
+            && bgBrush.color().alpha() < 255) {
             const auto prev = p.compositionMode();
             p.setCompositionMode(QPainter::CompositionMode_Source);
             p.fillRect(r, bgBrush);
