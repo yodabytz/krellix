@@ -327,7 +327,7 @@ void KrellmoonMonitor::applyThemeColors()
         QStringLiteral("text_accent"),
         QStringLiteral("text_primary")).color;
     m_phaseLabel->setStyleSheet(QStringLiteral(
-        "font-size: 9px; font-weight: 700; letter-spacing: 1px; color: %1;")
+        "font-size: 7px; font-weight: 700; letter-spacing: 1px; color: %1;")
         .arg(cssColor(accent)));
 }
 
