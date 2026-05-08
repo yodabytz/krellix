@@ -119,14 +119,17 @@ public:
     QFont  font (const QString &key, const QFont  &fallback = QFont())  const;
     int    metric(const QString &key, int fallback = 0) const;
 
-    // Returns a paint-ready QBrush for the key. Falls back to a solid
-    // QColor brush when no gradient is defined for the key. The rect
-    // anchors the gradient endpoints — a 90° gradient on a tall rect
-    // runs the full panel height, on a short rect it runs the short
-    // height. Pass an invalid rect for non-gradient keys (color path).
+    // Returns a paint-ready QBrush for the key. Lookup chain: the
+    // requested key (v2 gradient → v1 flat color), then the optional
+    // fallbackKey, then the literal fallback QColor. The rect anchors
+    // gradient endpoints — pass an invalid rect for non-gradient keys.
+    // The fallbackKey lets widgets ask for "panel_bg_proc" and
+    // gracefully degrade to "panel_bg"'s gradient on themes that
+    // don't define the per-monitor variant.
     QBrush brush(const QString &key,
-                 const QRectF &rect    = QRectF(),
-                 const QColor &fallback = QColor()) const;
+                 const QRectF &rect           = QRectF(),
+                 const QColor &fallback       = QColor(),
+                 const QString &fallbackKey   = QString()) const;
 
     // Text style — color + optional drop shadow. Lookup chain: the
     // requested key first (v2 text_styles, then v1 flat colors), then

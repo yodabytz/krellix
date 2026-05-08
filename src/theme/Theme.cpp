@@ -311,9 +311,12 @@ bool Theme::parseJsonFile(const QString &path)
             if (g.stops.size() >= 2) {
                 m_gradients.insert(it.key(), g);
                 // Mirror the first stop into m_colors so callers that
-                // still use color() get a sensible flat fallback.
-                if (!m_colors.contains(it.key()))
-                    m_colors.insert(it.key(), g.stops.first().second);
+                // still use color() get a sensible flat fallback. Always
+                // overwrite — loadDefaults() pre-populates m_colors with
+                // dark-green built-ins for the standard keys, and a
+                // gradient theme should never be reading those fallback
+                // values when it has its own colors defined.
+                m_colors.insert(it.key(), g.stops.first().second);
             }
         }
     }
@@ -389,35 +392,44 @@ QColor Theme::color(const QString &key, const QColor &fallback) const
 
 QBrush Theme::brush(const QString &key,
                     const QRectF &rect,
-                    const QColor &fallback) const
+                    const QColor &fallback,
+                    const QString &fallbackKey) const
 {
-    const auto gIt = m_gradients.constFind(key);
-    if (gIt != m_gradients.constEnd() && rect.isValid()) {
-        const Gradient &g = gIt.value();
-        // Map angle → start/end points on the rect. 0° = horizontal
-        // L→R, 90° = vertical T→B, 180° = horizontal R→L, 270° =
-        // vertical B→T. Anything in between projects onto the rect's
-        // diagonal at that angle. Cheap trig — calculated once per
-        // paint since brushes rebuild per call.
-        const double rad = qDegreesToRadians(static_cast<double>(g.angle));
-        const double dx  = std::cos(rad);
-        const double dy  = std::sin(rad);
-        const double cx  = rect.center().x();
-        const double cy  = rect.center().y();
-        // Half-extent along the gradient direction so endpoints land
-        // exactly on the rect edge, not past it.
-        const double hx  = rect.width()  * 0.5;
-        const double hy  = rect.height() * 0.5;
-        const double t   = std::abs(dx * hx) + std::abs(dy * hy);
-        QLinearGradient lg(QPointF(cx - dx * t, cy - dy * t),
-                           QPointF(cx + dx * t, cy + dy * t));
-        for (const auto &stop : g.stops)
-            lg.setColorAt(stop.first, stop.second);
-        return QBrush(lg);
+    // Lookup chain: requested key → optional fallback key. First match
+    // (gradient OR flat color) wins. This lets a widget ask for a
+    // monitor-specific key like "panel_bg_proc" and degrade to the
+    // base "panel_bg" gradient on themes that don't define the variant.
+    QStringList chain;
+    chain << key;
+    if (!fallbackKey.isEmpty() && fallbackKey != key) chain << fallbackKey;
+
+    for (const QString &k : chain) {
+        const auto gIt = m_gradients.constFind(k);
+        if (gIt != m_gradients.constEnd() && rect.isValid()) {
+            const Gradient &g = gIt.value();
+            // Map angle → start/end points on the rect. 0° = horizontal
+            // L→R, 90° = vertical T→B, 180° = horizontal R→L, 270° =
+            // vertical B→T. Cheap trig, calculated once per paint.
+            const double rad = qDegreesToRadians(static_cast<double>(g.angle));
+            const double dx  = std::cos(rad);
+            const double dy  = std::sin(rad);
+            const double cx  = rect.center().x();
+            const double cy  = rect.center().y();
+            const double hx  = rect.width()  * 0.5;
+            const double hy  = rect.height() * 0.5;
+            const double t   = std::abs(dx * hx) + std::abs(dy * hy);
+            QLinearGradient lg(QPointF(cx - dx * t, cy - dy * t),
+                               QPointF(cx + dx * t, cy + dy * t));
+            for (const auto &stop : g.stops)
+                lg.setColorAt(stop.first, stop.second);
+            return QBrush(lg);
+        }
+        const auto cIt = m_colors.constFind(k);
+        if (cIt != m_colors.constEnd() && cIt.value().isValid())
+            return QBrush(cIt.value());
     }
-    // No gradient (or invalid rect) — solid color brush.
-    const QColor c = m_colors.value(key, fallback);
-    return c.isValid() ? QBrush(c) : QBrush();
+    // Nothing matched — last-ditch fall back to the literal QColor.
+    return fallback.isValid() ? QBrush(fallback) : QBrush();
 }
 
 QFont Theme::font(const QString &key, const QFont &fallback) const

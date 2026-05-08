@@ -243,11 +243,17 @@ void Panel::paintEvent(QPaintEvent *)
         }
         if (surf.opacity < 1.0) p.setOpacity(prevOpacity);
     } else {
-        // Fall back to color OR gradient when no image is bound. Use the
-        // monitor-specific surface key first so imageless themes can give
-        // CPU, memory, network, etc. distinct gradient bands.
+        // Fall back to color OR gradient when no image is bound. Look
+        // up the monitor-specific surface key first so imageless themes
+        // CAN give CPU/Mem/Net/etc. distinct gradients, but fall back
+        // through to the base "panel_bg" gradient when the variant
+        // isn't defined — otherwise newer monitors (proc, netports)
+        // and plugin panels (krellkam, krellweather, ...) would render
+        // the literal flat fallback color and look black on themes
+        // whose only gradient lives at "panel_bg".
         p.fillRect(r, m_theme->brush(m_surfaceKey, r,
-                                     m_theme->color(QStringLiteral("panel_bg"))));
+                                     m_theme->color(QStringLiteral("panel_bg")),
+                                     QStringLiteral("panel_bg")));
     }
 
     const int bw = m_theme->metric(QStringLiteral("panel_border"), 1);
