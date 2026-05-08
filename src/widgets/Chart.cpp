@@ -257,7 +257,25 @@ void Chart::paintEvent(QPaintEvent *)
         if (surf.opacity < 1.0) p.setOpacity(prevOpacity);
     } else {
         // No image anywhere — fill with the chart_bg solid or gradient.
-        p.fillRect(r, m_theme->brush(QStringLiteral("chart_bg"), r, bg));
+        const QBrush bgBrush =
+            m_theme->brush(QStringLiteral("chart_bg"), r, bg);
+        // When chart_bg is fully transparent (alpha 0) and no image is
+        // bound, the theme wants the chart area to read as MORE see-through
+        // than the panel underneath. CompositionMode_Source makes the
+        // transparent fill OVERWRITE the panel pixels Panel just painted,
+        // punching a true clear-through hole instead of compositing alpha=0
+        // over them (which is a no-op and leaves panel_bg fully visible).
+        // Gradient brushes can hit this path too; only solid alpha=0 fills
+        // are interesting, so gate on the brush's color alpha.
+        if (bgBrush.style() == Qt::SolidPattern
+            && bgBrush.color().alpha() == 0) {
+            const auto prev = p.compositionMode();
+            p.setCompositionMode(QPainter::CompositionMode_Source);
+            p.fillRect(r, bgBrush);
+            p.setCompositionMode(prev);
+        } else {
+            p.fillRect(r, bgBrush);
+        }
     }
 
     const int maxGridLines = qMax(0, m_theme->metric(QStringLiteral("chart_grid_lines"), 6));
