@@ -69,13 +69,20 @@ QStringList defaultMonitorOrder()
 
 QStringList configuredMonitorOrder()
 {
+    // Pass through any non-empty saved id; downstream consumers
+    // (buildPanelStack / desiredPanelOrder) already discard ids that
+    // don't match a known builtin or loaded plugin. The previous filter
+    // required either a default-builtin name or a "plugin:" prefix and
+    // silently dropped bare plugin ids saved by SettingsDialog (e.g.
+    // "krellmoon", "krellweather"), which made plugin reordering a no-op:
+    // those entries were filtered out here, then appended at the bottom by
+    // desiredPanelOrder's trailing fallback. Trust the saved data instead.
     const QStringList defaults = defaultMonitorOrder();
     const QString raw = QSettings().value(QStringLiteral("monitors/order")).toString();
     QStringList out;
     for (const QString &id : raw.split(QLatin1Char(','), Qt::SkipEmptyParts)) {
         const QString trimmed = id.trimmed();
-        if ((defaults.contains(trimmed) || trimmed.startsWith(QStringLiteral("plugin:")))
-            && !out.contains(trimmed))
+        if (!trimmed.isEmpty() && !out.contains(trimmed))
             out.append(trimmed);
     }
     for (const QString &id : defaults) {
