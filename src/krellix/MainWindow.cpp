@@ -594,6 +594,7 @@ void MainWindow::refreshLiveSettings()
                     || lm.monitor->id() == QStringLiteral("krellwire")
                     || lm.monitor->id() == QStringLiteral("krellmail")
                     || lm.monitor->id() == QStringLiteral("krellmoon")
+                    || lm.monitor->id() == QStringLiteral("krellkam")
                     || lm.monitor->id() == QStringLiteral("netports")))
                 lm.monitor->tick();
         }

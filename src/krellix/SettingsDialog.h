@@ -124,6 +124,7 @@ private:
     QList<QLineEdit *> m_krellkamTitles;
     QList<QComboBox *> m_krellkamTypes;
     QList<QLineEdit *> m_krellkamSources;
+    QPushButton *m_krellkamApply = nullptr;
     QCheckBox   *m_krelldaciousEnabled = nullptr;
     QCheckBox   *m_krellweatherEnabled = nullptr;
     QLineEdit   *m_krellweatherStation = nullptr;

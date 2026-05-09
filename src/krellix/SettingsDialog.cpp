@@ -7,6 +7,7 @@
 #include "sysdep/NetStat.h"
 #include "theme/Theme.h"
 
+#include <QApplication>
 #include <QCheckBox>
 #include <QCloseEvent>
 #include <QComboBox>
@@ -559,6 +560,17 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
                 form->addRow(QStringLiteral("Camera %1:").arg(i), row);
             }
 
+            // Explicit reload — title / type / source edits save to QSettings
+            // on tab-out but do not apply live (that would kick yt-dlp every
+            // time focus left a half-typed URL). Click this to push the
+            // current values into the running Krellkam panel.
+            m_krellkamApply =
+                new QPushButton(QStringLiteral("Update Now"), group);
+            m_krellkamApply->setToolTip(
+                QStringLiteral("Reload titles / types / sources into the "
+                               "running Krellkam panel."));
+            form->addRow(QString(), m_krellkamApply);
+
             pluginLayout->addWidget(group);
             pluginLayout->addStretch(1);
             m_pluginList->addItem(QStringLiteral("Krellkam"));
@@ -972,28 +984,39 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
                     emit settingsApplied();
                 });
     }
+    // Krellkam title/type/source edits save to QSettings on tab-out but do
+    // NOT trigger settingsApplied — kicking the live monitor on every
+    // editingFinished would fire yt-dlp at half-typed URLs and waste cycles.
+    // The user pushes the new values into the live panel by clicking the
+    // "Update Now" button below.
     for (int i = 0; i < m_krellkamTitles.size(); ++i) {
         QLineEdit *edit = m_krellkamTitles.at(i);
         const QString key = QStringLiteral("plugins/krellkam/title%1").arg(i + 1);
-        connect(edit, &QLineEdit::editingFinished, this, [this, edit, key]() {
+        connect(edit, &QLineEdit::editingFinished, this, [edit, key]() {
             QSettings().setValue(key, edit->text().trimmed());
-            emit settingsApplied();
         });
     }
     for (int i = 0; i < m_krellkamTypes.size(); ++i) {
         QComboBox *type = m_krellkamTypes.at(i);
         const QString key = QStringLiteral("plugins/krellkam/type%1").arg(i + 1);
         connect(type, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                this, [this, type, key](int) {
+                this, [type, key](int) {
                     QSettings().setValue(key, type->currentData().toString());
-                    emit settingsApplied();
                 });
     }
     for (int i = 0; i < m_krellkamSources.size(); ++i) {
         QLineEdit *edit = m_krellkamSources.at(i);
         const QString key = QStringLiteral("plugins/krellkam/source%1").arg(i + 1);
-        connect(edit, &QLineEdit::editingFinished, this, [this, edit, key]() {
+        connect(edit, &QLineEdit::editingFinished, this, [edit, key]() {
             QSettings().setValue(key, edit->text().trimmed());
+        });
+    }
+    if (m_krellkamApply) {
+        connect(m_krellkamApply, &QPushButton::clicked, this, [this]() {
+            // Flush any still-focused editingFinished into QSettings before
+            // the live tick fires (Qt doesn't auto-fire it on button-click).
+            if (QWidget *fw = QApplication::focusWidget())
+                fw->clearFocus();
             emit settingsApplied();
         });
     }
