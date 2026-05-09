@@ -495,8 +495,12 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         auto *layout = new QVBoxLayout(page);
         auto *split = new QHBoxLayout;
         m_pluginList = new QListWidget(page);
-        m_pluginList->setMinimumWidth(190);
-        m_pluginList->setMaximumWidth(260);
+        // Narrow enough that the per-plugin settings pane on the right
+        // doesn't need horizontal scrolling — plugin names ("Krellweather",
+        // "Krelldacious", "KrellSpectrum") fit comfortably under 150px.
+        m_pluginList->setMinimumWidth(130);
+        m_pluginList->setMaximumWidth(150);
+        m_pluginList->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         m_pluginStack = new QStackedWidget(page);
         split->addWidget(m_pluginList);
         split->addWidget(m_pluginStack, 1);
