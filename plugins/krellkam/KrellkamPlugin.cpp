@@ -466,9 +466,21 @@ void KrellkamField::requestYoutubeFrame(const QString &source,
     resolver->setProcessChannelMode(QProcess::SeparateChannels);
     connect(resolver, &QProcess::errorOccurred, this,
             [resolver, callback](QProcess::ProcessError) {
+                // When OUR watchdog kills the process for timeout, QProcess
+                // transitions to Crashed and reports errorString() = "Process
+                // crashed". That's misleading on the panel — the slot just
+                // didn't return in time. Distinguish via a property set by
+                // the timer; show "stream timeout" so users can tell a slow
+                // network from a genuine crash.
+                const bool killedByUs = resolver->property(
+                    "krellkam_killed_by_timeout").toBool();
                 const QString err = resolver->errorString();
                 resolver->disconnect();
                 resolver->deleteLater();
+                if (killedByUs) {
+                    callback({}, QStringLiteral("stream timeout"));
+                    return;
+                }
                 callback({}, err.isEmpty() ? QStringLiteral("yt-dlp failed") : err.left(160));
             });
     connect(resolver,
@@ -488,9 +500,16 @@ void KrellkamField::requestYoutubeFrame(const QString &source,
                 m_youtubeStreams.insert(source, YoutubeStream{streamUrl, QDateTime::currentDateTimeUtc()});
                 requestYoutubeFrameFromStream(streamUrl, callback);
             });
-    QTimer::singleShot(12000, resolver, [resolver]() {
-        if (resolver->state() != QProcess::NotRunning)
+    // 30s — YouTube stream resolution can be slow on a cold VM (DNS,
+    // first-time cert handshake, yt-dlp signature extraction). The
+    // previous 12s window often tripped right after a VM boot before
+    // the network was fully warm. Tag the process so the error handler
+    // can render a friendly message instead of "Process crashed".
+    QTimer::singleShot(30000, resolver, [resolver]() {
+        if (resolver->state() != QProcess::NotRunning) {
+            resolver->setProperty("krellkam_killed_by_timeout", true);
             resolver->kill();
+        }
     });
     resolver->start();
 }
@@ -515,9 +534,15 @@ void KrellkamField::requestYoutubeFrameFromStream(
     ffmpeg->setProcessChannelMode(QProcess::SeparateChannels);
     connect(ffmpeg, &QProcess::errorOccurred, this,
             [ffmpeg, callback](QProcess::ProcessError) {
+                const bool killedByUs = ffmpeg->property(
+                    "krellkam_killed_by_timeout").toBool();
                 const QString err = ffmpeg->errorString();
                 ffmpeg->disconnect();
                 ffmpeg->deleteLater();
+                if (killedByUs) {
+                    callback({}, QStringLiteral("stream timeout"));
+                    return;
+                }
                 callback({}, err.isEmpty() ? QStringLiteral("ffmpeg failed") : err.left(160));
             });
     connect(ffmpeg,
@@ -534,9 +559,11 @@ void KrellkamField::requestYoutubeFrameFromStream(
                 }
                 callback(image, QString());
             });
-    QTimer::singleShot(12000, ffmpeg, [ffmpeg]() {
-        if (ffmpeg->state() != QProcess::NotRunning)
+    QTimer::singleShot(25000, ffmpeg, [ffmpeg]() {
+        if (ffmpeg->state() != QProcess::NotRunning) {
+            ffmpeg->setProperty("krellkam_killed_by_timeout", true);
             ffmpeg->kill();
+        }
     });
     ffmpeg->start();
 }
@@ -548,9 +575,15 @@ void KrellkamField::requestCommandSource(int index, const QString &source)
     proc->setArguments({QStringLiteral("-c"), source});
     connect(proc, &QProcess::errorOccurred, this,
             [this, proc, index](QProcess::ProcessError) {
+                const bool killedByUs = proc->property(
+                    "krellkam_killed_by_timeout").toBool();
                 const QString err = proc->errorString();
                 proc->disconnect();
                 proc->deleteLater();
+                if (killedByUs) {
+                    setSlotError(index, QStringLiteral("command timeout"));
+                    return;
+                }
                 setSlotError(index, err.isEmpty()
                     ? QStringLiteral("command failed")
                     : err.left(160));
@@ -568,9 +601,11 @@ void KrellkamField::requestCommandSource(int index, const QString &source)
                 }
                 setSlotImage(index, proc->readAllStandardOutput());
             });
-    QTimer::singleShot(10000, proc, [proc]() {
-        if (proc->state() != QProcess::NotRunning)
+    QTimer::singleShot(20000, proc, [proc]() {
+        if (proc->state() != QProcess::NotRunning) {
+            proc->setProperty("krellkam_killed_by_timeout", true);
             proc->kill();
+        }
     });
     proc->start();
 }
