@@ -149,8 +149,9 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
     auto *splitRow = new QHBoxLayout;
     splitRow->setSpacing(8);
     auto *sidebar = new QListWidget(this);
-    sidebar->setMaximumWidth(160);
-    sidebar->setMinimumWidth(140);
+    // Page names are short ("Appearance" is the longest at 10 chars).
+    sidebar->setMaximumWidth(110);
+    sidebar->setMinimumWidth(90);
     auto *stack   = new QStackedWidget(this);
     splitRow->addWidget(sidebar);
     splitRow->addWidget(stack, 1);
@@ -495,11 +496,11 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         auto *layout = new QVBoxLayout(page);
         auto *split = new QHBoxLayout;
         m_pluginList = new QListWidget(page);
-        // Narrow enough that the per-plugin settings pane on the right
-        // doesn't need horizontal scrolling — plugin names ("Krellweather",
-        // "Krelldacious", "KrellSpectrum") fit comfortably under 150px.
-        m_pluginList->setMinimumWidth(130);
-        m_pluginList->setMaximumWidth(150);
+        // Long plugin names ("Krellweather", "Krelldacious", "KrellSpectrum",
+        // 12-13 chars) fit comfortably under 125 px; keep the right pane
+        // wide enough that its forms don't need horizontal scrolling.
+        m_pluginList->setMinimumWidth(110);
+        m_pluginList->setMaximumWidth(125);
         m_pluginList->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
         m_pluginStack = new QStackedWidget(page);
         split->addWidget(m_pluginList);
