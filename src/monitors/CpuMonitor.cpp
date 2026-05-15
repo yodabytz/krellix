@@ -132,9 +132,9 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
         chart->setMaxValue(1.0);
         const int nCores = cores.size();
         chart->setRainbowSeries(nCores);
-        chart->setOverlayText(QStringLiteral("CPU x%1  %2")
-                                  .arg(nCores)
-                                  .arg(percentText(0)));
+        chart->setOverlayText(QStringLiteral("%1 Avg  x%2")
+                                  .arg(percentText(0))
+                                  .arg(nCores));
 
         m_combinedChart = chart;
         m_aggregateUI.krell = aggKrell;
@@ -250,9 +250,9 @@ void CpuMonitor::tick()
             if (counted > 0) {
                 const int avgPct = sumPct / counted;
                 m_combinedChart->setOverlayText(
-                    QStringLiteral("CPU x%1  Avg %2")
-                        .arg(counted)
-                        .arg(percentText(avgPct)));
+                    QStringLiteral("%1 Avg  x%2")
+                        .arg(percentText(avgPct))
+                        .arg(counted));
             }
         }
     } else if (m_mode == Mode::Aggregate) {

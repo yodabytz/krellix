@@ -318,6 +318,17 @@ void Chart::paintEvent(QPaintEvent *)
             p.drawTiledPixmap(r, overlay);
     }
 
+    QFont overlayFont = m_theme->font(QStringLiteral("label"));
+    const bool hasOverlay = !m_overlayText.isEmpty();
+    const QFontMetrics overlayMetrics(overlayFont);
+    int overlayBand = 0;
+    if (hasOverlay && r.height() >= overlayMetrics.height() + 12)
+        overlayBand = overlayMetrics.height() + 2;
+
+    QRect graphRect = r;
+    if (overlayBand > 0)
+        graphRect.setTop(r.top() + overlayBand);
+
     const int maxGridLines = qMax(0, m_theme->metric(QStringLiteral("chart_grid_lines"), 5));
     const double fullScale = (m_max > 0.0) ? m_max : 1.0;
     const double gridStep = maxGridLines > 0
@@ -332,12 +343,13 @@ void Chart::paintEvent(QPaintEvent *)
     const double displayMax = (gridLines > 0)
         ? gridStep * static_cast<double>(gridLines)
         : fullScale;
-    if (gridLines > 0 && r.height() > 1) {
+    if (gridLines > 0 && graphRect.height() > 1) {
         p.setPen(grid);
         for (int i = 1; i <= gridLines; ++i) {
             const double value = static_cast<double>(i) / gridLines;
-            const int y = r.bottom() - static_cast<int>(value * (r.height() - 1) + 0.5);
-            p.drawLine(r.left(), y, r.right(), y);
+            const int y = graphRect.bottom()
+                - static_cast<int>(value * (graphRect.height() - 1) + 0.5);
+            p.drawLine(graphRect.left(), y, graphRect.right(), y);
         }
     }
 
@@ -346,26 +358,28 @@ void Chart::paintEvent(QPaintEvent *)
                           const QColor &fillColor,
                           bool fillBelow) {
         const int n = static_cast<int>(ring.size());
-        if (n < 2 || r.width() < 2) return;
+        if (n < 2 || graphRect.width() < 2 || graphRect.height() < 2) return;
 
         QPolygonF poly;
         poly.reserve(n);
-        const double yScale = static_cast<double>(r.height() - 1);
+        const double yScale = static_cast<double>(graphRect.height() - 1);
         for (int i = 0; i < n; ++i) {
             const int idx = (m_head + i) % n;
             const double v = ring[static_cast<std::size_t>(idx)] / displayMax;
             const double clamped = std::clamp(v, 0.0, 1.0);
-            const double x = (static_cast<double>(i) * (r.width() - 1)) / (n - 1);
-            const double y = (r.height() - 1) - clamped * yScale;
+            const double x = graphRect.left()
+                + (static_cast<double>(i) * (graphRect.width() - 1)) / (n - 1);
+            const double y = graphRect.top()
+                + (graphRect.height() - 1) - clamped * yScale;
             poly << QPointF(x, y);
         }
 
         if (fillBelow) {
             QPolygonF area = poly;
-            area << QPointF(static_cast<double>(r.right()),
-                            static_cast<double>(r.bottom()))
-                 << QPointF(static_cast<double>(r.left()),
-                            static_cast<double>(r.bottom()));
+            area << QPointF(static_cast<double>(graphRect.right()),
+                            static_cast<double>(graphRect.bottom()))
+                 << QPointF(static_cast<double>(graphRect.left()),
+                            static_cast<double>(graphRect.bottom()));
             QColor fill = fillColor;
             fill.setAlpha(110);
             p.setRenderHint(QPainter::Antialiasing, false);
@@ -398,13 +412,11 @@ void Chart::paintEvent(QPaintEvent *)
         }
     }
 
-    // Optional in-chart overlay label (e.g. "cpu0  37%") — drawn after
-    // the line so it sits on top, anti-aliased, in the chart's primary
-    // text color. Saves a full decal row of vertical space per panel.
-    if (!m_overlayText.isEmpty()) {
+    // Optional overlay label: reserve a short top band when there is enough
+    // height so 100% samples do not run through the number.
+    if (hasOverlay) {
         p.setRenderHint(QPainter::TextAntialiasing, true);
-        QFont f = m_theme->font(QStringLiteral("label"));
-        p.setFont(f);
+        p.setFont(overlayFont);
         // Themes can give chart-overlay text its own color/shadow via
         // the dedicated "chart_overlay" key (e.g. amber-on-grey on the
         // egan-grey theme). Falls back to text_primary so themes that
@@ -412,14 +424,32 @@ void Chart::paintEvent(QPaintEvent *)
         const Theme::TextStyle ts = m_theme->textStyle(
             QStringLiteral("chart_overlay"),
             QStringLiteral("text_primary"));
-        const QRect textRect = r.adjusted(4, 1, -4, -1);
+        const QRect textRect = overlayBand > 0
+            ? QRect(r.left() + 4, r.top() + 1, qMax(0, r.width() - 8), overlayBand)
+            : r.adjusted(4, 1, -4, -1);
+        const QString displayText =
+            overlayMetrics.elidedText(m_overlayText, Qt::ElideRight, textRect.width());
         if (ts.shadow.present) {
             p.setPen(ts.shadow.color);
             p.drawText(textRect.translated(ts.shadow.offsetX, ts.shadow.offsetY),
-                       Qt::AlignTop | Qt::AlignLeft, m_overlayText);
+                       Qt::AlignTop | Qt::AlignLeft, displayText);
         }
-        p.setPen(ts.color.isValid() ? ts.color
-                                    : m_theme->color(QStringLiteral("text_primary")));
-        p.drawText(textRect, Qt::AlignTop | Qt::AlignLeft, m_overlayText);
+        const QColor textColor = ts.color.isValid()
+            ? ts.color
+            : m_theme->color(QStringLiteral("text_primary"));
+        QColor outline = ts.shadow.present ? ts.shadow.color : QColor(0, 0, 0, 200);
+        if (!outline.isValid() || outline.alpha() == 0)
+            outline = QColor(0, 0, 0, 200);
+        QPainterPath textPath;
+        textPath.addText(QPointF(textRect.left(),
+                                 textRect.top() + overlayMetrics.ascent()),
+                         overlayFont,
+                         displayText);
+        QPen outlinePen(outline);
+        outlinePen.setWidthF(2.0);
+        outlinePen.setJoinStyle(Qt::RoundJoin);
+        p.setRenderHint(QPainter::Antialiasing, true);
+        p.strokePath(textPath, outlinePen);
+        p.fillPath(textPath, textColor);
     }
 }
