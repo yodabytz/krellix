@@ -4,9 +4,12 @@
 #include "widgets/Panel.h"
 
 #include <QDateTime>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QDialog>
 #include <QLabel>
+#include <QLayout>
 #include <QMouseEvent>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -100,6 +103,138 @@ int indexOfBytes(const QByteArray &bytes, const QByteArray &needle, int from = 0
     return bytes.indexOf(needle, from);
 }
 
+QStringList splitOptionalCommandArgs(const QString &value)
+{
+    if (value.trimmed().isEmpty())
+        return {};
+    return QProcess::splitCommand(value);
+}
+
+QString expandUserPath(QString path)
+{
+    path = path.trimmed();
+    if ((path.startsWith(QLatin1Char('"')) && path.endsWith(QLatin1Char('"')))
+        || (path.startsWith(QLatin1Char('\'')) && path.endsWith(QLatin1Char('\'')))) {
+        path = path.mid(1, path.size() - 2).trimmed();
+    }
+    if (path.startsWith(QStringLiteral("file://"))) {
+        const QUrl url(path);
+        if (url.isLocalFile())
+            path = url.toLocalFile();
+    }
+    if (path == QLatin1String("~"))
+        return QDir::homePath();
+    if (path.startsWith(QStringLiteral("~/")))
+        return QDir::homePath() + path.mid(1);
+    if (path == QLatin1String("$HOME"))
+        return QDir::homePath();
+    if (path.startsWith(QStringLiteral("$HOME/")))
+        return QDir::homePath() + path.mid(5);
+    if (path == QLatin1String("${HOME}"))
+        return QDir::homePath();
+    if (path.startsWith(QStringLiteral("${HOME}/")))
+        return QDir::homePath() + path.mid(7);
+    return path;
+}
+
+QString cookieFileProblem(const QString &path)
+{
+    if (path.isEmpty())
+        return {};
+    const QFileInfo info(path);
+    if (!info.exists())
+        return QStringLiteral("cookie file not found: %1").arg(path);
+    if (!info.isFile())
+        return QStringLiteral("cookie path is not a file: %1").arg(path);
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return QStringLiteral("cookie file not readable: %1").arg(path);
+    const QByteArray head = f.read(4096);
+    if (!head.contains("youtube") && !head.contains("google"))
+        return QStringLiteral("cookie file has no YouTube/Google cookies");
+    return {};
+}
+
+QString shortYoutubeError(QString err)
+{
+    err = err.trimmed();
+    if (err.contains(QStringLiteral("Sign in to confirm"), Qt::CaseInsensitive)
+        || err.contains(QStringLiteral("LOGIN_REQUIRED"), Qt::CaseInsensitive)) {
+        QSettings s;
+        const QString cookiesFile = expandUserPath(
+            s.value(QStringLiteral("plugins/krellkam/youtube_cookies_file")).toString());
+        const QString cookiesFromBrowser =
+            s.value(QStringLiteral("plugins/krellkam/youtube_cookies_from_browser")).toString().trimmed();
+        if (!cookiesFile.isEmpty() || !cookiesFromBrowser.isEmpty())
+            return QStringLiteral("youtube rejected configured cookies; refresh Krellkam cookies");
+        return QStringLiteral("youtube verification required; set cookies in Krellkam settings");
+    }
+    if (err.contains(QStringLiteral("could not open cookies file"), Qt::CaseInsensitive)
+        || err.contains(QStringLiteral("cookies file must be"), Qt::CaseInsensitive)
+        || err.contains(QStringLiteral("cookie file"), Qt::CaseInsensitive)) {
+        return err.left(160);
+    }
+    if (err.contains(QStringLiteral("cookies-from-browser"), Qt::CaseInsensitive)
+        || err.contains(QStringLiteral("--cookies"), Qt::CaseInsensitive)) {
+        return QStringLiteral("youtube wants browser cookies; set Krellkam cookies");
+    }
+    return err.isEmpty() ? QStringLiteral("yt-dlp failed") : err.left(160);
+}
+
+QStringList youtubeResolverArgs(const QString &source)
+{
+    QSettings s;
+    QStringList args;
+
+    const QString cookiesFile = expandUserPath(
+        s.value(QStringLiteral("plugins/krellkam/youtube_cookies_file")).toString());
+    QString cookiesFromBrowser =
+        s.value(QStringLiteral("plugins/krellkam/youtube_cookies_from_browser"),
+                QStringLiteral("auto")).toString().trimmed();
+    if (!cookiesFile.isEmpty()) {
+        const QFileInfo cookiesInfo(cookiesFile);
+        args << QStringLiteral("--cookies")
+             << (cookiesInfo.exists() ? cookiesInfo.absoluteFilePath() : cookiesFile);
+    } else {
+        if (cookiesFromBrowser == QStringLiteral("auto")) {
+            const QString home = QDir::homePath();
+            if (QDir(home + QStringLiteral("/.mozilla/firefox")).exists())
+                cookiesFromBrowser = QStringLiteral("firefox");
+            else if (QDir(home + QStringLiteral("/.config/chromium")).exists())
+                cookiesFromBrowser = QStringLiteral("chromium");
+            else if (QDir(home + QStringLiteral("/.config/google-chrome")).exists())
+                cookiesFromBrowser = QStringLiteral("chrome");
+            else if (QDir(home + QStringLiteral("/.config/BraveSoftware/Brave-Browser")).exists())
+                cookiesFromBrowser = QStringLiteral("brave");
+            else
+                cookiesFromBrowser.clear();
+        }
+    }
+    if (!cookiesFile.isEmpty()) {
+        // Already added above.
+    } else if (!cookiesFromBrowser.isEmpty()) {
+        args << QStringLiteral("--cookies-from-browser") << cookiesFromBrowser;
+    }
+
+    const QString extractorArgs =
+        s.value(QStringLiteral("plugins/krellkam/youtube_extractor_args"),
+                QStringLiteral("youtube:player_client=tv,web_safari,mweb,default"))
+            .toString()
+            .trimmed();
+    if (!extractorArgs.isEmpty())
+        args << QStringLiteral("--extractor-args") << extractorArgs;
+
+    args << splitOptionalCommandArgs(
+        s.value(QStringLiteral("plugins/krellkam/youtube_yt_dlp_args")).toString());
+    args << QStringLiteral("--no-playlist")
+         << QStringLiteral("-f")
+         << QStringLiteral("best[height<=1080]/best[height<=720]/best[height<=480]/best")
+         << QStringLiteral("-g")
+         << source;
+
+    return args;
+}
+
 class KrellkamImageViewer final : public QLabel
 {
 public:
@@ -184,7 +319,10 @@ void KrellkamField::stopProcesses()
 
 void KrellkamField::setSources(const QList<KrellkamSource> &sources)
 {
-    if (sources == m_sources && !m_slots.isEmpty()) return;
+    if (sources == m_sources && !m_slots.isEmpty()) {
+        requestRelayout();
+        return;
+    }
     m_sources = sources;
     m_slots.clear();
     for (const KrellkamSource &source : sources.mid(0, kMaxSources)) {
@@ -200,12 +338,12 @@ void KrellkamField::setSources(const QList<KrellkamSource> &sources)
         slot.status = QStringLiteral("add a camera in Settings > Plugins");
         m_slots.append(slot);
     }
-    updateGeometry();
-    update();
+    requestRelayout();
 }
 
 void KrellkamField::refresh()
 {
+    requestRelayout();
     for (int i = 0; i < m_slots.size(); ++i)
         requestSource(i);
 }
@@ -288,7 +426,24 @@ void KrellkamField::paintEvent(QPaintEvent *)
 
 void KrellkamField::onThemeChanged()
 {
+    requestRelayout();
+}
+
+void KrellkamField::requestRelayout()
+{
     updateGeometry();
+    update();
+    if (QWidget *p = parentWidget()) {
+        if (QLayout *layout = p->layout())
+            layout->invalidate();
+        p->updateGeometry();
+        p->update();
+    }
+    if (QWidget *w = window()) {
+        if (QLayout *layout = w->layout())
+            layout->activate();
+        w->updateGeometry();
+    }
     update();
 }
 
@@ -450,6 +605,14 @@ void KrellkamField::requestYoutubeFrame(const QString &source,
         return;
     }
 
+    const QString cookiesFile = expandUserPath(
+        QSettings().value(QStringLiteral("plugins/krellkam/youtube_cookies_file")).toString());
+    const QString cookieProblem = cookieFileProblem(cookiesFile);
+    if (!cookieProblem.isEmpty()) {
+        callback({}, cookieProblem);
+        return;
+    }
+
     const YoutubeStream cached = m_youtubeStreams.value(source);
     if (!cached.url.isEmpty()
         && cached.resolvedAt.secsTo(QDateTime::currentDateTimeUtc()) < 600) {
@@ -459,10 +622,7 @@ void KrellkamField::requestYoutubeFrame(const QString &source,
 
     auto *resolver = new QProcess(this);
     resolver->setProgram(QStringLiteral("yt-dlp"));
-    resolver->setArguments({QStringLiteral("-f"),
-                            QStringLiteral("best[height<=1080]/best[height<=720]/best[height<=480]/best"),
-                            QStringLiteral("-g"),
-                            source});
+    resolver->setArguments(youtubeResolverArgs(source));
     resolver->setProcessChannelMode(QProcess::SeparateChannels);
     connect(resolver, &QProcess::errorOccurred, this,
             [resolver, callback](QProcess::ProcessError) {
@@ -493,7 +653,7 @@ void KrellkamField::requestYoutubeFrame(const QString &source,
                 const QString err = QString::fromLocal8Bit(resolver->readAllStandardError()).trimmed();
                 resolver->deleteLater();
                 if (status != QProcess::NormalExit || exitCode != 0 || streamUrl.isEmpty()) {
-                    callback({}, err.isEmpty() ? QStringLiteral("yt-dlp failed") : err.left(160));
+                    callback({}, shortYoutubeError(err));
                     return;
                 }
 

@@ -89,21 +89,36 @@ void Chart::setRainbowSeries(int n)
     n = qMax(1, n);
     QList<QColor> palette;
     palette.reserve(n);
-    // Cool-to-warm cores: descend hue 220° (deep blue) → 0° (red), so
-    // adjacent cores in the chart get visually-similar colors and the
-    // palette walks through the full blue → cyan → green → yellow →
-    // orange → red progression as core count climbs. This is much
-    // easier to read than the previous evenly-spread rainbow, where a
-    // bright red `cpu1` next to a deep blue `cpu2` made the chart look
-    // alarmist by default. Themes can still override with explicit
-    // chart_line_cpu_<n> entries via setSeriesColors() — this is just
-    // the default when no per-series color is provided.
-    for (int i = 0; i < n; ++i) {
+    auto appendColor = [&](const QColor &color) {
+        if (!color.isValid() || palette.size() >= n) return;
+        for (const QColor &existing : palette) {
+            if (existing == color)
+                return;
+        }
+        palette.append(color);
+    };
+
+    // Start with the theme's normal chart colors so combined CPU charts
+    // look native to the selected theme. Warm warning/critical colors are
+    // intentionally not first; red/orange should read as attention, not as
+    // the default line for cpu0.
+    appendColor(m_theme->color(QStringLiteral("chart_line_cpu")));
+    appendColor(m_theme->color(QStringLiteral("chart_line_mem")));
+    appendColor(m_theme->color(QStringLiteral("chart_line_net_rx")));
+    appendColor(m_theme->color(QStringLiteral("chart_line_swap")));
+    appendColor(m_theme->color(QStringLiteral("chart_line_net_tx")));
+    appendColor(m_theme->color(QStringLiteral("chart_line_disk")));
+
+    for (int i = 0; palette.size() < n && i < n; ++i) {
         const double t = (n == 1) ? 0.0
                                   : static_cast<double>(i)
                                   / static_cast<double>(n - 1);
-        const int hue = static_cast<int>(220.0 - t * 220.0 + 0.5);
-        palette.append(QColor::fromHsv(hue, 200, 230));
+        const int hue = static_cast<int>(210.0 - t * 150.0 + 0.5);
+        appendColor(QColor::fromHsv(hue, 160, 230));
+    }
+    for (int i = 0; palette.size() < n; ++i) {
+        const int hue = (30 + i * 38) % 360;
+        appendColor(QColor::fromHsv(hue, 170, 225));
     }
     setSeriesColors(palette);
 }

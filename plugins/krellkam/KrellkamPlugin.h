@@ -75,6 +75,7 @@ private:
     void setSlotImage(int index, const QByteArray &bytes);
     void setSlotError(int index, const QString &status);
     void updateViewers(int index);
+    void requestRelayout();
     bool tryExtractMjpegFrame(int index, QByteArray &buffer);
     void paintChartBackground(QPainter &p, const QRect &rect) const;
     int slotAt(const QPoint &pos) const;
