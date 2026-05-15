@@ -251,7 +251,7 @@ void Theme::loadDefaults()
     m_metrics.insert(QStringLiteral("krell_height"),     8);
     m_metrics.insert(QStringLiteral("meter_height"),     0);
     m_metrics.insert(QStringLiteral("chart_height"),     32);
-    m_metrics.insert(QStringLiteral("chart_grid_lines"), 6);
+    m_metrics.insert(QStringLiteral("chart_grid_lines"), 5);
 }
 
 bool Theme::parseJsonFile(const QString &path)
@@ -533,6 +533,22 @@ void Theme::parseSurfaces(const QJsonObject &obj)
         SurfaceSpec spec;
         const QJsonValue imgVal = s.value(QStringLiteral("image"));
         if (imgVal.isString()) spec.relImage = imgVal.toString();
+        const QJsonValue overlaysVal = s.value(QStringLiteral("overlays"));
+        if (overlaysVal.isArray()) {
+            const QJsonArray overlays = overlaysVal.toArray();
+            for (const QJsonValue &ov : overlays) {
+                if (ov.isString()) {
+                    spec.relOverlays.append(ov.toString());
+                } else if (ov.isObject()) {
+                    const QJsonValue image =
+                        ov.toObject().value(QStringLiteral("image"));
+                    if (image.isString())
+                        spec.relOverlays.append(image.toString());
+                }
+            }
+        } else if (overlaysVal.isString()) {
+            spec.relOverlays.append(overlaysVal.toString());
+        }
         const QJsonValue slVal = s.value(QStringLiteral("slice"));
         if (slVal.isDouble())
             spec.slice = qBound(0, static_cast<int>(slVal.toDouble()), 256);
@@ -625,6 +641,13 @@ Theme::Surface Theme::surface(const QString &key,
             out.slice   = sp.slice;
             out.opacity = sp.opacity;
             out.tint    = sp.tint;
+            for (const QString &relOverlay : sp.relOverlays) {
+                const QString full = assetPath(relOverlay);
+                if (full.isEmpty()) continue;
+                const QPixmap overlay = loadBoundedPixmap(full);
+                if (!overlay.isNull())
+                    out.overlays.append(overlay);
+            }
             if (!sp.relImage.isEmpty()) {
                 // Inline-resolve through the same hardened path-loader
                 // that pixmap() uses so the v2 entry doesn't bypass

@@ -15,8 +15,8 @@ directory and may not escape it.
 
 ## `theme.json`
 
-A single JSON object with up to five sections: `colors`, `fonts`, `metrics`,
-`images`, plus optional `name` / `version` / `author` / `description`
+A single JSON object with up to seven sections: `colors`, `fonts`, `metrics`,
+`images`, `surfaces`, `text_styles`, plus optional `name` / `version` / `author` / `description`
 metadata. Every key is optional — missing values fall back to built-in
 defaults (or a flat-color render if no image is supplied).
 
@@ -30,7 +30,9 @@ defaults (or a flat-color render if no image is supplied).
   "colors":  { ... },
   "fonts":   { ... },
   "metrics": { ... },
-  "images":  { ... }
+  "images":  { ... },
+  "surfaces": { ... },
+  "text_styles": { ... }
 }
 ```
 
@@ -88,7 +90,7 @@ Map of name → integer (clamped to `0..4096`).
 | `panel_min_width`  | 200     | Window/panel fixed width in pixels      |
 | `krell_height`     | 8       | Krell strip height                      |
 | `chart_height`     | 32      | Chart strip height                      |
-| `chart_grid_lines` | 4       | Number of horizontal grid divisions     |
+| `chart_grid_lines` | 5       | Number of horizontal grid divisions     |
 
 ### `images`
 
@@ -115,6 +117,26 @@ Recognized keys:
 
 Image-themed widgets gracefully fall back to color-only rendering for any
 key that isn't supplied — so a theme can mix images and colors freely.
+
+### `surfaces`
+
+Surfaces are the preferred way to theme panel and chart backgrounds. They
+support scalable base art plus optional decorative overlay images:
+
+```json
+"surfaces": {
+  "panel_bg": {
+    "image": "assets/panel.png",
+    "overlays": ["assets/logo.png"],
+    "slice": 4,
+    "opacity": 1.0,
+    "tint": "#00000020"
+  }
+}
+```
+
+`slice` enables 9-slice scaling for framed panel art. `overlays` are drawn on
+top without 9-slice scaling, so logos or badges do not stretch with the panel.
 
 ## Limits
 

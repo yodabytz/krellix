@@ -313,17 +313,29 @@ void Chart::paintEvent(QPaintEvent *)
         }
     }
 
-    const int maxGridLines = qMax(0, m_theme->metric(QStringLiteral("chart_grid_lines"), 6));
-    const double peakRatio = (m_max > 0.0)
-        ? std::clamp(visiblePeak() / m_max, 0.0, 1.0)
-        : 0.0;
-    const int gridLines = qBound(0,
-                                 static_cast<int>(std::ceil(peakRatio * maxGridLines)),
-                                 maxGridLines);
+    if (!surf.overlays.isEmpty() && r.width() > 0 && r.height() > 0) {
+        for (const QPixmap &overlay : surf.overlays)
+            p.drawTiledPixmap(r, overlay);
+    }
+
+    const int maxGridLines = qMax(0, m_theme->metric(QStringLiteral("chart_grid_lines"), 5));
+    const double fullScale = (m_max > 0.0) ? m_max : 1.0;
+    const double gridStep = maxGridLines > 0
+        ? fullScale / static_cast<double>(maxGridLines)
+        : fullScale;
+    const double peak = std::clamp(visiblePeak(), 0.0, fullScale);
+    const int gridLines = (maxGridLines > 0)
+        ? qBound(1,
+                 static_cast<int>(std::ceil(peak / gridStep)),
+                 maxGridLines)
+        : 0;
+    const double displayMax = (gridLines > 0)
+        ? gridStep * static_cast<double>(gridLines)
+        : fullScale;
     if (gridLines > 0 && r.height() > 1) {
         p.setPen(grid);
         for (int i = 1; i <= gridLines; ++i) {
-            const double value = static_cast<double>(i) / maxGridLines;
+            const double value = static_cast<double>(i) / gridLines;
             const int y = r.bottom() - static_cast<int>(value * (r.height() - 1) + 0.5);
             p.drawLine(r.left(), y, r.right(), y);
         }
@@ -341,7 +353,7 @@ void Chart::paintEvent(QPaintEvent *)
         const double yScale = static_cast<double>(r.height() - 1);
         for (int i = 0; i < n; ++i) {
             const int idx = (m_head + i) % n;
-            const double v = ring[static_cast<std::size_t>(idx)] / m_max;
+            const double v = ring[static_cast<std::size_t>(idx)] / displayMax;
             const double clamped = std::clamp(v, 0.0, 1.0);
             const double x = (static_cast<double>(i) * (r.width() - 1)) / (n - 1);
             const double y = (r.height() - 1) - clamped * yScale;

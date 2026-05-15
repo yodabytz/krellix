@@ -38,6 +38,6 @@
     "panel_min_width":  100,
     "krell_height":     8,
     "chart_height":     32,
-    "chart_grid_lines": 4
+    "chart_grid_lines": 5
   }
 }

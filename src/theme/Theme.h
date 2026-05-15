@@ -72,6 +72,7 @@ public:
 
     struct Surface {
         QPixmap image;          // empty if no image (caller falls back to color)
+        QList<QPixmap> overlays; // image layers drawn on top of the base
         int     slice   = 4;    // 9-slice corner; 0 = plain stretch
         qreal   opacity = 1.0;  // 0..1
         QColor  tint;            // invalid = no tint overlay
@@ -219,6 +220,7 @@ private:
     // v2 dictionaries
     struct SurfaceSpec {
         QString relImage;       // empty = inherit / use color fallback
+        QStringList relOverlays;
         int     slice   = 4;
         qreal   opacity = 1.0;
         QColor  tint;

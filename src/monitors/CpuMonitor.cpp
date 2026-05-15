@@ -27,9 +27,32 @@ QList<CpuSample> sortedCoreSamples(const QList<CpuSample> &samples)
     return cores;
 }
 
-QString displayCpuName(int cpuIndex)
+QString displayCpuName(int displayIndex, int kernelIndex)
 {
-    return QStringLiteral("cpu%1").arg(cpuIndex);
+    QString fmt = QSettings().value(QStringLiteral("monitors/cpu/label_format"),
+                                    QStringLiteral("{name}")).toString();
+    if (fmt.trimmed().isEmpty()) fmt = QStringLiteral("{name}");
+    const QString name = QStringLiteral("cpu%1").arg(displayIndex);
+    fmt.replace(QStringLiteral("{name}"), name);
+    fmt.replace(QStringLiteral("{index}"), QString::number(displayIndex));
+    fmt.replace(QStringLiteral("{kernel}"), QStringLiteral("cpu%1").arg(kernelIndex));
+    fmt.replace(QStringLiteral("{kernel_index}"), QString::number(kernelIndex));
+    return fmt;
+}
+
+int cpuWarnPercent()
+{
+    return qBound(1, QSettings().value(QStringLiteral("monitors/cpu/warn_percent"), 80).toInt(), 100);
+}
+
+int cpuCriticalPercent()
+{
+    return qBound(1, QSettings().value(QStringLiteral("monitors/cpu/critical_percent"), 95).toInt(), 100);
+}
+
+QString percentText(int pct)
+{
+    return QString::number(qBound(0, pct, 100)) + QLatin1Char('%');
 }
 
 } // namespace
@@ -103,12 +126,15 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
     if (m_mode == Mode::Combined) {
         auto *p = new Panel(theme(), container);
         p->setSurfaceKey(QStringLiteral("panel_bg_cpu"));
+        p->setTitle(QStringLiteral("CPU"));
         Krell *aggKrell = p->addKrell();
         Chart *chart = p->addChart();
         chart->setMaxValue(1.0);
         const int nCores = cores.size();
         chart->setRainbowSeries(nCores);
-        chart->setOverlayText(QStringLiteral("CPU x%1  0%").arg(nCores));
+        chart->setOverlayText(QStringLiteral("CPU x%1  %2")
+                                  .arg(nCores)
+                                  .arg(percentText(0)));
 
         m_combinedChart = chart;
         m_aggregateUI.krell = aggKrell;
@@ -121,6 +147,7 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
         // overlay inside the chart (top-left). Saves a decal row.
         auto *p = new Panel(theme(), container);
         p->setSurfaceKey(QStringLiteral("panel_bg_cpu"));
+        p->setTitle(QStringLiteral("CPU"));
         CoreUI ui;
         ui.krell = p->addKrell();
         ui.chart = p->addChart(QStringLiteral("chart_line_cpu"));
@@ -137,19 +164,26 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
                                 QString::number(smp.index);
             const bool enabled = s.value(key, true).toBool();
             if (!enabled) continue;
+            const QString displayName = displayCpuName(slot, smp.index);
 
             auto *p = new Panel(theme(), container);
             p->setSurfaceKey(QStringLiteral("panel_bg_cpu"));
             CoreUI ui;
+            ui.valueDecal = p->addDecal(QStringLiteral("label"),
+                                        QStringLiteral("text_secondary"));
+            if (ui.valueDecal) {
+                ui.valueDecal->setAlignment(Qt::AlignHCenter);
+                ui.valueDecal->setText(displayName);
+            }
             ui.krell = p->addKrell();
             ui.chart = p->addChart(QStringLiteral("chart_line_cpu"));
             if (ui.chart) {
                 ui.chart->setMaxValue(1.0);
-                ui.chart->setOverlayText(displayCpuName(smp.index) + QStringLiteral("  0%"));
+                ui.chart->setOverlayText(QStringLiteral("0%"));
             }
             m_cores.append(ui);
             m_visibleCoreIndices.append(smp.index);
-            m_visibleCoreLabels.append(displayCpuName(smp.index));
+            m_visibleCoreLabels.append(displayName);
             vbox->addWidget(p);
         }
         if (m_cores.isEmpty()) {
@@ -206,11 +240,19 @@ void CpuMonitor::tick()
                 const double agg = CpuStat::utilization(
                     m_prevSamples.first(), samples.first());
                 m_aggregateUI.krell->setValue(agg);
+                const int warn = cpuWarnPercent();
+                const int crit = qMax(warn, cpuCriticalPercent());
+                const int pct = static_cast<int>(agg * 100.0 + 0.5);
+                m_aggregateUI.krell->setAlertLevel(pct >= crit ? Krell::AlertLevel::Critical
+                                               : pct >= warn ? Krell::AlertLevel::Warning
+                                                             : Krell::AlertLevel::None);
             }
             if (counted > 0) {
+                const int avgPct = sumPct / counted;
                 m_combinedChart->setOverlayText(
-                    QStringLiteral("CPU x%1  avg %2%")
-                        .arg(counted).arg(sumPct / counted));
+                    QStringLiteral("CPU x%1  Avg %2")
+                        .arg(counted)
+                        .arg(percentText(avgPct)));
             }
         }
     } else if (m_mode == Mode::Aggregate) {
@@ -218,11 +260,19 @@ void CpuMonitor::tick()
             const double util =
                 CpuStat::utilization(m_prevSamples.first(), samples.first());
             if (m_aggregateUI.krell) m_aggregateUI.krell->setValue(util);
+            if (m_aggregateUI.krell) {
+                const int warn = cpuWarnPercent();
+                const int crit = qMax(warn, cpuCriticalPercent());
+                const int pct = static_cast<int>(util * 100.0 + 0.5);
+                m_aggregateUI.krell->setAlertLevel(pct >= crit ? Krell::AlertLevel::Critical
+                                               : pct >= warn ? Krell::AlertLevel::Warning
+                                                             : Krell::AlertLevel::None);
+            }
             if (m_aggregateUI.chart) {
                 m_aggregateUI.chart->appendSample(util);
                 const int pct = static_cast<int>(util * 100.0 + 0.5);
                 m_aggregateUI.chart->setOverlayText(
-                    QStringLiteral("CPU %1%").arg(pct));
+                    QStringLiteral("CPU %1").arg(percentText(pct)));
             }
         }
     } else if (m_havePrev) {
@@ -241,20 +291,20 @@ void CpuMonitor::tick()
             if (!prev || !curr) continue;
 
             const double util = CpuStat::utilization(*prev, *curr);
+            const int warn = cpuWarnPercent();
+            const int crit = qMax(warn, cpuCriticalPercent());
             CoreUI &ui = m_cores[slot];
             if (ui.krell) {
                 ui.krell->setValue(util);
-                ui.krell->setAlertLevel(util >= 0.95 ? Krell::AlertLevel::Critical
-                                       : util >= 0.80 ? Krell::AlertLevel::Warning
-                                                      : Krell::AlertLevel::None);
+                const int pct = static_cast<int>(util * 100.0 + 0.5);
+                ui.krell->setAlertLevel(pct >= crit ? Krell::AlertLevel::Critical
+                                       : pct >= warn ? Krell::AlertLevel::Warning
+                                                     : Krell::AlertLevel::None);
             }
             if (ui.chart) {
                 ui.chart->appendSample(util);
                 const int pct = static_cast<int>(util * 100.0 + 0.5);
-                const QString label = slot < m_visibleCoreLabels.size()
-                    ? m_visibleCoreLabels[slot] : curr->name;
-                ui.chart->setOverlayText(
-                    QStringLiteral("%1  %2%").arg(label).arg(pct));
+                ui.chart->setOverlayText(percentText(pct));
             }
         }
     }
