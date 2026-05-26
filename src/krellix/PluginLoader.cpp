@@ -3,6 +3,7 @@
 #include "monitors/MonitorBase.h"
 #include "sdk/KrellixPlugin.h"
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <QLoggingCategory>
@@ -38,6 +39,12 @@ QStringList PluginLoader::searchPaths()
         QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
     if (!dataHome.isEmpty())
         paths << QDir(dataHome).filePath(QStringLiteral("krellix/plugins"));
+
+#ifdef Q_OS_MACOS
+    const QDir appDir(QCoreApplication::applicationDirPath());
+    paths << appDir.filePath(QStringLiteral("../PlugIns/krellix"));
+    paths << appDir.filePath(QStringLiteral("../Resources/plugins"));
+#endif
 
     paths << QString::fromUtf8(KRELLIX_PLUGIN_SYSTEM_DIR);
 
