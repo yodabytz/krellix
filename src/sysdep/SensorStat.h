@@ -4,20 +4,20 @@
 #include <QString>
 
 struct SensorReading {
-    enum Type { Temp, Fan, Voltage };
+    enum Type { Temp, Fan, Voltage, Percent };
 
     QString chip;       // hwmon chip name ("coretemp", "k10temp", "nvme", ...)
-    QString label;      // human label from temp{N}_label or "tempN"
-    double  value = 0;  // °C for Temp, RPM for Fan, V for Voltage
+    QString label;      // human label from temp{N}_label, sysctl key, etc.
+    double  value = 0;  // °C for Temp, RPM for Fan, V for Voltage, % for Percent
     Type    type  = Temp;
 };
 
 class SensorStat
 {
 public:
-    // Walks /sys/class/hwmon/hwmon*/ and returns the temperatures it can
-    // read. (Fan and voltage support is stubbed in the type but not
-    // populated in this first pass.) Empty list on failure.
+    // Reads platform sensor data. Linux walks /sys/class/hwmon/hwmon*/.
+    // macOS uses native/installed command probes when direct hwmon data is
+    // unavailable. Empty list on failure.
     static QList<SensorReading> read();
 
     using ReadFn = QList<SensorReading> (*)();

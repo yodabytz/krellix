@@ -64,6 +64,11 @@ void SensorsMonitor::tick()
                        .arg(r.label)
                        .arg(r.value, 0, 'f', 2);
             break;
+        case SensorReading::Percent:
+            text = QStringLiteral("%1  %2%")
+                       .arg(r.label)
+                       .arg(r.value, 0, 'f', 0);
+            break;
         }
         it.value()->setText(text);
     }
