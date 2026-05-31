@@ -116,18 +116,20 @@ QList<SensorReading> readDarwinSensors()
         out.append(r);
     }
 
-    // Stock macOS exposes thermal pressure levels through sysctl even when
-    // SMC temperatures are unavailable to regular users. These are percentages,
-    // not degrees, so keep the unit explicit in the UI.
+    // Stock macOS exposes thermal pressure levels (0–100) via sysctl.
+    // Treat each level as an equivalent °C value (100 = full throttle = 100°C)
+    // so the sensor panel can display F/C, color code, and show percent of
+    // critical — consistent with the Linux hwmon path. critC=100 ensures the
+    // percent display reads exactly the sysctl value.
     const QString sysctl = runProgram(QStringLiteral("sysctl"),
                                       {QStringLiteral("-n"),
                                        QStringLiteral("machdep.xcpm.cpu_thermal_level"),
                                        QStringLiteral("machdep.xcpm.gpu_thermal_level"),
                                        QStringLiteral("machdep.xcpm.io_thermal_level")});
     const QStringList labels{
-        QStringLiteral("CPU thermal"),
-        QStringLiteral("GPU thermal"),
-        QStringLiteral("I/O thermal"),
+        QStringLiteral("CPU"),
+        QStringLiteral("GPU"),
+        QStringLiteral("I/O"),
     };
     const QStringList values = sysctl.split(QLatin1Char('\n'), Qt::SkipEmptyParts);
     for (int i = 0; i < values.size() && i < labels.size(); ++i) {
@@ -135,10 +137,11 @@ QList<SensorReading> readDarwinSensors()
         const double value = values.at(i).trimmed().toDouble(&ok);
         if (!ok) continue;
         SensorReading r;
-        r.chip = QStringLiteral("macOS");
+        r.chip  = QStringLiteral("macOS");
         r.label = labels.at(i);
-        r.value = value;
-        r.type = SensorReading::Percent;
+        r.value = value;   // pressure level 0–100 treated as °C
+        r.critC = 100.0;   // full throttle = 100 → 100%
+        r.type  = SensorReading::Temp;
         out.append(r);
     }
 
