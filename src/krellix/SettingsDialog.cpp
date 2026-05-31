@@ -51,6 +51,7 @@ constexpr int kMinScrollPps    = 5;
 constexpr int kMaxScrollPps    = 200;
 constexpr int kDefaultScrollPps = 30;
 constexpr int kMaxKrellmailAccounts = 10;
+constexpr int kMaxSymbols = 10;
 
 // Mirrors the same helper inside KrellmoonPlugin.cpp — kept duplicated so the
 // settings dialog and the plugin agree on the default checkbox state on the
@@ -96,6 +97,8 @@ const QList<QPair<QString, QString>> kMonitorOrderItems = {
     {QStringLiteral("krellmail"), QStringLiteral("Krellmail")},
     {QStringLiteral("krellspectrum"), QStringLiteral("KrellSpectrum")},
     {QStringLiteral("krellmoon"), QStringLiteral("Krellmoon")},
+    {QStringLiteral("krellstock"),        QStringLiteral("KrellStock")},
+    {QStringLiteral("krellstock_ticker"), QStringLiteral("KrellStock Ticker")},
     {QStringLiteral("disk"),    QStringLiteral("Disk I/O")},
     {QStringLiteral("sensors"), QStringLiteral("Sensors")},
     {QStringLiteral("battery"), QStringLiteral("Battery")},
@@ -708,6 +711,94 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             m_pluginStack->addWidget(pluginPage);
         }
 
+        if (hasKrellstockPlugin()) {
+            auto *pluginPage   = new QWidget(m_pluginStack);
+            auto *pluginLayout = new QVBoxLayout(pluginPage);
+
+            auto *group       = new QGroupBox(QStringLiteral("KrellStock"), pluginPage);
+            auto *groupLayout = new QVBoxLayout(group);
+
+            // ── Enable toggles ──────────────────────────────────────────────
+            m_krellstockTickerEnabled =
+                new QCheckBox(QStringLiteral("Show scrolling ticker panel"), group);
+            m_krellstockQuotesEnabled =
+                new QCheckBox(QStringLiteral("Show detailed quote panel"), group);
+            groupLayout->addWidget(m_krellstockTickerEnabled);
+            groupLayout->addWidget(m_krellstockQuotesEnabled);
+
+            // ── Update interval ─────────────────────────────────────────────
+            auto *intervalRow = new QHBoxLayout;
+            auto *intervalLbl = new QLabel(QStringLiteral("Refresh every:"), group);
+            m_krellstockUpdateMs = new QSpinBox(group);
+            m_krellstockUpdateMs->setRange(60000, 3600000);
+            m_krellstockUpdateMs->setSingleStep(60000);
+            m_krellstockUpdateMs->setSuffix(QStringLiteral(" ms"));
+            m_krellstockUpdateMs->setToolTip(QStringLiteral(
+                "How often to poll Yahoo Finance (minimum 1 minute recommended)."));
+            intervalRow->addWidget(intervalLbl);
+            intervalRow->addWidget(m_krellstockUpdateMs, 1);
+            groupLayout->addLayout(intervalRow);
+
+            // ── Symbol grid — 10 slots in 2 columns ─────────────────────────
+            auto *symGroup = new QGroupBox(QStringLiteral("Symbols  (up to 10)"), group);
+            symGroup->setToolTip(QStringLiteral(
+                "Any Yahoo Finance symbol: US stocks, international stocks with "
+                "exchange suffix, indices, or crypto pairs."));
+            auto *symGrid = new QGridLayout(symGroup);
+            symGrid->setHorizontalSpacing(12);
+
+            static const QStringList kExamples = {
+                QStringLiteral("AAPL"),    QStringLiteral("MSFT"),
+                QStringLiteral("BTC-USD"), QStringLiteral("ETH-USD"),
+                QStringLiteral("NVDA"),    QStringLiteral("TSLA"),
+                QStringLiteral("BP.L"),    QStringLiteral("SAP.DE"),
+                QStringLiteral("7203.T"),  QStringLiteral("0700.HK"),
+            };
+            for (int i = 0; i < kMaxSymbols; ++i) {
+                auto *lbl  = new QLabel(QStringLiteral("%1:").arg(i + 1), symGroup);
+                auto *edit = new QLineEdit(symGroup);
+                edit->setMaxLength(20);
+                edit->setClearButtonEnabled(true);
+                edit->setPlaceholderText(kExamples.at(i));
+                edit->setToolTip(QStringLiteral(
+                    "Yahoo Finance symbol.\n"
+                    "US stocks: AAPL, MSFT, NVDA\n"
+                    "Crypto: BTC-USD, ETH-USD, SOL-USD\n"
+                    "London: BP.L   Frankfurt: SAP.DE\n"
+                    "Tokyo: 7203.T  Hong Kong: 0700.HK\n"
+                    "Seoul: 005930.KS   Paris: BNP.PA"));
+                lbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+                const int row = i / 2, col = (i % 2) * 2;
+                symGrid->addWidget(lbl,  row, col,     Qt::AlignRight);
+                symGrid->addWidget(edit, row, col + 1, Qt::AlignLeft);
+                m_krellstockSymbols.append(edit);
+            }
+            symGrid->setColumnStretch(1, 1);
+            symGrid->setColumnStretch(3, 1);
+            groupLayout->addWidget(symGroup);
+
+            // ── Help text ───────────────────────────────────────────────────
+            auto *help = new QLabel(group);
+            help->setWordWrap(true);
+            help->setTextFormat(Qt::RichText);
+            help->setOpenExternalLinks(true);
+            help->setTextInteractionFlags(Qt::TextBrowserInteraction);
+            help->setText(QStringLiteral(
+                "Data from <b>Yahoo Finance</b> — no API key needed. "
+                "International suffixes: <code>.L</code> London, "
+                "<code>.DE</code> Frankfurt/XETRA, <code>.T</code> Tokyo, "
+                "<code>.HK</code> Hong Kong, <code>.KS</code> Seoul, "
+                "<code>.PA</code> Paris. "
+                "Crypto: <code>BTC-USD</code>, <code>ETH-USD</code>. "
+                "<a href=\"https://finance.yahoo.com\">Search symbols at finance.yahoo.com</a>"));
+            groupLayout->addWidget(help);
+
+            pluginLayout->addWidget(group);
+            pluginLayout->addStretch(1);
+            m_pluginList->addItem(QStringLiteral("KrellStock"));
+            m_pluginStack->addWidget(pluginPage);
+        }
+
         if (hasKrellmailPlugin()) {
             auto *pluginPage = new QWidget(m_pluginStack);
             auto *pluginLayout = new QVBoxLayout(pluginPage);
@@ -1167,6 +1258,34 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             emit settingsApplied();
         });
     }
+    if (m_krellstockTickerEnabled) {
+        connect(m_krellstockTickerEnabled, &QCheckBox::toggled, this, [this](bool v) {
+            QSettings().setValue(QStringLiteral("plugins/krellstock/ticker_enabled"), v);
+            emit panelStackChanged();
+        });
+    }
+    if (m_krellstockQuotesEnabled) {
+        connect(m_krellstockQuotesEnabled, &QCheckBox::toggled, this, [this](bool v) {
+            QSettings().setValue(QStringLiteral("plugins/krellstock/quotes_enabled"), v);
+            emit panelStackChanged();
+        });
+    }
+    if (m_krellstockUpdateMs) {
+        connect(m_krellstockUpdateMs, QOverload<int>::of(&QSpinBox::valueChanged),
+                this, [this](int v) {
+                    QSettings().setValue(QStringLiteral("plugins/krellstock/interval_ms"), v);
+                    emit settingsApplied();
+                });
+    }
+    for (int i = 0; i < m_krellstockSymbols.size(); ++i) {
+        QLineEdit *edit = m_krellstockSymbols.at(i);
+        const QString key = QStringLiteral("plugins/krellstock/symbol%1").arg(i + 1);
+        connect(edit, &QLineEdit::editingFinished, this, [this, edit, key]() {
+            QSettings().setValue(key, edit->text().trimmed().toUpper());
+            emit settingsApplied();
+        });
+    }
+
     if (m_krellmailEnabled) {
         connect(m_krellmailEnabled, &QCheckBox::toggled, this, [this](bool v) {
             QSettings().setValue(QStringLiteral("plugins/krellmail/enabled"), v);
@@ -1414,6 +1533,22 @@ void SettingsDialog::loadFromSettings()
         m_krellwireFeeds.at(i)->setText(
             s.value(QStringLiteral("plugins/krellwire/feed%1").arg(i + 1),
                     i < wireDefaults.size() ? wireDefaults.at(i) : QString()).toString());
+    }
+    if (m_krellstockTickerEnabled) {
+        m_krellstockTickerEnabled->setChecked(
+            s.value(QStringLiteral("plugins/krellstock/ticker_enabled"), false).toBool());
+    }
+    if (m_krellstockQuotesEnabled) {
+        m_krellstockQuotesEnabled->setChecked(
+            s.value(QStringLiteral("plugins/krellstock/quotes_enabled"), false).toBool());
+    }
+    if (m_krellstockUpdateMs) {
+        m_krellstockUpdateMs->setValue(
+            s.value(QStringLiteral("plugins/krellstock/interval_ms"), 300000).toInt());
+    }
+    for (int i = 0; i < m_krellstockSymbols.size(); ++i) {
+        m_krellstockSymbols.at(i)->setText(
+            s.value(QStringLiteral("plugins/krellstock/symbol%1").arg(i + 1)).toString());
     }
     if (m_krellmailEnabled) {
         m_krellmailEnabled->setChecked(
@@ -1845,6 +1980,11 @@ bool SettingsDialog::hasKrellSpectrumPlugin() const
 bool SettingsDialog::hasKrellmoonPlugin() const
 {
     return hasPlugin(QStringLiteral("krellmoon"));
+}
+
+bool SettingsDialog::hasKrellstockPlugin() const
+{
+    return hasPlugin(QStringLiteral("krellstock"));
 }
 
 void SettingsDialog::onAccept()

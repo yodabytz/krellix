@@ -63,6 +63,13 @@ void Decal::setAlignment(Qt::Alignment alignment)
     update();
 }
 
+void Decal::setColorKey(const QString &colorKey)
+{
+    if (m_colorKey == colorKey) return;
+    m_colorKey = colorKey;
+    update();
+}
+
 void Decal::setAlwaysScroll(bool alwaysScroll)
 {
     if (m_alwaysScroll == alwaysScroll) return;

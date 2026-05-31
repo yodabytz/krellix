@@ -63,6 +63,7 @@ private:
     bool hasKrellmailPlugin() const;
     bool hasKrellSpectrumPlugin() const;
     bool hasKrellmoonPlugin() const;
+    bool hasKrellstockPlugin() const;
     int krellmailAccountCount() const;
     void rebuildKrellmailAccounts();
     void saveKrellmailAccount(int index);
@@ -157,6 +158,10 @@ private:
     QSpinBox    *m_krellspectrumHeight = nullptr;
     QCheckBox   *m_krellspectrumPeakHold = nullptr;
     QCheckBox   *m_krellspectrumStereoSplit = nullptr;
+    QCheckBox   *m_krellstockTickerEnabled = nullptr;
+    QCheckBox   *m_krellstockQuotesEnabled = nullptr;
+    QSpinBox    *m_krellstockUpdateMs = nullptr;
+    QList<QLineEdit *> m_krellstockSymbols;
 
     Q_DISABLE_COPY_MOVE(SettingsDialog)
 };

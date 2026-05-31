@@ -344,3 +344,24 @@ set_target_properties(krellmail PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
 )
 install(TARGETS krellmail LIBRARY DESTINATION lib/krellix/plugins)
+
+add_library(krellstock MODULE
+    plugins/krellstock/KrellstockPlugin.cpp
+    plugins/krellstock/KrellstockPlugin.h
+)
+target_include_directories(krellstock PRIVATE src)
+target_link_libraries(krellstock PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Widgets
+    Qt6::Network
+)
+target_compile_definitions(krellstock PRIVATE
+    QT_NO_CAST_FROM_ASCII
+    QT_NO_CAST_TO_ASCII
+    QT_NO_NARROWING_CONVERSIONS_IN_CONNECT
+)
+set_target_properties(krellstock PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
+)
+install(TARGETS krellstock LIBRARY DESTINATION lib/krellix/plugins)
