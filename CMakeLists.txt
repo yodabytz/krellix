@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.21)
 project(krellix
-    VERSION 0.1.0
+    VERSION 0.1.2
     DESCRIPTION "Themeable Qt 6 system monitor in the spirit of GKrellM"
     LANGUAGES CXX)
 
-# SemVer pre-release label. Full string ("0.1.0-beta") is what the binary
+# SemVer pre-release label. Full string ("0.1.2") is what the binary
 # reports via --version, the About dialog, and packaging artifacts. Bump
 # this (and PROJECT_VERSION) when cutting a new release.
-set(KRELLIX_PRERELEASE "beta")
+set(KRELLIX_PRERELEASE "")
 if(KRELLIX_PRERELEASE STREQUAL "")
     set(KRELLIX_VERSION_FULL "${PROJECT_VERSION}")
 else()

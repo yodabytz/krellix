@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE = 1
+
+%:
+	dh $@ --buildsystem=cmake
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		-GNinja \
+		-DCMAKE_BUILD_TYPE=Release
+
+override_dh_auto_install:
+	dh_auto_install
+	# krellix package: remove daemon and plugins (separate packages)
+	rm -f debian/krellix/usr/bin/krellixd
+	rm -f debian/krellix/usr/lib/systemd/system/krellixd.service
+	rm -rf debian/krellix/usr/lib/krellix/plugins
+	rm -rf debian/krellix/usr/share/krellix/plugins
+	# krellix-server package: move daemon binary and systemd unit
+	install -Dm755 debian/krellix/usr/bin/krellixd \
+		debian/krellix-server/usr/bin/krellixd 2>/dev/null || true

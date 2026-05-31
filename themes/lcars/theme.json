@@ -3,42 +3,52 @@
   "version": "1.2",
   "author": "krellix",
   "description": "Star Trek LCARS — canonical bright-orange/amber/peach/periwinkle on black, the look from the show.",
-
   "colors": {
-    "panel_bg":           "#000000",
-    "panel_border":       "#FF9900",
-    "panel_highlight":    "#FFCC66",
-    "chart_bg":           "#000000",
-    "chart_grid":         "#3F2C3F",
-    "text_primary":       "#FF9990",
-    "text_secondary":     "#9999ff",
-    "text_accent":        "#FFAD8B",
-    "krell_track":        "#9999ff",
-    "krell_indicator":    "#FF9900",
+    "panel_bg": "#000000",
+    "panel_border": "#FF9900",
+    "panel_highlight": "#FFCC66",
+    "chart_bg": "#000000",
+    "chart_grid": "#3F2C3F",
+    "text_primary": "#FF9990",
+    "text_secondary": "#9999ff",
+    "text_accent": "#FFAD8B",
+    "krell_track": "#9999ff",
+    "krell_indicator": "#FF9900",
     "chart_line_default": "#FF9900",
-    "chart_line_cpu":     "#FF9966",
-    "chart_line_mem":     "#cc6666",
-    "chart_line_swap":    "#FFCC66",
-    "chart_line_net_rx":  "#CC6666",
-    "chart_line_net_tx":  "#FF9900",
-    "chart_line_disk":    "#CC99FF",
-    "accent_warning":     "#FFCC66",
-    "accent_critical":    "#FF6E33"
+    "chart_line_cpu": "#FF9966",
+    "chart_line_mem": "#cc6666",
+    "chart_line_swap": "#FFCC66",
+    "chart_line_net_rx": "#CC6666",
+    "chart_line_net_tx": "#FF9900",
+    "chart_line_disk": "#CC99FF",
+    "accent_warning": "#FFCC66",
+    "accent_critical": "#FF6E33",
+    "accent_ok": "#55aa55"
   },
-
   "fonts": {
-    "label": { "family": "Monospace", "size": 9,  "bold": false },
-    "value": { "family": "Monospace", "size": 10, "bold": true  },
-    "time":  { "family": "Monospace", "size": 11, "bold": false }
+    "label": {
+      "family": "Monospace",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Monospace",
+      "size": 10,
+      "bold": true
+    },
+    "time": {
+      "family": "Monospace",
+      "size": 11,
+      "bold": false
+    }
   },
-
   "metrics": {
-    "panel_padding":    4,
-    "panel_spacing":    3,
-    "panel_border":     3,
-    "panel_min_width":  100,
-    "krell_height":     8,
-    "chart_height":     32,
+    "panel_padding": 4,
+    "panel_spacing": 3,
+    "panel_border": 3,
+    "panel_min_width": 100,
+    "krell_height": 8,
+    "chart_height": 32,
     "chart_grid_lines": 5
   }
 }

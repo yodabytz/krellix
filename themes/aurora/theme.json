@@ -3,167 +3,556 @@
   "version": "1.0",
   "author": "krellix",
   "description": "Aurora — luminous green, cyan, violet, and rose light bands over a deep polar-night base.",
-
-  "comment_v2_demo":
-    "Aurora is the reference theme for imageless v2 styling: monitor-specific panel gradients, bright krell sweeps, gradient charts, and soft text glow.",
-
+  "comment_v2_demo": "Aurora is the reference theme for imageless v2 styling: monitor-specific panel gradients, bright krell sweeps, gradient charts, and soft text glow.",
   "surfaces": {
-    "panel_bg":         { "slice": 0, "opacity": 1.0 },
-    "panel_bg_host":    { "slice": 0, "opacity": 1.0 },
-    "panel_bg_clock":   { "slice": 0, "opacity": 1.0 },
-    "panel_bg_cpu":     { "slice": 0, "opacity": 1.0 },
-    "panel_bg_proc":    { "slice": 0, "opacity": 1.0 },
-    "panel_bg_mem":     { "slice": 0, "opacity": 1.0 },
-    "panel_bg_net":     { "slice": 0, "opacity": 1.0 },
-    "panel_bg_disk":    { "slice": 0, "opacity": 1.0 },
-    "panel_bg_uptime":  { "slice": 0, "opacity": 1.0 },
-    "panel_bg_battery": { "slice": 0, "opacity": 1.0 },
-    "panel_bg_sensors": { "slice": 0, "opacity": 1.0 }
+    "panel_bg": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_host": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_clock": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_cpu": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_proc": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_mem": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_net": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_disk": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_uptime": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_battery": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_sensors": {
+      "slice": 0,
+      "opacity": 1.0
+    }
   },
-
-  "comment_text_styles":
-    "Subtle 1px shadow on the primary text gives it a soft glow without obscuring at small sizes. Accent text uses a slightly stronger shadow to pop against busy gradient backgrounds.",
+  "comment_text_styles": "Subtle 1px shadow on the primary text gives it a soft glow without obscuring at small sizes. Accent text uses a slightly stronger shadow to pop against busy gradient backgrounds.",
   "text_styles": {
-    "text_primary":   { "color": "#dce0ff", "shadow": { "x": 1, "y": 1, "color": "#0010204d" } },
-    "text_secondary": { "color": "#8e9bbf" },
-    "text_accent":    { "color": "#7df5ff", "shadow": { "x": 1, "y": 1, "color": "#001a2a99" } }
+    "text_primary": {
+      "color": "#dce0ff",
+      "shadow": {
+        "x": 1,
+        "y": 1,
+        "color": "#0010204d"
+      }
+    },
+    "text_secondary": {
+      "color": "#8e9bbf"
+    },
+    "text_accent": {
+      "color": "#7df5ff",
+      "shadow": {
+        "x": 1,
+        "y": 1,
+        "color": "#001a2a99"
+      }
+    }
   },
-
-  "comment_colors":
-    "Panel gradients are intentionally bright enough to read as northern lights while keeping the base dark enough for dense monitor text.",
+  "comment_colors": "Panel gradients are intentionally bright enough to read as northern lights while keeping the base dark enough for dense monitor text.",
   "colors": {
     "panel_bg": {
       "gradient": "linear",
-      "angle":    115,
-      "stops":    [[0.0, "#05102a"], [0.34, "#0a3150"], [0.58, "#0a6a63"], [0.76, "#28316a"], [1.0, "#070b20"]]
+      "angle": 115,
+      "stops": [
+        [
+          0.0,
+          "#05102a"
+        ],
+        [
+          0.34,
+          "#0a3150"
+        ],
+        [
+          0.58,
+          "#0a6a63"
+        ],
+        [
+          0.76,
+          "#28316a"
+        ],
+        [
+          1.0,
+          "#070b20"
+        ]
+      ]
     },
     "panel_bg_host": {
       "gradient": "linear",
-      "angle":    105,
-      "stops":    [[0.0, "#06112e"], [0.30, "#0d766d"], [0.58, "#47e89d"], [0.78, "#654dff"], [1.0, "#080b1d"]]
+      "angle": 105,
+      "stops": [
+        [
+          0.0,
+          "#06112e"
+        ],
+        [
+          0.3,
+          "#0d766d"
+        ],
+        [
+          0.58,
+          "#47e89d"
+        ],
+        [
+          0.78,
+          "#654dff"
+        ],
+        [
+          1.0,
+          "#080b1d"
+        ]
+      ]
     },
     "panel_bg_clock": {
       "gradient": "linear",
-      "angle":    100,
-      "stops":    [[0.0, "#080c26"], [0.32, "#12357c"], [0.55, "#21d5dc"], [0.80, "#8f65ff"], [1.0, "#090a1c"]]
+      "angle": 100,
+      "stops": [
+        [
+          0.0,
+          "#080c26"
+        ],
+        [
+          0.32,
+          "#12357c"
+        ],
+        [
+          0.55,
+          "#21d5dc"
+        ],
+        [
+          0.8,
+          "#8f65ff"
+        ],
+        [
+          1.0,
+          "#090a1c"
+        ]
+      ]
     },
     "panel_bg_cpu": {
       "gradient": "linear",
-      "angle":    110,
-      "stops":    [[0.0, "#061329"], [0.25, "#0b5066"], [0.48, "#35f4a1"], [0.70, "#20b8ff"], [1.0, "#090b1f"]]
+      "angle": 110,
+      "stops": [
+        [
+          0.0,
+          "#061329"
+        ],
+        [
+          0.25,
+          "#0b5066"
+        ],
+        [
+          0.48,
+          "#35f4a1"
+        ],
+        [
+          0.7,
+          "#20b8ff"
+        ],
+        [
+          1.0,
+          "#090b1f"
+        ]
+      ]
     },
     "panel_bg_proc": {
       "gradient": "linear",
-      "angle":    108,
-      "stops":    [[0.0, "#061226"], [0.28, "#12465f"], [0.52, "#45f0c6"], [0.74, "#5b7dff"], [1.0, "#080b20"]]
+      "angle": 108,
+      "stops": [
+        [
+          0.0,
+          "#061226"
+        ],
+        [
+          0.28,
+          "#12465f"
+        ],
+        [
+          0.52,
+          "#45f0c6"
+        ],
+        [
+          0.74,
+          "#5b7dff"
+        ],
+        [
+          1.0,
+          "#080b20"
+        ]
+      ]
     },
     "panel_bg_mem": {
       "gradient": "linear",
-      "angle":    112,
-      "stops":    [[0.0, "#081027"], [0.30, "#233a80"], [0.54, "#a56dff"], [0.72, "#35e9c4"], [1.0, "#090b1f"]]
+      "angle": 112,
+      "stops": [
+        [
+          0.0,
+          "#081027"
+        ],
+        [
+          0.3,
+          "#233a80"
+        ],
+        [
+          0.54,
+          "#a56dff"
+        ],
+        [
+          0.72,
+          "#35e9c4"
+        ],
+        [
+          1.0,
+          "#090b1f"
+        ]
+      ]
     },
     "panel_bg_net": {
       "gradient": "linear",
-      "angle":    108,
-      "stops":    [[0.0, "#041326"], [0.28, "#0b7362"], [0.52, "#65ff8f"], [0.73, "#36a3ff"], [1.0, "#071020"]]
+      "angle": 108,
+      "stops": [
+        [
+          0.0,
+          "#041326"
+        ],
+        [
+          0.28,
+          "#0b7362"
+        ],
+        [
+          0.52,
+          "#65ff8f"
+        ],
+        [
+          0.73,
+          "#36a3ff"
+        ],
+        [
+          1.0,
+          "#071020"
+        ]
+      ]
     },
     "panel_bg_disk": {
       "gradient": "linear",
-      "angle":    112,
-      "stops":    [[0.0, "#071126"], [0.32, "#2a3472"], [0.55, "#ff69bf"], [0.76, "#78f6ff"], [1.0, "#090b1e"]]
+      "angle": 112,
+      "stops": [
+        [
+          0.0,
+          "#071126"
+        ],
+        [
+          0.32,
+          "#2a3472"
+        ],
+        [
+          0.55,
+          "#ff69bf"
+        ],
+        [
+          0.76,
+          "#78f6ff"
+        ],
+        [
+          1.0,
+          "#090b1e"
+        ]
+      ]
     },
     "panel_bg_uptime": {
       "gradient": "linear",
-      "angle":    105,
-      "stops":    [[0.0, "#061126"], [0.34, "#11476d"], [0.58, "#59ffc7"], [0.82, "#6d6dff"], [1.0, "#080b1f"]]
+      "angle": 105,
+      "stops": [
+        [
+          0.0,
+          "#061126"
+        ],
+        [
+          0.34,
+          "#11476d"
+        ],
+        [
+          0.58,
+          "#59ffc7"
+        ],
+        [
+          0.82,
+          "#6d6dff"
+        ],
+        [
+          1.0,
+          "#080b1f"
+        ]
+      ]
     },
     "panel_bg_battery": {
       "gradient": "linear",
-      "angle":    110,
-      "stops":    [[0.0, "#071327"], [0.28, "#356119"], [0.52, "#b9ff65"], [0.73, "#34ffd5"], [1.0, "#080d1f"]]
+      "angle": 110,
+      "stops": [
+        [
+          0.0,
+          "#071327"
+        ],
+        [
+          0.28,
+          "#356119"
+        ],
+        [
+          0.52,
+          "#b9ff65"
+        ],
+        [
+          0.73,
+          "#34ffd5"
+        ],
+        [
+          1.0,
+          "#080d1f"
+        ]
+      ]
     },
     "panel_bg_sensors": {
       "gradient": "linear",
-      "angle":    108,
-      "stops":    [[0.0, "#071126"], [0.30, "#523170"], [0.54, "#ff6bb8"], [0.76, "#68f8ff"], [1.0, "#090b1e"]]
+      "angle": 108,
+      "stops": [
+        [
+          0.0,
+          "#071126"
+        ],
+        [
+          0.3,
+          "#523170"
+        ],
+        [
+          0.54,
+          "#ff6bb8"
+        ],
+        [
+          0.76,
+          "#68f8ff"
+        ],
+        [
+          1.0,
+          "#090b1e"
+        ]
+      ]
     },
-    "panel_border":    "#54ffe6",
+    "panel_border": "#54ffe6",
     "panel_highlight": "#93ffb9",
-
     "chart_bg": {
       "gradient": "linear",
-      "angle":    90,
-      "stops":    [[0.0, "#021021"], [0.42, "#082345"], [0.70, "#06262f"], [1.0, "#01040b"]]
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#021021"
+        ],
+        [
+          0.42,
+          "#082345"
+        ],
+        [
+          0.7,
+          "#06262f"
+        ],
+        [
+          1.0,
+          "#01040b"
+        ]
+      ]
     },
     "chart_grid": "#1d587b",
-
     "krell_track": {
       "gradient": "linear",
-      "angle":    90,
-      "stops":    [[0.0, "#071426"], [0.48, "#102b4d"], [1.0, "#02070e"]]
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#071426"
+        ],
+        [
+          0.48,
+          "#102b4d"
+        ],
+        [
+          1.0,
+          "#02070e"
+        ]
+      ]
     },
     "krell_indicator": {
       "gradient": "linear",
-      "angle":    0,
-      "stops":    [
-        [0.00, "#39a6ff"],
-        [0.24, "#72fff0"],
-        [0.47, "#65ff8f"],
-        [0.70, "#b789ff"],
-        [1.00, "#ff6fbd"]
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#39a6ff"
+        ],
+        [
+          0.24,
+          "#72fff0"
+        ],
+        [
+          0.47,
+          "#65ff8f"
+        ],
+        [
+          0.7,
+          "#b789ff"
+        ],
+        [
+          1.0,
+          "#ff6fbd"
+        ]
       ]
     },
-
-    "text_primary":   "#f0f6ff",
+    "text_primary": "#f0f6ff",
     "text_secondary": "#a9c4de",
-    "text_accent":    "#70fff1",
-
+    "text_accent": "#70fff1",
     "chart_line_default": {
       "gradient": "linear",
-      "angle":    0,
-      "stops":    [[0.0, "#6efcff"], [0.55, "#68ff9a"], [1.0, "#b88cff"]]
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#6efcff"
+        ],
+        [
+          0.55,
+          "#68ff9a"
+        ],
+        [
+          1.0,
+          "#b88cff"
+        ]
+      ]
     },
     "chart_line_cpu": {
       "gradient": "linear",
-      "angle":    0,
-      "stops":    [[0.0, "#39a6ff"], [0.45, "#70fff1"], [1.0, "#69ff93"]]
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#39a6ff"
+        ],
+        [
+          0.45,
+          "#70fff1"
+        ],
+        [
+          1.0,
+          "#69ff93"
+        ]
+      ]
     },
     "chart_line_mem": {
       "gradient": "linear",
-      "angle":    0,
-      "stops":    [[0.0, "#8d7dff"], [0.55, "#d783ff"], [1.0, "#70fff1"]]
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#8d7dff"
+        ],
+        [
+          0.55,
+          "#d783ff"
+        ],
+        [
+          1.0,
+          "#70fff1"
+        ]
+      ]
     },
-    "chart_line_swap":    "#ff7abd",
+    "chart_line_swap": "#ff7abd",
     "chart_line_net_rx": {
       "gradient": "linear",
-      "angle":    0,
-      "stops":    [[0.0, "#5cff8d"], [0.60, "#77fff0"], [1.0, "#36a3ff"]]
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#5cff8d"
+        ],
+        [
+          0.6,
+          "#77fff0"
+        ],
+        [
+          1.0,
+          "#36a3ff"
+        ]
+      ]
     },
-    "chart_line_net_tx":  "#77fff0",
+    "chart_line_net_tx": "#77fff0",
     "chart_line_disk": {
       "gradient": "linear",
-      "angle":    0,
-      "stops":    [[0.0, "#b88cff"], [0.52, "#ff7abd"], [1.0, "#77fff0"]]
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#b88cff"
+        ],
+        [
+          0.52,
+          "#ff7abd"
+        ],
+        [
+          1.0,
+          "#77fff0"
+        ]
+      ]
     },
-
-    "accent_warning":  "#ffe26a",
-    "accent_critical": "#ff4f9f"
+    "accent_warning": "#ffe26a",
+    "accent_critical": "#ff4f9f",
+    "accent_ok": "#88ddaa"
   },
-
   "fonts": {
-    "label": { "family": "Monospace", "size": 9,  "bold": false },
-    "value": { "family": "Monospace", "size": 10, "bold": true  },
-    "time":  { "family": "Monospace", "size": 11, "bold": false }
+    "label": {
+      "family": "Monospace",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Monospace",
+      "size": 10,
+      "bold": true
+    },
+    "time": {
+      "family": "Monospace",
+      "size": 11,
+      "bold": false
+    }
   },
-
   "metrics": {
-    "panel_padding":    4,
-    "panel_spacing":    2,
-    "panel_border":     1,
-    "panel_min_width":  100,
-    "krell_height":     11,
-    "chart_height":     74,
+    "panel_padding": 4,
+    "panel_spacing": 2,
+    "panel_border": 1,
+    "panel_min_width": 100,
+    "krell_height": 11,
+    "chart_height": 74,
     "chart_grid_lines": 5,
-    "panel_bg_slice":   0
+    "panel_bg_slice": 0
   }
 }

@@ -57,10 +57,20 @@ QList<SensorReading> readLinuxHwmon()
                                         + n + QStringLiteral("_label"));
             if (label.isEmpty()) label = QStringLiteral("temp") + n;
 
+            auto readMilliC = [&](const QString &suffix) -> double {
+                const QString raw = readTrimmed(chipDir + QStringLiteral("/temp") + n + suffix);
+                if (raw.isEmpty()) return 0;
+                bool ok = false;
+                const qint64 v = raw.toLongLong(&ok);
+                return (ok && v > 0) ? static_cast<double>(v) / 1000.0 : 0;
+            };
+
             SensorReading r;
             r.chip  = chipName;
             r.label = label;
             r.value = static_cast<double>(milliC) / 1000.0;
+            r.maxC  = readMilliC(QStringLiteral("_max"));
+            r.critC = readMilliC(QStringLiteral("_crit"));
             r.type  = SensorReading::Temp;
             out.append(r);
         }

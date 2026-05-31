@@ -1,0 +1,27 @@
+krellix (0.1.2-1) unstable; urgency=medium
+
+  * Thermal sensor display: color-coded green/warn/red temperature rows
+  * Fahrenheit/Celsius selectable per Sensors Settings dialog
+  * Display mode: Temperature + %, Temperature only, or Percent only
+  * Configurable warn (default 70°C) and critical (default 85°C) thresholds
+  * Reads hardware tempN_max/tempN_crit from /sys/class/hwmon when available
+  * accent_ok color key added to all bundled themes
+  * macOS: thermal-pressure level percentages color-coded the same way
+
+ -- yodabytz <hello@cerberix.org>  Sat, 31 May 2026 00:00:00 +0000
+
+krellix (0.1.1-1) unstable; urgency=medium
+
+  * macOS sensor backend via osx-cpu-temp and sysctl thermal levels
+  * Bundle plugins on macOS (load from app Contents/PlugIns/krellix)
+  * Remote top-processes support in krellixd
+  * Fix theme resize after switch
+  * Fix remote close noise
+
+ -- yodabytz <hello@cerberix.org>  Wed, 23 Apr 2026 00:00:00 +0000
+
+krellix (0.1.0-1) unstable; urgency=low
+
+  * Initial release
+
+ -- yodabytz <hello@cerberix.org>  Fri, 01 Jan 2026 00:00:00 +0000

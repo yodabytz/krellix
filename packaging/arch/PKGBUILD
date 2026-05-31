@@ -2,8 +2,8 @@
 
 pkgbase=krellix
 pkgname=('krellix' 'krellix-server')
-pkgver=0.1.0
-pkgrel=2
+pkgver=0.1.2
+pkgrel=1
 arch=('x86_64' 'aarch64')
 url='https://github.com/yodabytz/krellix'
 license=('GPL-3.0-or-later')

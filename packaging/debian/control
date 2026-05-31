@@ -1,0 +1,42 @@
+Source: krellix
+Section: utils
+Priority: optional
+Maintainer: yodabytz <hello@cerberix.org>
+Build-Depends: debhelper-compat (= 13),
+               cmake (>= 3.21),
+               ninja-build,
+               qt6-base-dev,
+               qt6-tools-dev,
+               libqt6core6,
+               libqt6gui6,
+               libqt6widgets6,
+               libqt6network6,
+               libqt6dbus6
+Standards-Version: 4.6.2
+Homepage: https://github.com/yodabytz/krellix
+
+Package: krellix
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         libqt6core6,
+         libqt6gui6,
+         libqt6widgets6,
+         libqt6network6
+Recommends: krellix-server
+Description: Themeable Qt 6 system monitor in the spirit of GKrellM
+ Krellix is a desktop system monitor displaying CPU, memory, disk, network,
+ temperature sensors, uptime, and more. It supports themes and a plugin
+ architecture for extensibility.
+ .
+ Features include color-coded thermal sensor display (green/warn/red),
+ Fahrenheit/Celsius toggle, and configurable display modes.
+
+Package: krellix-server
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends},
+         libqt6core6,
+         libqt6network6
+Description: krellixd — remote monitoring daemon for krellix
+ The krellixd daemon exposes system metrics over TCP so that krellix
+ can monitor remote hosts. Configure it on the host to watch and point
+ krellix at it with --host.

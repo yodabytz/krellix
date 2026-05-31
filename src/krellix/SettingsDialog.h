@@ -113,6 +113,7 @@ private:
     QCheckBox   *m_netPortsEnabled = nullptr;
     QCheckBox   *m_diskEnabled    = nullptr;
     QCheckBox   *m_sensorsEnabled = nullptr;
+    QPushButton *m_sensorsAdvanced = nullptr;
     QCheckBox   *m_batteryEnabled = nullptr;
     QListWidget *m_pluginList    = nullptr;
     QStackedWidget *m_pluginStack = nullptr;

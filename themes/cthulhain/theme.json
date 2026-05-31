@@ -130,7 +130,8 @@
     "chart_line_net_tx": "#e0af68",
     "chart_line_disk": "#bb9af7",
     "accent_warning": "#ff9e64",
-    "accent_critical": "#f7768e"
+    "accent_critical": "#f7768e",
+    "accent_ok": "#55bb55"
   },
   "fonts": {
     "label": {

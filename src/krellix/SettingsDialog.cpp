@@ -275,6 +275,9 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             }
         }
         layout->addWidget(m_sensorsEnabled);
+        m_sensorsAdvanced = new QPushButton(QStringLiteral("Sensors Settings..."), page);
+        m_sensorsAdvanced->setToolTip(QStringLiteral("Temperature unit, display mode, and color thresholds"));
+        layout->addWidget(m_sensorsAdvanced);
         layout->addWidget(m_batteryEnabled);
         layout->addStretch(1);
         addPage(QStringLiteral("Monitors"), page);
@@ -948,6 +951,63 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
     wireMonitorToggle(m_diskEnabled,    "disk");
     wireMonitorToggle(m_sensorsEnabled, "sensors");
     wireMonitorToggle(m_batteryEnabled, "battery");
+
+    if (m_sensorsAdvanced) {
+        connect(m_sensorsAdvanced, &QPushButton::clicked, this, [this]() {
+            QDialog dlg(this);
+            dlg.setWindowTitle(QStringLiteral("Sensors Settings"));
+            auto *layout = new QVBoxLayout(&dlg);
+            auto *form   = new QFormLayout;
+            QSettings s;
+
+            auto *unit = new QComboBox(&dlg);
+            unit->addItem(QStringLiteral("Celsius"),    false);
+            unit->addItem(QStringLiteral("Fahrenheit"), true);
+            unit->setCurrentIndex(
+                s.value(QStringLiteral("monitors/sensors/use_fahrenheit"), false).toBool() ? 1 : 0);
+            form->addRow(QStringLiteral("Temperature unit:"), unit);
+
+            auto *mode = new QComboBox(&dlg);
+            mode->addItem(QStringLiteral("Temperature + Percent"), 0);
+            mode->addItem(QStringLiteral("Temperature only"),      1);
+            mode->addItem(QStringLiteral("Percent only"),          2);
+            const int modeIdx = s.value(QStringLiteral("monitors/sensors/display_mode"), 0).toInt();
+            mode->setCurrentIndex(qBound(0, modeIdx, 2));
+            form->addRow(QStringLiteral("Display mode:"), mode);
+
+            auto *warn = new QSpinBox(&dlg);
+            warn->setRange(20, 100);
+            warn->setSuffix(QStringLiteral(" °C"));
+            warn->setToolTip(QStringLiteral("Temperature at which the reading turns yellow"));
+            warn->setValue(s.value(QStringLiteral("monitors/sensors/warn_celsius"), 70).toInt());
+            form->addRow(QStringLiteral("Warn above:"), warn);
+
+            auto *crit = new QSpinBox(&dlg);
+            crit->setRange(20, 120);
+            crit->setSuffix(QStringLiteral(" °C"));
+            crit->setToolTip(QStringLiteral("Temperature at which the reading turns red"));
+            crit->setValue(s.value(QStringLiteral("monitors/sensors/crit_celsius"), 85).toInt());
+            form->addRow(QStringLiteral("Critical above:"), crit);
+
+            layout->addLayout(form);
+            auto *bb = new QDialogButtonBox(
+                QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+            connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+            connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+            layout->addWidget(bb);
+
+            if (dlg.exec() == QDialog::Accepted) {
+                QSettings out;
+                out.setValue(QStringLiteral("monitors/sensors/use_fahrenheit"),
+                             unit->currentData().toBool());
+                out.setValue(QStringLiteral("monitors/sensors/display_mode"),
+                             mode->currentData().toInt());
+                out.setValue(QStringLiteral("monitors/sensors/warn_celsius"), warn->value());
+                out.setValue(QStringLiteral("monitors/sensors/crit_celsius"), crit->value());
+                emit settingsApplied();
+            }
+        });
+    }
 
     if (cpuModeCombo) {
         connect(cpuModeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
