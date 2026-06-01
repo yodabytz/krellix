@@ -52,13 +52,17 @@ signals:
     void quotesReady(const QList<StockQuote> &quotes);
 
 private slots:
-    void onFinished(QNetworkReply *reply);
+    void onReplyFinished(QNetworkReply *reply);
 
 private:
-    QNetworkAccessManager     m_net;
-    QPointer<QNetworkReply>   m_reply;
-    QList<StockQuote>         m_lastQuotes;
-    bool                      m_fetching = false;
+    void startNext();
+
+    QNetworkAccessManager          m_net;
+    QList<StockQuote>              m_lastQuotes;
+    QList<QString>                 m_pending;    // symbols still to fetch
+    QHash<QNetworkReply*, QString> m_inFlight;   // reply → symbol
+    QList<StockQuote>              m_building;   // accumulates this round
+    bool                           m_fetching = false;
 
     Q_DISABLE_COPY_MOVE(KrellstockFetcher)
 };

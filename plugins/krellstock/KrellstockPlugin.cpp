@@ -114,25 +114,40 @@ QString changeArrow(double pct)
 KrellstockFetcher::KrellstockFetcher(QObject *parent) : QObject(parent)
 {
     connect(&m_net, &QNetworkAccessManager::finished,
-            this, &KrellstockFetcher::onFinished);
+            this, &KrellstockFetcher::onReplyFinished);
 }
 
 KrellstockFetcher::~KrellstockFetcher()
 {
-    if (m_reply) { m_reply->abort(); m_reply->deleteLater(); }
+    for (auto it = m_inFlight.keyBegin(); it != m_inFlight.keyEnd(); ++it) {
+        QNetworkReply *r = *it;
+        if (r) { r->abort(); r->deleteLater(); }
+    }
 }
 
 void KrellstockFetcher::requestFetch(const QStringList &symbols)
 {
     if (m_fetching || symbols.isEmpty()) return;
+    m_fetching = true;
+    m_building.clear();
+    m_pending = symbols;
+    m_inFlight.clear();
 
+    // Launch up to 4 parallel requests; the rest queue in m_pending.
+    for (int i = 0; i < qMin(4, m_pending.size()); ++i)
+        startNext();
+}
+
+void KrellstockFetcher::startNext()
+{
+    if (m_pending.isEmpty()) return;
+    const QString sym = m_pending.takeFirst();
+
+    // Yahoo Finance v8 chart — one call per symbol, no crumb required.
     const QString url = QStringLiteral(
-        "https://query1.finance.yahoo.com/v7/finance/quote"
-        "?symbols=%1"
-        "&fields=shortName,regularMarketPrice,regularMarketChange,"
-        "regularMarketChangePercent,currency,marketState"
-        "&lang=en-US&region=US&corsDomain=finance.yahoo.com"
-    ).arg(symbols.join(QLatin1Char(',')));
+        "https://query2.finance.yahoo.com/v8/finance/chart/%1"
+        "?interval=1d&range=2d"
+    ).arg(QString::fromLatin1(QUrl::toPercentEncoding(sym)));
 
     QNetworkRequest req{QUrl(url)};
     req.setRawHeader("User-Agent",
@@ -143,48 +158,62 @@ void KrellstockFetcher::requestFetch(const QStringList &symbols)
     req.setTransferTimeout(15000);
     req.setMaximumRedirectsAllowed(3);
 
-    m_fetching = true;
-    m_reply = m_net.get(req);
+    QNetworkReply *reply = m_net.get(req);
+    m_inFlight.insert(reply, sym);
 }
 
-void KrellstockFetcher::onFinished(QNetworkReply *reply)
+void KrellstockFetcher::onReplyFinished(QNetworkReply *reply)
 {
-    m_fetching = false;
-    if (reply != m_reply.data()) { reply->deleteLater(); return; }
-
+    const QString sym = m_inFlight.take(reply);
     const QByteArray data = reply->readAll();
     const bool ok = (reply->error() == QNetworkReply::NoError);
     reply->deleteLater();
-    m_reply = nullptr;
 
-    if (!ok || data.isEmpty()) return;
+    if (ok && !data.isEmpty()) {
+        QJsonParseError perr;
+        const QJsonDocument doc = QJsonDocument::fromJson(data, &perr);
+        if (perr.error == QJsonParseError::NoError) {
+            const QJsonArray results = doc.object()
+                .value(QStringLiteral("chart")).toObject()
+                .value(QStringLiteral("result")).toArray();
 
-    QJsonParseError perr;
-    const QJsonDocument doc = QJsonDocument::fromJson(data, &perr);
-    if (perr.error != QJsonParseError::NoError) return;
+            if (!results.isEmpty()) {
+                const QJsonObject meta = results.first().toObject()
+                    .value(QStringLiteral("meta")).toObject();
 
-    const QJsonArray results = doc.object()
-        .value(QStringLiteral("quoteResponse")).toObject()
-        .value(QStringLiteral("result")).toArray();
+                const double price     = meta.value(QStringLiteral("regularMarketPrice")).toDouble();
+                const double prevClose = meta.value(QStringLiteral("chartPreviousClose")).toDouble();
 
-    QList<StockQuote> quotes;
-    for (const QJsonValue &val : results) {
-        const QJsonObject obj = val.toObject();
-        StockQuote q;
-        q.symbol     = obj.value(QStringLiteral("symbol")).toString();
-        q.shortName  = obj.value(QStringLiteral("shortName")).toString().left(30);
-        q.price      = obj.value(QStringLiteral("regularMarketPrice")).toDouble();
-        q.change     = obj.value(QStringLiteral("regularMarketChange")).toDouble();
-        q.changePct  = obj.value(QStringLiteral("regularMarketChangePercent")).toDouble();
-        q.currency   = obj.value(QStringLiteral("currency")).toString();
-        q.marketState= obj.value(QStringLiteral("marketState")).toString();
-        q.valid      = (q.price > 0);
-        if (q.valid) quotes << q;
+                if (price > 0) {
+                    StockQuote q;
+                    q.symbol    = meta.value(QStringLiteral("symbol")).toString();
+                    if (q.symbol.isEmpty()) q.symbol = sym;
+                    q.shortName = meta.value(QStringLiteral("shortName")).toString().left(30);
+                    if (q.shortName.isEmpty())
+                        q.shortName = meta.value(QStringLiteral("longName")).toString().left(30);
+                    q.price     = price;
+                    q.change    = (prevClose > 0) ? (price - prevClose) : 0;
+                    q.changePct = (prevClose > 0) ? ((price - prevClose) / prevClose * 100.0) : 0;
+                    q.currency  = meta.value(QStringLiteral("currency")).toString();
+                    q.valid     = true;
+                    m_building << q;
+                }
+            }
+        }
     }
 
-    if (!quotes.isEmpty()) {
-        m_lastQuotes = quotes;
-        emit quotesReady(quotes);
+    // Start the next queued symbol (if any).
+    if (!m_pending.isEmpty())
+        startNext();
+
+    // All in-flight done: publish results.
+    if (m_inFlight.isEmpty() && m_pending.isEmpty()) {
+        m_fetching = false;
+        if (!m_building.isEmpty()) {
+            // Preserve original order from configuredSymbols().
+            m_lastQuotes = m_building;
+            emit quotesReady(m_lastQuotes);
+        }
     }
 }
 
