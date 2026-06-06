@@ -4,6 +4,7 @@
 #include "sdk/KrellixPlugin.h"
 
 #include <QElapsedTimer>
+#include <QHash>
 #include <QList>
 #include <QNetworkAccessManager>
 #include <QPointer>
@@ -56,11 +57,14 @@ private slots:
 
 private:
     void startNext();
+    void startChartFallback(const QStringList &symbols);
+    void publishBuilding();
 
     QNetworkAccessManager          m_net;
     QList<StockQuote>              m_lastQuotes;
+    QStringList                    m_requestedOrder;
     QList<QString>                 m_pending;    // symbols still to fetch
-    QHash<QNetworkReply*, QString> m_inFlight;   // reply → symbol
+    QHash<QNetworkReply*, QString> m_inFlight;   // reply → "quote:..." or "chart:..."
     QList<StockQuote>              m_building;   // accumulates this round
     bool                           m_fetching = false;
 
@@ -128,15 +132,29 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *) override;
+    void showEvent(QShowEvent *) override;
+    void hideEvent(QHideEvent *) override;
 
 private slots:
     void onThemeChanged();
+    void onAdvance();
+    void onSlideTick();
 
 private:
+    void scheduleNextQuote();
+    void updateTimerState();
+    void updateQuoteTooltip();
+
     Theme            *m_theme;
+    QTimer           *m_advanceTimer;
+    QTimer           *m_slideTimer;
+    QElapsedTimer     m_slideClock;
     QList<StockQuote> m_quotes;
     QString           m_placeholder;
     int               m_rowH = 18;
+    int               m_currentQuote = 0;
+    int               m_nextQuote = -1;
+    int               m_slideOffset = 0;
 
     Q_DISABLE_COPY_MOVE(KrellstockQuoteWidget)
 };
@@ -204,6 +222,6 @@ class KrellstockPlugin : public QObject, public IKrellixPlugin
 public:
     QString pluginId()      const override { return QStringLiteral("io.krellix.krellstock"); }
     QString pluginName()    const override { return QStringLiteral("KrellStock"); }
-    QString pluginVersion() const override { return QStringLiteral("0.1.0"); }
+    QString pluginVersion() const override { return QStringLiteral("0.1.2"); }
     QList<MonitorBase *> createMonitors(Theme *theme, QObject *parent) override;
 };

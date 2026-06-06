@@ -98,6 +98,95 @@ QString runProgram(const QString &program, const QStringList &args, int timeoutM
     return QString::fromLocal8Bit(p.readAllStandardOutput()).trimmed();
 }
 
+bool appendTemperature(QList<SensorReading> &out, const QString &label, double value)
+{
+    if (value <= 0 || value > 130)
+        return false;
+
+    for (const SensorReading &r : out) {
+        if (r.type == SensorReading::Temp
+            && r.label.compare(label, Qt::CaseInsensitive) == 0) {
+            return false;
+        }
+    }
+
+    SensorReading r;
+    r.chip = QStringLiteral("macOS");
+    r.label = label;
+    r.value = value;
+    r.type = SensorReading::Temp;
+    out.append(r);
+    return true;
+}
+
+void appendFirstTemperatureMatch(QList<SensorReading> &out,
+                                 const QString &text,
+                                 const QString &label)
+{
+    static const QRegularExpression tempRx(QStringLiteral("(-?\\d+(?:\\.\\d+)?)"));
+    const auto match = tempRx.match(text);
+    if (match.hasMatch())
+        appendTemperature(out, label, match.captured(1).toDouble());
+}
+
+void appendIstatsTemperatures(QList<SensorReading> &out)
+{
+    const QString cpuTemp = runProgram(QStringLiteral("istats"),
+                                       {QStringLiteral("cpu"),
+                                        QStringLiteral("temp"),
+                                        QStringLiteral("--value-only")});
+    appendFirstTemperatureMatch(out, cpuTemp, QStringLiteral("CPU"));
+
+    const QString scan = runProgram(QStringLiteral("istats"),
+                                    {QStringLiteral("scan")},
+                                    1800);
+    static const QRegularExpression lineRx(
+        QStringLiteral("(?im)^\\s*([^\\n:]+?)\\s*:\\s*(-?\\d+(?:\\.\\d+)?)\\s*(?:C|°C|celsius)?"));
+    auto it = lineRx.globalMatch(scan);
+    while (it.hasNext()) {
+        const auto match = it.next();
+        QString label = match.captured(1).trimmed();
+        if (label.isEmpty())
+            label = QStringLiteral("Temp");
+        appendTemperature(out, label.left(24), match.captured(2).toDouble());
+    }
+}
+
+void appendSmcTemperature(QList<SensorReading> &out,
+                          const QString &key,
+                          const QString &label)
+{
+    const QString smc = runProgram(QStringLiteral("smc"),
+                                   {QStringLiteral("-k"), key, QStringLiteral("-r")});
+    appendFirstTemperatureMatch(out, smc, label);
+}
+
+void appendPowermetricsTemperatures(QList<SensorReading> &out)
+{
+    const QString output = runProgram(QStringLiteral("powermetrics"),
+                                      {QStringLiteral("--samplers"),
+                                       QStringLiteral("smc"),
+                                       QStringLiteral("-n"),
+                                       QStringLiteral("1"),
+                                       QStringLiteral("-i"),
+                                       QStringLiteral("1")},
+                                      3500);
+    if (output.isEmpty())
+        return;
+
+    static const QRegularExpression lineRx(
+        QStringLiteral("(?im)^\\s*([^\\n:]+temperature[^\\n:]*|CPU die|GPU die)\\s*:?\\s*(-?\\d+(?:\\.\\d+)?)\\s*(?:C|°C)?"));
+    auto it = lineRx.globalMatch(output);
+    while (it.hasNext()) {
+        const auto match = it.next();
+        QString label = match.captured(1).trimmed();
+        label.replace(QRegularExpression(QStringLiteral("\\s+temperature\\b"),
+                                         QRegularExpression::CaseInsensitiveOption),
+                      QString());
+        appendTemperature(out, label.left(24), match.captured(2).toDouble());
+    }
+}
+
 QList<SensorReading> readDarwinSensors()
 {
     QList<SensorReading> out;
@@ -105,22 +194,16 @@ QList<SensorReading> readDarwinSensors()
     // Homebrew's osx-cpu-temp reads the SMC without requiring root. Prefer it
     // when present because it is an actual Celsius temperature.
     const QString cpuTemp = runProgram(QStringLiteral("osx-cpu-temp"), {});
-    static const QRegularExpression tempRx(QStringLiteral("(-?\\d+(?:\\.\\d+)?)"));
-    const auto tempMatch = tempRx.match(cpuTemp);
-    if (tempMatch.hasMatch()) {
-        SensorReading r;
-        r.chip = QStringLiteral("macOS");
-        r.label = QStringLiteral("CPU");
-        r.value = tempMatch.captured(1).toDouble();
-        r.type = SensorReading::Temp;
-        out.append(r);
-    }
+    appendFirstTemperatureMatch(out, cpuTemp, QStringLiteral("CPU"));
+    appendIstatsTemperatures(out);
+    appendSmcTemperature(out, QStringLiteral("TC0P"), QStringLiteral("CPU Proximity"));
+    appendSmcTemperature(out, QStringLiteral("TC0D"), QStringLiteral("CPU Diode"));
+    appendSmcTemperature(out, QStringLiteral("TG0P"), QStringLiteral("GPU Proximity"));
+    appendPowermetricsTemperatures(out);
 
-    // Stock macOS exposes thermal pressure levels (0–100) via sysctl.
-    // Treat each level as an equivalent °C value (100 = full throttle = 100°C)
-    // so the sensor panel can display F/C, color code, and show percent of
-    // critical — consistent with the Linux hwmon path. critC=100 ensures the
-    // percent display reads exactly the sysctl value.
+    // Stock macOS exposes thermal pressure levels (0-100) via sysctl. These
+    // are not temperatures, so show them as percentages unless osx-cpu-temp
+    // supplied an actual Celsius CPU reading above.
     const QString sysctl = runProgram(QStringLiteral("sysctl"),
                                       {QStringLiteral("-n"),
                                        QStringLiteral("machdep.xcpm.cpu_thermal_level"),
@@ -139,9 +222,8 @@ QList<SensorReading> readDarwinSensors()
         SensorReading r;
         r.chip  = QStringLiteral("macOS");
         r.label = labels.at(i);
-        r.value = value;   // pressure level 0–100 treated as °C
-        r.critC = 100.0;   // full throttle = 100 → 100%
-        r.type  = SensorReading::Temp;
+        r.value = value;
+        r.type  = SensorReading::Percent;
         out.append(r);
     }
 

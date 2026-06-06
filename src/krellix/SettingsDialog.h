@@ -96,6 +96,7 @@ private:
 
     QComboBox   *m_themeCombo    = nullptr;
     QCheckBox   *m_alwaysOnTop   = nullptr;
+    QCheckBox   *m_stickyWindow  = nullptr;
     QCheckBox   *m_clockAtTop    = nullptr;
     QCheckBox   *m_militaryTime  = nullptr;
     QCheckBox   *m_showFqdn      = nullptr;
@@ -116,6 +117,8 @@ private:
     QCheckBox   *m_sensorsEnabled = nullptr;
     QPushButton *m_sensorsAdvanced = nullptr;
     QCheckBox   *m_batteryEnabled = nullptr;
+    QComboBox   *m_diskMode = nullptr;
+    QPushButton *m_cpuAdvanced = nullptr;
     QListWidget *m_pluginList    = nullptr;
     QStackedWidget *m_pluginStack = nullptr;
     QListWidget *m_orderList     = nullptr;
@@ -123,6 +126,10 @@ private:
     QCheckBox   *m_krellkamAllowCommands = nullptr;
     QSpinBox    *m_krellkamUpdateMs = nullptr;
     QSpinBox    *m_krellkamFieldHeight = nullptr;
+    QLineEdit   *m_krellkamYoutubeCookiesFile = nullptr;
+    QComboBox   *m_krellkamYoutubeCookiesBrowser = nullptr;
+    QLineEdit   *m_krellkamYoutubeExtractorArgs = nullptr;
+    QLineEdit   *m_krellkamYoutubeExtraArgs = nullptr;
     QList<QLineEdit *> m_krellkamTitles;
     QList<QComboBox *> m_krellkamTypes;
     QList<QLineEdit *> m_krellkamSources;
@@ -158,6 +165,15 @@ private:
     QSpinBox    *m_krellspectrumHeight = nullptr;
     QCheckBox   *m_krellspectrumPeakHold = nullptr;
     QCheckBox   *m_krellspectrumStereoSplit = nullptr;
+    QCheckBox   *m_krellpkgEnabled = nullptr;
+    QCheckBox   *m_krellhealthEnabled = nullptr;
+    QCheckBox   *m_krelltopEnabled = nullptr;
+    QCheckBox   *m_krellwifiEnabled = nullptr;
+    QCheckBox   *m_krellstackEnabled = nullptr;
+    QLineEdit   *m_krellstackHosts = nullptr;
+    QList<QCheckBox *> m_krellpkgSystemChecks;
+    QLineEdit   *m_krellpkgIncludePatterns = nullptr;
+    QLineEdit   *m_krellpkgExcludePatterns = nullptr;
     QCheckBox   *m_krellstockTickerEnabled = nullptr;
     QCheckBox   *m_krellstockQuotesEnabled = nullptr;
     QSpinBox    *m_krellstockUpdateMs = nullptr;

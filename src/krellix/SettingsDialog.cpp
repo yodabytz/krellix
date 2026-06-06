@@ -23,6 +23,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QLocale>
+#include <QPalette>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSet>
@@ -34,6 +35,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <utility>
 
 namespace {
 
@@ -51,7 +53,7 @@ constexpr int kMinScrollPps    = 5;
 constexpr int kMaxScrollPps    = 200;
 constexpr int kDefaultScrollPps = 30;
 constexpr int kMaxKrellmailAccounts = 10;
-constexpr int kMaxSymbols = 10;
+constexpr int kMaxStockSymbols = 10;
 
 // Mirrors the same helper inside KrellmoonPlugin.cpp — kept duplicated so the
 // settings dialog and the plugin agree on the default checkbox state on the
@@ -97,8 +99,13 @@ const QList<QPair<QString, QString>> kMonitorOrderItems = {
     {QStringLiteral("krellmail"), QStringLiteral("Krellmail")},
     {QStringLiteral("krellspectrum"), QStringLiteral("KrellSpectrum")},
     {QStringLiteral("krellmoon"), QStringLiteral("Krellmoon")},
-    {QStringLiteral("krellstock"),        QStringLiteral("KrellStock")},
     {QStringLiteral("krellstock_ticker"), QStringLiteral("KrellStock Ticker")},
+    {QStringLiteral("krellstock"), QStringLiteral("KrellStock")},
+    {QStringLiteral("krellpkg"), QStringLiteral("Krellpkg")},
+    {QStringLiteral("krellhealth"), QStringLiteral("KrellHealth")},
+    {QStringLiteral("krelltop"), QStringLiteral("KrellTop")},
+    {QStringLiteral("krellwifi"), QStringLiteral("KrellWiFi")},
+    {QStringLiteral("krellstack"), QStringLiteral("KrellStack")},
     {QStringLiteral("disk"),    QStringLiteral("Disk I/O")},
     {QStringLiteral("sensors"), QStringLiteral("Sensors")},
     {QStringLiteral("battery"), QStringLiteral("Battery")},
@@ -142,10 +149,42 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
 {
     Q_ASSERT(m_theme);
     setWindowTitle(QStringLiteral("krellix — Settings"));
-    setModal(true);
+    setWindowFlag(Qt::Window, true);
+    setWindowModality(Qt::NonModal);
+    setModal(false);
     resize(700, 560);
     setMinimumSize(560, 380);
     setSizeGripEnabled(true);
+
+    const QColor panel = m_theme->color(QStringLiteral("panel_bg"), palette().window().color());
+    const QColor text = m_theme->color(QStringLiteral("text_primary"), palette().windowText().color());
+    const QColor text2 = m_theme->color(QStringLiteral("text_secondary"), text);
+    const QColor border = m_theme->color(QStringLiteral("panel_border"), panel.darker(140));
+    QPalette pal = palette();
+    pal.setColor(QPalette::Window, panel);
+    pal.setColor(QPalette::Base, panel.darker(115));
+    pal.setColor(QPalette::AlternateBase, panel.darker(125));
+    pal.setColor(QPalette::WindowText, text);
+    pal.setColor(QPalette::Text, text);
+    pal.setColor(QPalette::ButtonText, text);
+    pal.setColor(QPalette::PlaceholderText, text2);
+    setPalette(pal);
+    const QString themeStyle = QStringLiteral(
+        "QDialog,QScrollArea,QWidget{background:%1;color:%2;}"
+        "QGroupBox{border:1px solid %3;margin-top:8px;padding-top:8px;}"
+        "QGroupBox::title{subcontrol-origin:margin;left:6px;color:%4;}"
+        "QListWidget{border:1px solid %3;background:%5;}"
+        "QLineEdit,QComboBox,QSpinBox,QDoubleSpinBox{border:1px solid %3;background:%5;color:%2;padding:3px;}"
+        "QPushButton{border:1px solid %3;background:%6;color:%2;padding:4px 8px;}"
+        "QPushButton:hover{background:%7;}")
+        .arg(panel.name(QColor::HexArgb),
+             text.name(QColor::HexArgb),
+             border.name(QColor::HexArgb),
+             text2.name(QColor::HexArgb),
+             panel.darker(115).name(QColor::HexArgb),
+             panel.lighter(115).name(QColor::HexArgb),
+             panel.lighter(130).name(QColor::HexArgb));
+    setStyleSheet(themeStyle);
 
     // ---------------- Outer layout: sidebar + stack + buttons ----------------
     auto *root = new QVBoxLayout(this);
@@ -184,6 +223,10 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
 
         m_alwaysOnTop = new QCheckBox(QStringLiteral("Keep window above other windows"), page);
         form->addRow(QString(), m_alwaysOnTop);
+
+        m_stickyWindow = new QCheckBox(QStringLiteral("Show on all workspaces"), page);
+        m_stickyWindow->setToolTip(QStringLiteral("Uses the window manager's sticky hint when wmctrl is available."));
+        form->addRow(QString(), m_stickyWindow);
 
         m_clockAtTop = new QCheckBox(QStringLiteral("Clock right under hostname (vs. at bottom)"), page);
         form->addRow(QString(), m_clockAtTop);
@@ -257,6 +300,11 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         layout->addWidget(m_netEnabled);
         layout->addWidget(m_netPortsEnabled);
         layout->addWidget(m_diskEnabled);
+        m_diskMode = new QComboBox(page);
+        m_diskMode->addItem(QStringLiteral("Per-drive panels"), QStringLiteral("per-disk"));
+        m_diskMode->addItem(QStringLiteral("Composite panel"), QStringLiteral("composite"));
+        layout->addWidget(new QLabel(QStringLiteral("Disk display:"), page));
+        layout->addWidget(m_diskMode);
         const QList<DiskSample> disks = DiskStat::read();
         if (disks.isEmpty()) {
             layout->addWidget(new QLabel(QStringLiteral("    (no whole disks detected)"), page));
@@ -279,7 +327,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         }
         layout->addWidget(m_sensorsEnabled);
         m_sensorsAdvanced = new QPushButton(QStringLiteral("Sensors Settings..."), page);
-        m_sensorsAdvanced->setToolTip(QStringLiteral("Temperature unit, display mode, and color thresholds"));
+        m_sensorsAdvanced->setToolTip(QStringLiteral("Temperature units, display mode, and warning thresholds"));
         layout->addWidget(m_sensorsAdvanced);
         layout->addWidget(m_batteryEnabled);
         layout->addStretch(1);
@@ -362,6 +410,9 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
 
         auto *coresLabel = new QLabel(QStringLiteral("Cores (per-core mode only):"), page);
         layout->addWidget(coresLabel);
+        m_cpuAdvanced = new QPushButton(QStringLiteral("CPU Settings..."), page);
+        m_cpuAdvanced->setToolTip(QStringLiteral("Format string and alarm thresholds"));
+        layout->addWidget(m_cpuAdvanced);
 
         const QList<CpuSample> coreList = sortedCoreSamples(CpuStat::read());
         if (coreList.isEmpty()) {
@@ -374,7 +425,11 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
                 const QString key = QStringLiteral("monitors/cpu/")
                                     + QString::number(smp.index);
                 const bool checked = cs.value(key, true).toBool();
-                auto *cb = new QCheckBox(QStringLiteral("cpu%1").arg(smp.index), page);
+                auto *cb = new QCheckBox(QStringLiteral("cpu%1").arg(slot), page);
+                if (slot != smp.index) {
+                    cb->setToolTip(QStringLiteral("Kernel CPU: cpu%1")
+                                   .arg(smp.index));
+                }
                 cb->setChecked(checked);
                 layout->addWidget(cb);
                 const int cpuIdx = smp.index;
@@ -440,28 +495,42 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         portsGrid->addWidget(new QLabel(QStringLiteral("Ports / ranges"), portsGroup), 0, 3);
 
         QSettings ps;
+        auto netPortValue = [&ps](const QString &base, const QString &legacyBase,
+                                  const QString &name, const QVariant &defaultValue = QVariant()) {
+            const QString key = base + name;
+            if (ps.contains(key))
+                return ps.value(key, defaultValue);
+            return ps.value(legacyBase + name, defaultValue);
+        };
+        auto writeNetPortValue = [](const QString &base, const QString &legacyBase,
+                                    const QString &name, const QVariant &value) {
+            QSettings s;
+            s.setValue(base + name, value);
+            s.setValue(legacyBase + name, value);
+        };
         for (int i = 1; i <= 8; ++i) {
             const bool defEnabled = i == 1;
             const QString defLabel = i == 1 ? QStringLiteral("SSH") : QString();
             const QString defPorts = i == 1 ? QStringLiteral("22") : QString();
             const QString base = QStringLiteral("monitors/netports/watch%1/").arg(i);
+            const QString legacyBase = QStringLiteral("netports/watch%1/").arg(i);
 
             auto *enabled = new QCheckBox(portsGroup);
-            enabled->setChecked(ps.value(base + QStringLiteral("enabled"), defEnabled).toBool());
+            enabled->setChecked(netPortValue(base, legacyBase, QStringLiteral("enabled"), defEnabled).toBool());
             portsGrid->addWidget(enabled, i, 0);
 
             auto *label = new QLineEdit(portsGroup);
             label->setClearButtonEnabled(true);
             label->setPlaceholderText(QStringLiteral("SSH"));
-            label->setText(ps.value(base + QStringLiteral("label"), defLabel).toString());
+            label->setText(netPortValue(base, legacyBase, QStringLiteral("label"), defLabel).toString());
             portsGrid->addWidget(label, i, 1);
 
             auto *protocol = new QComboBox(portsGroup);
             protocol->addItem(QStringLiteral("TCP"), QStringLiteral("tcp"));
             protocol->addItem(QStringLiteral("UDP"), QStringLiteral("udp"));
             protocol->addItem(QStringLiteral("TCP + UDP"), QStringLiteral("all"));
-            const QString proto = ps.value(base + QStringLiteral("protocol"),
-                                           QStringLiteral("tcp")).toString().toLower();
+            const QString proto = netPortValue(base, legacyBase, QStringLiteral("protocol"),
+                                               QStringLiteral("tcp")).toString().toLower();
             const int protoIdx = protocol->findData(proto);
             protocol->setCurrentIndex(protoIdx >= 0 ? protoIdx : 0);
             portsGrid->addWidget(protocol, i, 2);
@@ -469,25 +538,25 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             auto *ports = new QLineEdit(portsGroup);
             ports->setClearButtonEnabled(true);
             ports->setPlaceholderText(QStringLiteral("22, 80, 8000-8010"));
-            ports->setText(ps.value(base + QStringLiteral("ports"), defPorts).toString());
+            ports->setText(netPortValue(base, legacyBase, QStringLiteral("ports"), defPorts).toString());
             portsGrid->addWidget(ports, i, 3);
 
-            connect(enabled, &QCheckBox::toggled, this, [this, base](bool v) {
-                QSettings().setValue(base + QStringLiteral("enabled"), v);
+            connect(enabled, &QCheckBox::toggled, this, [this, base, legacyBase, writeNetPortValue](bool v) {
+                writeNetPortValue(base, legacyBase, QStringLiteral("enabled"), v);
                 emit settingsApplied();
             });
-            connect(label, &QLineEdit::editingFinished, this, [this, label, base]() {
-                QSettings().setValue(base + QStringLiteral("label"), label->text().trimmed());
+            connect(label, &QLineEdit::editingFinished, this, [this, label, base, legacyBase, writeNetPortValue]() {
+                writeNetPortValue(base, legacyBase, QStringLiteral("label"), label->text().trimmed());
                 emit settingsApplied();
             });
             connect(protocol, QOverload<int>::of(&QComboBox::currentIndexChanged),
-                    this, [this, protocol, base](int) {
-                        QSettings().setValue(base + QStringLiteral("protocol"),
-                                             protocol->currentData().toString());
+                    this, [this, protocol, base, legacyBase, writeNetPortValue](int) {
+                        writeNetPortValue(base, legacyBase, QStringLiteral("protocol"),
+                                          protocol->currentData().toString());
                         emit settingsApplied();
                     });
-            connect(ports, &QLineEdit::editingFinished, this, [this, ports, base]() {
-                QSettings().setValue(base + QStringLiteral("ports"), ports->text().trimmed());
+            connect(ports, &QLineEdit::editingFinished, this, [this, ports, base, legacyBase, writeNetPortValue]() {
+                writeNetPortValue(base, legacyBase, QStringLiteral("ports"), ports->text().trimmed());
                 emit settingsApplied();
             });
         }
@@ -539,6 +608,35 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             m_krellkamFieldHeight->setRange(24, 240);
             m_krellkamFieldHeight->setSuffix(QStringLiteral(" px"));
             form->addRow(QStringLiteral("Image height:"), m_krellkamFieldHeight);
+
+            m_krellkamYoutubeCookiesFile = new QLineEdit(group);
+            m_krellkamYoutubeCookiesFile->setClearButtonEnabled(true);
+            m_krellkamYoutubeCookiesFile->setPlaceholderText(QStringLiteral("/path/to/youtube-cookies.txt"));
+            form->addRow(QStringLiteral("YouTube cookies file:"), m_krellkamYoutubeCookiesFile);
+
+            m_krellkamYoutubeCookiesBrowser = new QComboBox(group);
+            m_krellkamYoutubeCookiesBrowser->addItem(QStringLiteral("Auto-detect browser cookies"),
+                                                     QStringLiteral("auto"));
+            m_krellkamYoutubeCookiesBrowser->addItem(QStringLiteral("Disabled"), QString());
+            m_krellkamYoutubeCookiesBrowser->addItem(QStringLiteral("Firefox"), QStringLiteral("firefox"));
+            m_krellkamYoutubeCookiesBrowser->addItem(QStringLiteral("Chromium"), QStringLiteral("chromium"));
+            m_krellkamYoutubeCookiesBrowser->addItem(QStringLiteral("Chrome"), QStringLiteral("chrome"));
+            m_krellkamYoutubeCookiesBrowser->addItem(QStringLiteral("Brave"), QStringLiteral("brave"));
+            m_krellkamYoutubeCookiesBrowser->addItem(QStringLiteral("Edge"), QStringLiteral("edge"));
+            m_krellkamYoutubeCookiesBrowser->setToolTip(QStringLiteral(
+                "Used when YouTube asks yt-dlp to verify with a signed-in browser session."));
+            form->addRow(QStringLiteral("YouTube browser cookies:"), m_krellkamYoutubeCookiesBrowser);
+
+            m_krellkamYoutubeExtractorArgs = new QLineEdit(group);
+            m_krellkamYoutubeExtractorArgs->setClearButtonEnabled(true);
+            m_krellkamYoutubeExtractorArgs->setPlaceholderText(
+                QStringLiteral("youtube:player_client=tv,web_safari,mweb,default"));
+            form->addRow(QStringLiteral("YouTube extractor args:"), m_krellkamYoutubeExtractorArgs);
+
+            m_krellkamYoutubeExtraArgs = new QLineEdit(group);
+            m_krellkamYoutubeExtraArgs->setClearButtonEnabled(true);
+            m_krellkamYoutubeExtraArgs->setPlaceholderText(QStringLiteral("--force-ipv4"));
+            form->addRow(QStringLiteral("Extra yt-dlp args:"), m_krellkamYoutubeExtraArgs);
 
             for (int i = 1; i <= 5; ++i) {
                 auto *row = new QWidget(group);
@@ -714,39 +812,26 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         if (hasKrellstockPlugin()) {
             auto *pluginPage   = new QWidget(m_pluginStack);
             auto *pluginLayout = new QVBoxLayout(pluginPage);
-
             auto *group       = new QGroupBox(QStringLiteral("KrellStock"), pluginPage);
             auto *groupLayout = new QVBoxLayout(group);
-
-            // ── Enable toggles ──────────────────────────────────────────────
             m_krellstockTickerEnabled =
                 new QCheckBox(QStringLiteral("Show scrolling ticker panel"), group);
             m_krellstockQuotesEnabled =
                 new QCheckBox(QStringLiteral("Show detailed quote panel"), group);
             groupLayout->addWidget(m_krellstockTickerEnabled);
             groupLayout->addWidget(m_krellstockQuotesEnabled);
-
-            // ── Update interval ─────────────────────────────────────────────
             auto *intervalRow = new QHBoxLayout;
             auto *intervalLbl = new QLabel(QStringLiteral("Refresh every:"), group);
             m_krellstockUpdateMs = new QSpinBox(group);
             m_krellstockUpdateMs->setRange(60000, 3600000);
             m_krellstockUpdateMs->setSingleStep(60000);
             m_krellstockUpdateMs->setSuffix(QStringLiteral(" ms"));
-            m_krellstockUpdateMs->setToolTip(QStringLiteral(
-                "How often to poll Yahoo Finance (minimum 1 minute recommended)."));
             intervalRow->addWidget(intervalLbl);
             intervalRow->addWidget(m_krellstockUpdateMs, 1);
             groupLayout->addLayout(intervalRow);
-
-            // ── Symbol grid — 10 slots in 2 columns ─────────────────────────
             auto *symGroup = new QGroupBox(QStringLiteral("Symbols  (up to 10)"), group);
-            symGroup->setToolTip(QStringLiteral(
-                "Any Yahoo Finance symbol: US stocks, international stocks with "
-                "exchange suffix, indices, or crypto pairs."));
-            auto *symGrid = new QGridLayout(symGroup);
+            auto *symGrid  = new QGridLayout(symGroup);
             symGrid->setHorizontalSpacing(12);
-
             static const QStringList kExamples = {
                 QStringLiteral("AAPL"),    QStringLiteral("MSFT"),
                 QStringLiteral("BTC-USD"), QStringLiteral("ETH-USD"),
@@ -754,7 +839,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
                 QStringLiteral("BP.L"),    QStringLiteral("SAP.DE"),
                 QStringLiteral("7203.T"),  QStringLiteral("0700.HK"),
             };
-            for (int i = 0; i < kMaxSymbols; ++i) {
+            for (int i = 0; i < kMaxStockSymbols; ++i) {
                 auto *lbl  = new QLabel(QStringLiteral("%1:").arg(i + 1), symGroup);
                 auto *edit = new QLineEdit(symGroup);
                 edit->setMaxLength(20);
@@ -762,11 +847,9 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
                 edit->setPlaceholderText(kExamples.at(i));
                 edit->setToolTip(QStringLiteral(
                     "Yahoo Finance symbol.\n"
-                    "US stocks: AAPL, MSFT, NVDA\n"
-                    "Crypto: BTC-USD, ETH-USD, SOL-USD\n"
-                    "London: BP.L   Frankfurt: SAP.DE\n"
-                    "Tokyo: 7203.T  Hong Kong: 0700.HK\n"
-                    "Seoul: 005930.KS   Paris: BNP.PA"));
+                    "US: AAPL MSFT NVDA  Crypto: BTC-USD ETH-USD\n"
+                    "London: BP.L  Frankfurt: SAP.DE\n"
+                    "Tokyo: 7203.T  Hong Kong: 0700.HK"));
                 lbl->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
                 const int row = i / 2, col = (i % 2) * 2;
                 symGrid->addWidget(lbl,  row, col,     Qt::AlignRight);
@@ -776,23 +859,18 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             symGrid->setColumnStretch(1, 1);
             symGrid->setColumnStretch(3, 1);
             groupLayout->addWidget(symGroup);
-
-            // ── Help text ───────────────────────────────────────────────────
             auto *help = new QLabel(group);
             help->setWordWrap(true);
             help->setTextFormat(Qt::RichText);
             help->setOpenExternalLinks(true);
             help->setTextInteractionFlags(Qt::TextBrowserInteraction);
             help->setText(QStringLiteral(
-                "Data from <b>Yahoo Finance</b> — no API key needed. "
-                "International suffixes: <code>.L</code> London, "
-                "<code>.DE</code> Frankfurt/XETRA, <code>.T</code> Tokyo, "
-                "<code>.HK</code> Hong Kong, <code>.KS</code> Seoul, "
-                "<code>.PA</code> Paris. "
+                "Data from <b>Yahoo Finance</b> - no API key needed. "
+                "Suffixes: <code>.L</code> London, <code>.DE</code> Frankfurt, "
+                "<code>.T</code> Tokyo, <code>.HK</code> Hong Kong. "
                 "Crypto: <code>BTC-USD</code>, <code>ETH-USD</code>. "
                 "<a href=\"https://finance.yahoo.com\">Search symbols at finance.yahoo.com</a>"));
             groupLayout->addWidget(help);
-
             pluginLayout->addWidget(group);
             pluginLayout->addStretch(1);
             m_pluginList->addItem(QStringLiteral("KrellStock"));
@@ -916,6 +994,135 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             m_pluginStack->addWidget(pluginPage);
         }
 
+        auto addSimplePluginPage = [this](const QString &id,
+                                          const QString &title,
+                                          const QString &description,
+                                          QCheckBox **member) {
+            if (!hasPlugin(id)) return;
+            auto *pluginPage = new QWidget(m_pluginStack);
+            auto *pluginLayout = new QVBoxLayout(pluginPage);
+            auto *group = new QGroupBox(title, pluginPage);
+            auto *form = new QFormLayout(group);
+            *member = new QCheckBox(QStringLiteral("Show %1 panel").arg(title), group);
+            form->addRow(QString(), *member);
+            auto *label = new QLabel(description, group);
+            label->setWordWrap(true);
+            form->addRow(QStringLiteral("Shows:"), label);
+            pluginLayout->addWidget(group);
+            pluginLayout->addStretch(1);
+            m_pluginList->addItem(title);
+            m_pluginStack->addWidget(pluginPage);
+        };
+        if (hasPlugin(QStringLiteral("krellpkg"))) {
+            auto *pluginPage = new QWidget(m_pluginStack);
+            auto *pluginLayout = new QVBoxLayout(pluginPage);
+            auto *group = new QGroupBox(QStringLiteral("Krellpkg"), pluginPage);
+            auto *form = new QFormLayout(group);
+            QSettings pkgSettings;
+
+            m_krellpkgEnabled = new QCheckBox(QStringLiteral("Show Krellpkg panel"), group);
+            form->addRow(QString(), m_krellpkgEnabled);
+
+            m_krellpkgIncludePatterns = new QLineEdit(group);
+            m_krellpkgIncludePatterns->setClearButtonEnabled(true);
+            m_krellpkgIncludePatterns->setPlaceholderText(QStringLiteral("kernel*, firefox, openssl"));
+            form->addRow(QStringLiteral("Only packages:"), m_krellpkgIncludePatterns);
+
+            m_krellpkgExcludePatterns = new QLineEdit(group);
+            m_krellpkgExcludePatterns->setClearButtonEnabled(true);
+            m_krellpkgExcludePatterns->setPlaceholderText(QStringLiteral("linux-firmware, *-debug"));
+            form->addRow(QStringLiteral("Hide packages:"), m_krellpkgExcludePatterns);
+
+            auto *systems = new QGridLayout;
+            const QList<QPair<QString, QString>> packageSystems = {
+                {QStringLiteral("pacman"), QStringLiteral("pacman")},
+                {QStringLiteral("aur"), QStringLiteral("AUR")},
+                {QStringLiteral("apt"), QStringLiteral("apt")},
+                {QStringLiteral("dnf"), QStringLiteral("dnf")},
+                {QStringLiteral("zypper"), QStringLiteral("zypper")},
+                {QStringLiteral("apk"), QStringLiteral("apk")},
+                {QStringLiteral("xbps"), QStringLiteral("XBPS")},
+                {QStringLiteral("eopkg"), QStringLiteral("eopkg")},
+                {QStringLiteral("emerge"), QStringLiteral("Portage")},
+                {QStringLiteral("nix"), QStringLiteral("Nix")},
+                {QStringLiteral("guix"), QStringLiteral("Guix")},
+                {QStringLiteral("freebsd_pkg"), QStringLiteral("FreeBSD pkg")},
+                {QStringLiteral("openbsd_pkg_add"), QStringLiteral("OpenBSD pkg_add")},
+                {QStringLiteral("netbsd_pkgin"), QStringLiteral("NetBSD pkgin")},
+                {QStringLiteral("flatpak"), QStringLiteral("Flatpak")},
+                {QStringLiteral("snap"), QStringLiteral("Snap")},
+                {QStringLiteral("brew"), QStringLiteral("Homebrew")},
+                {QStringLiteral("pipx"), QStringLiteral("pipx")},
+                {QStringLiteral("npm"), QStringLiteral("npm global")},
+                {QStringLiteral("gem"), QStringLiteral("RubyGems")},
+                {QStringLiteral("cargo"), QStringLiteral("cargo-install")},
+                {QStringLiteral("composer"), QStringLiteral("Composer global")},
+            };
+            for (int i = 0; i < packageSystems.size(); ++i) {
+                const QString id = packageSystems.at(i).first;
+                auto *cb = new QCheckBox(packageSystems.at(i).second, group);
+                cb->setProperty("krellpkg_system_id", id);
+                cb->setChecked(pkgSettings.value(QStringLiteral("plugins/krellpkg/systems/") + id,
+                                                  false).toBool());
+                systems->addWidget(cb, i / 2, i % 2);
+                m_krellpkgSystemChecks.append(cb);
+            }
+            auto *systemsWidget = new QWidget(group);
+            systemsWidget->setLayout(systems);
+            form->addRow(QStringLiteral("Package systems:"), systemsWidget);
+
+            auto *label = new QLabel(QStringLiteral(
+                "Package name filters accept comma-separated names or wildcards. "
+                "The plugin stays disabled until Show Krellpkg panel is checked."),
+                group);
+            label->setWordWrap(true);
+            form->addRow(QStringLiteral("Filters:"), label);
+
+            pluginLayout->addWidget(group);
+            pluginLayout->addStretch(1);
+            m_pluginList->addItem(QStringLiteral("Krellpkg"));
+            m_pluginStack->addWidget(pluginPage);
+        }
+        addSimplePluginPage(QStringLiteral("krellwifi"), QStringLiteral("KrellWiFi"),
+                            QStringLiteral("Nearby WiFi AP count, strongest signal, busy channels, and security summary."),
+                            &m_krellwifiEnabled);
+        addSimplePluginPage(QStringLiteral("krellhealth"), QStringLiteral("KrellHealth"),
+                            QStringLiteral("Compact health summary with tooltip details for failed services, storage, SMART, package transactions, certificates, time sync, backups, and reboot state."),
+                            &m_krellhealthEnabled);
+        addSimplePluginPage(QStringLiteral("krelltop"), QStringLiteral("KrellTop"),
+                            QStringLiteral("Top CPU and memory processes from the local host or remote krellixd telemetry."),
+                            &m_krelltopEnabled);
+        if (hasPlugin(QStringLiteral("krellstack"))) {
+            auto *pluginPage = new QWidget(m_pluginStack);
+            auto *pluginLayout = new QVBoxLayout(pluginPage);
+            auto *group = new QGroupBox(QStringLiteral("KrellStack"), pluginPage);
+            auto *form = new QFormLayout(group);
+
+            m_krellstackEnabled = new QCheckBox(QStringLiteral("Show KrellStack panel"), group);
+            form->addRow(QString(), m_krellstackEnabled);
+
+            m_krellstackHosts = new QLineEdit(group);
+            m_krellstackHosts->setClearButtonEnabled(true);
+            m_krellstackHosts->setPlaceholderText(QStringLiteral("mail.quantumbytz.com, mail.vibrixmedia.com"));
+            m_krellstackHosts->setToolTip(QStringLiteral(
+                "Comma-separated SSH hosts to scan for Docker containers, images, and compose stacks. "
+                "Each host must accept non-interactive SSH and allow the user to run docker. "
+                "Leave empty to scan only the local Docker/Podman/Kubernetes setup."));
+            form->addRow(QStringLiteral("Remote Docker SSH hosts:"), m_krellstackHosts);
+
+            auto *label = new QLabel(QStringLiteral(
+                "The panel shows running/total containers, image count, compose stack count, unhealthy/restarting/exited "
+                "containers, and whether local or remote hosts were scanned. Remote hosts are never enabled automatically."),
+                group);
+            label->setWordWrap(true);
+            form->addRow(QStringLiteral("Shows:"), label);
+
+            pluginLayout->addWidget(group);
+            pluginLayout->addStretch(1);
+            m_pluginList->addItem(QStringLiteral("KrellStack"));
+            m_pluginStack->addWidget(pluginPage);
+        }
+
         if (m_pluginList->count() == 0) {
             auto *empty = new QLabel(QStringLiteral("No editable plugins installed."), m_pluginStack);
             empty->setAlignment(Qt::AlignCenter);
@@ -950,6 +1157,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
     {
         QSignalBlocker b1(m_themeCombo);
         QSignalBlocker b2(m_alwaysOnTop);
+        QSignalBlocker bSticky(m_stickyWindow);
         QSignalBlocker b3(m_clockAtTop);
         QSignalBlocker b4(m_militaryTime);
         QSignalBlocker b5(m_showFqdn);
@@ -969,6 +1177,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         QSignalBlocker b19(m_diskEnabled);
         QSignalBlocker b20(m_sensorsEnabled);
         QSignalBlocker b21(m_batteryEnabled);
+        QSignalBlocker b22(m_diskMode);
         loadFromSettings();
     }
 
@@ -990,6 +1199,10 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
     connect(m_alwaysOnTop, &QCheckBox::toggled, this, [this](bool v) {
         QSettings().setValue(QStringLiteral("window/always_on_top"), v);
         emit alwaysOnTopChanged(v);
+    });
+    connect(m_stickyWindow, &QCheckBox::toggled, this, [this](bool v) {
+        QSettings().setValue(QStringLiteral("window/sticky"), v);
+        emit settingsApplied();
     });
     connect(m_clockAtTop, &QCheckBox::toggled, this, [this](bool v) {
         QSettings().setValue(QStringLiteral("window/clock_at_top"), v);
@@ -1050,14 +1263,11 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             auto *layout = new QVBoxLayout(&dlg);
             auto *form   = new QFormLayout;
             QSettings s;
-
             auto *unit = new QComboBox(&dlg);
             unit->addItem(QStringLiteral("Celsius"),    false);
             unit->addItem(QStringLiteral("Fahrenheit"), true);
-            unit->setCurrentIndex(
-                s.value(QStringLiteral("monitors/sensors/use_fahrenheit"), false).toBool() ? 1 : 0);
+            unit->setCurrentIndex(s.value(QStringLiteral("monitors/sensors/use_fahrenheit"), false).toBool() ? 1 : 0);
             form->addRow(QStringLiteral("Temperature unit:"), unit);
-
             auto *mode = new QComboBox(&dlg);
             mode->addItem(QStringLiteral("Temperature + Percent"), 0);
             mode->addItem(QStringLiteral("Temperature only"),      1);
@@ -1065,34 +1275,23 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             const int modeIdx = s.value(QStringLiteral("monitors/sensors/display_mode"), 0).toInt();
             mode->setCurrentIndex(qBound(0, modeIdx, 2));
             form->addRow(QStringLiteral("Display mode:"), mode);
-
             auto *warn = new QSpinBox(&dlg);
-            warn->setRange(20, 100);
-            warn->setSuffix(QStringLiteral(" °C"));
-            warn->setToolTip(QStringLiteral("Temperature at which the reading turns yellow"));
+            warn->setRange(20, 100); warn->setSuffix(QStringLiteral(" C"));
             warn->setValue(s.value(QStringLiteral("monitors/sensors/warn_celsius"), 70).toInt());
             form->addRow(QStringLiteral("Warn above:"), warn);
-
             auto *crit = new QSpinBox(&dlg);
-            crit->setRange(20, 120);
-            crit->setSuffix(QStringLiteral(" °C"));
-            crit->setToolTip(QStringLiteral("Temperature at which the reading turns red"));
+            crit->setRange(20, 120); crit->setSuffix(QStringLiteral(" C"));
             crit->setValue(s.value(QStringLiteral("monitors/sensors/crit_celsius"), 85).toInt());
             form->addRow(QStringLiteral("Critical above:"), crit);
-
             layout->addLayout(form);
-            auto *bb = new QDialogButtonBox(
-                QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+            auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
             connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
             connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
             layout->addWidget(bb);
-
             if (dlg.exec() == QDialog::Accepted) {
                 QSettings out;
-                out.setValue(QStringLiteral("monitors/sensors/use_fahrenheit"),
-                             unit->currentData().toBool());
-                out.setValue(QStringLiteral("monitors/sensors/display_mode"),
-                             mode->currentData().toInt());
+                out.setValue(QStringLiteral("monitors/sensors/use_fahrenheit"), unit->currentData().toBool());
+                out.setValue(QStringLiteral("monitors/sensors/display_mode"), mode->currentData().toInt());
                 out.setValue(QStringLiteral("monitors/sensors/warn_celsius"), warn->value());
                 out.setValue(QStringLiteral("monitors/sensors/crit_celsius"), crit->value());
                 emit settingsApplied();
@@ -1107,6 +1306,63 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
                                          cpuModeCombo->currentData().toString());
                     emit panelStackChanged();
                 });
+    }
+    if (m_diskMode) {
+        connect(m_diskMode, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, [this](int) {
+                    QSettings().setValue(QStringLiteral("monitors/disk/mode"),
+                                         m_diskMode->currentData().toString());
+                    emit panelStackChanged();
+                });
+    }
+    if (m_cpuAdvanced) {
+        connect(m_cpuAdvanced, &QPushButton::clicked, this, [this]() {
+            QDialog dlg(this);
+            dlg.setWindowTitle(QStringLiteral("CPU Settings"));
+            auto *layout = new QVBoxLayout(&dlg);
+            auto *form = new QFormLayout;
+            QSettings s;
+
+            auto *format = new QLineEdit(&dlg);
+            format->setClearButtonEnabled(true);
+            format->setPlaceholderText(QStringLiteral("{name}"));
+            format->setText(s.value(QStringLiteral("monitors/cpu/label_format"),
+                                    QStringLiteral("{name}")).toString());
+            form->addRow(QStringLiteral("Name format:"), format);
+            auto *formatHint = new QLabel(
+                QStringLiteral("{name}/{index} use display numbering; {kernel}/{kernel_index} use OS CPU IDs."),
+                &dlg);
+            formatHint->setWordWrap(true);
+            form->addRow(QString(), formatHint);
+
+            auto *warn = new QSpinBox(&dlg);
+            warn->setRange(1, 100);
+            warn->setSuffix(QStringLiteral(" %"));
+            warn->setValue(s.value(QStringLiteral("monitors/cpu/warn_percent"), 80).toInt());
+            form->addRow(QStringLiteral("Warning:"), warn);
+
+            auto *crit = new QSpinBox(&dlg);
+            crit->setRange(1, 100);
+            crit->setSuffix(QStringLiteral(" %"));
+            crit->setValue(s.value(QStringLiteral("monitors/cpu/critical_percent"), 95).toInt());
+            form->addRow(QStringLiteral("Critical:"), crit);
+            layout->addLayout(form);
+
+            auto *advancedButtons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+            connect(advancedButtons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+            connect(advancedButtons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+            layout->addWidget(advancedButtons);
+            if (dlg.exec() == QDialog::Accepted) {
+                QSettings out;
+                out.setValue(QStringLiteral("monitors/cpu/label_format"),
+                             format->text().trimmed().isEmpty()
+                                 ? QStringLiteral("{name}")
+                                 : format->text().trimmed());
+                out.setValue(QStringLiteral("monitors/cpu/warn_percent"), warn->value());
+                out.setValue(QStringLiteral("monitors/cpu/critical_percent"), crit->value());
+                emit panelStackChanged();
+            }
+        });
     }
 
     if (m_krellkamEnabled) {
@@ -1132,6 +1388,54 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         connect(m_krellkamFieldHeight, QOverload<int>::of(&QSpinBox::valueChanged),
                 this, [this](int v) {
                     QSettings().setValue(QStringLiteral("plugins/krellkam/field_height"), v);
+                    emit settingsApplied();
+                });
+    }
+    if (m_krellkamYoutubeCookiesFile) {
+        connect(m_krellkamYoutubeCookiesFile, &QLineEdit::textEdited,
+                this, [this](const QString &value) {
+                    QSettings().setValue(QStringLiteral("plugins/krellkam/youtube_cookies_file"),
+                                         value.trimmed());
+                });
+        connect(m_krellkamYoutubeCookiesFile, &QLineEdit::editingFinished,
+                this, [this]() {
+                    QSettings().setValue(QStringLiteral("plugins/krellkam/youtube_cookies_file"),
+                                         m_krellkamYoutubeCookiesFile->text().trimmed());
+                    emit settingsApplied();
+                });
+    }
+    if (m_krellkamYoutubeCookiesBrowser) {
+        connect(m_krellkamYoutubeCookiesBrowser,
+                QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, [this](int) {
+                    QSettings().setValue(QStringLiteral("plugins/krellkam/youtube_cookies_from_browser"),
+                                         m_krellkamYoutubeCookiesBrowser->currentData().toString());
+                    emit settingsApplied();
+                });
+    }
+    if (m_krellkamYoutubeExtractorArgs) {
+        connect(m_krellkamYoutubeExtractorArgs, &QLineEdit::textEdited,
+                this, [this](const QString &value) {
+                    QSettings().setValue(QStringLiteral("plugins/krellkam/youtube_extractor_args"),
+                                         value.trimmed());
+                });
+        connect(m_krellkamYoutubeExtractorArgs, &QLineEdit::editingFinished,
+                this, [this]() {
+                    QSettings().setValue(QStringLiteral("plugins/krellkam/youtube_extractor_args"),
+                                         m_krellkamYoutubeExtractorArgs->text().trimmed());
+                    emit settingsApplied();
+                });
+    }
+    if (m_krellkamYoutubeExtraArgs) {
+        connect(m_krellkamYoutubeExtraArgs, &QLineEdit::textEdited,
+                this, [this](const QString &value) {
+                    QSettings().setValue(QStringLiteral("plugins/krellkam/youtube_yt_dlp_args"),
+                                         value.trimmed());
+                });
+        connect(m_krellkamYoutubeExtraArgs, &QLineEdit::editingFinished,
+                this, [this]() {
+                    QSettings().setValue(QStringLiteral("plugins/krellkam/youtube_yt_dlp_args"),
+                                         m_krellkamYoutubeExtraArgs->text().trimmed());
                     emit settingsApplied();
                 });
     }
@@ -1280,10 +1584,17 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
     for (int i = 0; i < m_krellstockSymbols.size(); ++i) {
         QLineEdit *edit = m_krellstockSymbols.at(i);
         const QString key = QStringLiteral("plugins/krellstock/symbol%1").arg(i + 1);
-        connect(edit, &QLineEdit::editingFinished, this, [this, edit, key]() {
-            QSettings().setValue(key, edit->text().trimmed().toUpper());
+        auto saveStockSymbol = [this, edit, key]() {
+            const QString value = edit->text().trimmed().toUpper();
+            if (edit->text() != value) {
+                const QSignalBlocker blocker(edit);
+                edit->setText(value);
+            }
+            QSettings().setValue(key, value);
             emit settingsApplied();
-        });
+        };
+        connect(edit, &QLineEdit::textEdited, this, saveStockSymbol);
+        connect(edit, &QLineEdit::editingFinished, this, saveStockSymbol);
     }
 
     if (m_krellmailEnabled) {
@@ -1386,6 +1697,47 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             emit settingsApplied();
         });
     }
+    auto wireSimplePlugin = [this](QCheckBox *cb, const QString &key) {
+        if (!cb) return;
+        connect(cb, &QCheckBox::toggled, this, [this, key](bool v) {
+            QSettings().setValue(key, v);
+            emit panelStackChanged();
+        });
+    };
+    wireSimplePlugin(m_krellpkgEnabled, QStringLiteral("plugins/krellpkg/enabled"));
+    for (QCheckBox *cb : std::as_const(m_krellpkgSystemChecks)) {
+        if (!cb) continue;
+        const QString id = cb->property("krellpkg_system_id").toString();
+        connect(cb, &QCheckBox::toggled, this, [this, id](bool v) {
+            QSettings().setValue(QStringLiteral("plugins/krellpkg/systems/") + id, v);
+            emit settingsApplied();
+        });
+    }
+    if (m_krellpkgIncludePatterns) {
+        connect(m_krellpkgIncludePatterns, &QLineEdit::editingFinished, this, [this]() {
+            QSettings().setValue(QStringLiteral("plugins/krellpkg/include_patterns"),
+                                 m_krellpkgIncludePatterns->text().trimmed());
+            emit settingsApplied();
+        });
+    }
+    if (m_krellpkgExcludePatterns) {
+        connect(m_krellpkgExcludePatterns, &QLineEdit::editingFinished, this, [this]() {
+            QSettings().setValue(QStringLiteral("plugins/krellpkg/exclude_patterns"),
+                                 m_krellpkgExcludePatterns->text().trimmed());
+            emit settingsApplied();
+        });
+    }
+    wireSimplePlugin(m_krellwifiEnabled, QStringLiteral("plugins/krellwifi/enabled"));
+    wireSimplePlugin(m_krellhealthEnabled, QStringLiteral("plugins/krellhealth/enabled"));
+    wireSimplePlugin(m_krelltopEnabled, QStringLiteral("plugins/krelltop/enabled"));
+    wireSimplePlugin(m_krellstackEnabled, QStringLiteral("plugins/krellstack/enabled"));
+    if (m_krellstackHosts) {
+        connect(m_krellstackHosts, &QLineEdit::editingFinished, this, [this]() {
+            QSettings().setValue(QStringLiteral("plugins/krellstack/hosts"),
+                                 m_krellstackHosts->text().trimmed());
+            emit settingsApplied();
+        });
+    }
 
     populatePlugins();
 }
@@ -1418,6 +1770,7 @@ void SettingsDialog::loadFromSettings()
     if (themeIdx >= 0) m_themeCombo->setCurrentIndex(themeIdx);
 
     m_alwaysOnTop  ->setChecked(s.value(QStringLiteral("window/always_on_top"), false).toBool());
+    m_stickyWindow ->setChecked(s.value(QStringLiteral("window/sticky"), false).toBool());
     m_clockAtTop   ->setChecked(s.value(QStringLiteral("window/clock_at_top"),  true ).toBool());
     m_militaryTime ->setChecked(s.value(QStringLiteral("clock/military"),       true ).toBool());
     m_showFqdn     ->setChecked(s.value(QStringLiteral("host/show_fqdn"),       false).toBool());
@@ -1443,6 +1796,12 @@ void SettingsDialog::loadFromSettings()
     m_diskEnabled   ->setChecked(s.value(QStringLiteral("monitors/disk"),    true).toBool());
     m_sensorsEnabled->setChecked(s.value(QStringLiteral("monitors/sensors"), true).toBool());
     m_batteryEnabled->setChecked(s.value(QStringLiteral("monitors/battery"), true).toBool());
+    if (m_diskMode) {
+        const QString mode = s.value(QStringLiteral("monitors/disk/mode"),
+                                     QStringLiteral("per-disk")).toString();
+        const int idx = m_diskMode->findData(mode);
+        m_diskMode->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
 
     if (m_krellkamEnabled) {
         m_krellkamEnabled->setChecked(
@@ -1459,6 +1818,26 @@ void SettingsDialog::loadFromSettings()
     if (m_krellkamFieldHeight) {
         m_krellkamFieldHeight->setValue(
             s.value(QStringLiteral("plugins/krellkam/field_height"), 48).toInt());
+    }
+    if (m_krellkamYoutubeCookiesFile) {
+        m_krellkamYoutubeCookiesFile->setText(
+            s.value(QStringLiteral("plugins/krellkam/youtube_cookies_file")).toString());
+    }
+    if (m_krellkamYoutubeCookiesBrowser) {
+        const QString browser =
+            s.value(QStringLiteral("plugins/krellkam/youtube_cookies_from_browser"),
+                    QStringLiteral("auto")).toString();
+        const int idx = m_krellkamYoutubeCookiesBrowser->findData(browser);
+        m_krellkamYoutubeCookiesBrowser->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+    if (m_krellkamYoutubeExtractorArgs) {
+        m_krellkamYoutubeExtractorArgs->setText(
+            s.value(QStringLiteral("plugins/krellkam/youtube_extractor_args"),
+                    QStringLiteral("youtube:player_client=tv,web_safari,mweb,default")).toString());
+    }
+    if (m_krellkamYoutubeExtraArgs) {
+        m_krellkamYoutubeExtraArgs->setText(
+            s.value(QStringLiteral("plugins/krellkam/youtube_yt_dlp_args")).toString());
     }
     for (int i = 0; i < m_krellkamTitles.size(); ++i) {
         m_krellkamTitles.at(i)->setText(
@@ -1540,15 +1919,23 @@ void SettingsDialog::loadFromSettings()
     }
     if (m_krellstockQuotesEnabled) {
         m_krellstockQuotesEnabled->setChecked(
-            s.value(QStringLiteral("plugins/krellstock/quotes_enabled"), false).toBool());
+            s.value(QStringLiteral("plugins/krellstock/quotes_enabled"), true).toBool());
     }
     if (m_krellstockUpdateMs) {
         m_krellstockUpdateMs->setValue(
             s.value(QStringLiteral("plugins/krellstock/interval_ms"), 300000).toInt());
     }
+    const QStringList stockDefaults = {
+        QStringLiteral("AAPL"), QStringLiteral("MSFT"),
+        QStringLiteral("BTC-USD"), QStringLiteral("ETH-USD"),
+        QStringLiteral("NVDA"), QStringLiteral("TSLA"),
+        QStringLiteral("BP.L"), QStringLiteral("SAP.DE"),
+        QStringLiteral("7203.T"), QStringLiteral("0700.HK"),
+    };
     for (int i = 0; i < m_krellstockSymbols.size(); ++i) {
         m_krellstockSymbols.at(i)->setText(
-            s.value(QStringLiteral("plugins/krellstock/symbol%1").arg(i + 1)).toString());
+            s.value(QStringLiteral("plugins/krellstock/symbol%1").arg(i + 1),
+                    i < stockDefaults.size() ? stockDefaults.at(i) : QString()).toString().toUpper());
     }
     if (m_krellmailEnabled) {
         m_krellmailEnabled->setChecked(
@@ -1615,6 +2002,29 @@ void SettingsDialog::loadFromSettings()
         m_krellspectrumStereoSplit->setChecked(
             s.value(QStringLiteral("plugins/krellspectrum/stereo_split"), false).toBool());
     }
+    if (m_krellpkgEnabled)
+        m_krellpkgEnabled->setChecked(s.value(QStringLiteral("plugins/krellpkg/enabled"), false).toBool());
+    for (QCheckBox *cb : std::as_const(m_krellpkgSystemChecks)) {
+        if (!cb) continue;
+        const QString id = cb->property("krellpkg_system_id").toString();
+        cb->setChecked(s.value(QStringLiteral("plugins/krellpkg/systems/") + id, false).toBool());
+    }
+    if (m_krellpkgIncludePatterns)
+        m_krellpkgIncludePatterns->setText(
+            s.value(QStringLiteral("plugins/krellpkg/include_patterns")).toString());
+    if (m_krellpkgExcludePatterns)
+        m_krellpkgExcludePatterns->setText(
+            s.value(QStringLiteral("plugins/krellpkg/exclude_patterns")).toString());
+    if (m_krellwifiEnabled)
+        m_krellwifiEnabled->setChecked(s.value(QStringLiteral("plugins/krellwifi/enabled"), false).toBool());
+    if (m_krellhealthEnabled)
+        m_krellhealthEnabled->setChecked(s.value(QStringLiteral("plugins/krellhealth/enabled"), false).toBool());
+    if (m_krelltopEnabled)
+        m_krelltopEnabled->setChecked(s.value(QStringLiteral("plugins/krelltop/enabled"), false).toBool());
+    if (m_krellstackEnabled)
+        m_krellstackEnabled->setChecked(s.value(QStringLiteral("plugins/krellstack/enabled"), false).toBool());
+    if (m_krellstackHosts)
+        m_krellstackHosts->setText(s.value(QStringLiteral("plugins/krellstack/hosts")).toString());
 }
 
 int SettingsDialog::krellmailAccountCount() const
@@ -1982,14 +2392,14 @@ bool SettingsDialog::hasKrellmoonPlugin() const
     return hasPlugin(QStringLiteral("krellmoon"));
 }
 
-bool SettingsDialog::hasKrellstockPlugin() const
-{
-    return hasPlugin(QStringLiteral("krellstock"));
-}
-
 void SettingsDialog::onAccept()
 {
     if (m_krellmailEnabled)
         emit settingsApplied();
     accept();
+}
+
+bool SettingsDialog::hasKrellstockPlugin() const
+{
+    return hasPlugin(QStringLiteral("krellstock"));
 }

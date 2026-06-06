@@ -5,6 +5,10 @@
 #include <QFile>
 #include <QLoggingCategory>
 
+#if defined(Q_OS_WIN)
+#include <qt_windows.h>
+#endif
+
 Q_LOGGING_CATEGORY(lcCpuStat, "krellix.sysdep.cpu")
 
 namespace {
@@ -19,6 +23,90 @@ void CpuStat::setReadOverride(CpuStat::ReadFn fn)
 namespace {
 
 constexpr qint64 kProcStatMaxBytes = 256 * 1024;  // hard cap; /proc/stat is tiny
+
+#if defined(Q_OS_WIN)
+struct SystemProcessorPerformanceInformation {
+    LARGE_INTEGER IdleTime;
+    LARGE_INTEGER KernelTime;
+    LARGE_INTEGER UserTime;
+    LARGE_INTEGER DpcTime;
+    LARGE_INTEGER InterruptTime;
+    ULONG InterruptCount;
+};
+
+using NtQuerySystemInformationFn = LONG (WINAPI *)(ULONG, PVOID, ULONG, PULONG);
+
+quint64 fileTimeToTicks(const FILETIME &ft)
+{
+    ULARGE_INTEGER uli;
+    uli.LowPart = ft.dwLowDateTime;
+    uli.HighPart = ft.dwHighDateTime;
+    return uli.QuadPart;
+}
+
+QList<CpuSample> readWindowsCpuStat()
+{
+    const HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+    const auto query = ntdll
+        ? reinterpret_cast<NtQuerySystemInformationFn>(
+              GetProcAddress(ntdll, "NtQuerySystemInformation"))
+        : nullptr;
+
+    if (query) {
+        const DWORD cpuCount = qMax<DWORD>(1, GetActiveProcessorCount(ALL_PROCESSOR_GROUPS));
+        QList<SystemProcessorPerformanceInformation> raw;
+        raw.resize(static_cast<int>(cpuCount));
+        ULONG returned = 0;
+        constexpr ULONG kSystemProcessorPerformanceInformation = 8;
+        const LONG status = query(kSystemProcessorPerformanceInformation,
+                                  raw.data(),
+                                  static_cast<ULONG>(raw.size() * sizeof(raw.first())),
+                                  &returned);
+        if (status >= 0) {
+            QList<CpuSample> samples;
+            samples.reserve(raw.size() + 1);
+            CpuSample aggregate;
+            aggregate.name = QStringLiteral("cpu");
+            aggregate.index = -1;
+
+            for (int i = 0; i < raw.size(); ++i) {
+                const auto &p = raw.at(i);
+                CpuSample s;
+                s.name = QStringLiteral("cpu%1").arg(i);
+                s.index = i;
+                s.user = static_cast<quint64>(qMax<LONGLONG>(0, p.UserTime.QuadPart));
+                s.idle = static_cast<quint64>(qMax<LONGLONG>(0, p.IdleTime.QuadPart));
+                const LONGLONG kernelBusy = p.KernelTime.QuadPart - p.IdleTime.QuadPart;
+                s.sys = static_cast<quint64>(qMax<LONGLONG>(0, kernelBusy));
+                s.irq = static_cast<quint64>(qMax<LONGLONG>(0, p.InterruptTime.QuadPart));
+                s.softirq = static_cast<quint64>(qMax<LONGLONG>(0, p.DpcTime.QuadPart));
+
+                aggregate.user += s.user;
+                aggregate.sys += s.sys;
+                aggregate.idle += s.idle;
+                aggregate.irq += s.irq;
+                aggregate.softirq += s.softirq;
+                samples.append(s);
+            }
+            samples.prepend(aggregate);
+            return samples;
+        }
+    }
+
+    FILETIME idleTime{}, kernelTime{}, userTime{};
+    if (!GetSystemTimes(&idleTime, &kernelTime, &userTime))
+        return {};
+
+    CpuSample aggregate;
+    aggregate.name = QStringLiteral("cpu");
+    aggregate.index = -1;
+    aggregate.idle = fileTimeToTicks(idleTime);
+    aggregate.user = fileTimeToTicks(userTime);
+    const quint64 kernel = fileTimeToTicks(kernelTime);
+    aggregate.sys = kernel > aggregate.idle ? kernel - aggregate.idle : 0;
+    return {aggregate};
+}
+#endif
 
 // Parse one "cpu" or "cpuN" line into a CpuSample. Returns false on malformed.
 bool parseCpuLine(const QByteArray &line, CpuSample &out)
@@ -67,6 +155,9 @@ bool parseCpuLine(const QByteArray &line, CpuSample &out)
 QList<CpuSample> CpuStat::read()
 {
     if (g_readOverride) return g_readOverride();
+#if defined(Q_OS_WIN)
+    return readWindowsCpuStat();
+#else
     QFile f(QStringLiteral("/proc/stat"));
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qCWarning(lcCpuStat) << "cannot open /proc/stat:" << f.errorString();
@@ -102,6 +193,7 @@ QList<CpuSample> CpuStat::read()
         start = nl + 1;
     }
     return samples;
+#endif
 }
 
 double CpuStat::utilization(const CpuSample &prev, const CpuSample &curr)

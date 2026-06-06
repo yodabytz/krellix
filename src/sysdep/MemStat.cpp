@@ -5,6 +5,10 @@
 #include <QHash>
 #include <QLoggingCategory>
 
+#if defined(Q_OS_WIN)
+#include <qt_windows.h>
+#endif
+
 Q_LOGGING_CATEGORY(lcMemStat, "krellix.sysdep.mem")
 
 namespace { MemStat::ReadFn g_readOverride = nullptr; }
@@ -41,6 +45,21 @@ MemInfo MemStat::read()
 {
     if (g_readOverride) return g_readOverride();
     MemInfo out;
+#if defined(Q_OS_WIN)
+    MEMORYSTATUSEX mem;
+    mem.dwLength = sizeof(mem);
+    if (!GlobalMemoryStatusEx(&mem)) {
+        qCWarning(lcMemStat) << "GlobalMemoryStatusEx failed";
+        return out;
+    }
+
+    out.totalKb = static_cast<quint64>(mem.ullTotalPhys / 1024ULL);
+    out.availableKb = static_cast<quint64>(mem.ullAvailPhys / 1024ULL);
+    out.freeKb = out.availableKb;
+    out.swapTotalKb = static_cast<quint64>(mem.ullTotalPageFile / 1024ULL);
+    out.swapFreeKb = static_cast<quint64>(mem.ullAvailPageFile / 1024ULL);
+    return out;
+#else
     QFile f(QStringLiteral("/proc/meminfo"));
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qCWarning(lcMemStat) << "cannot open /proc/meminfo:" << f.errorString();
@@ -68,4 +87,5 @@ MemInfo MemStat::read()
         start = nl + 1;
     }
     return out;
+#endif
 }
