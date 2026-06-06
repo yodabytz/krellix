@@ -8,6 +8,11 @@
 #include <QRegularExpression>
 #include <QStandardPaths>
 
+#if defined(Q_OS_MACOS) || defined(Q_OS_DARWIN)
+#include <IOKit/IOKitLib.h>
+#include <cstring>
+#endif
+
 Q_LOGGING_CATEGORY(lcSensor, "krellix.sysdep.sensor")
 
 namespace {
@@ -78,7 +83,7 @@ QList<SensorReading> readLinuxHwmon()
     return out;
 }
 
-#if defined(Q_OS_DARWIN)
+#if defined(Q_OS_MACOS) || defined(Q_OS_DARWIN)
 QString runProgram(const QString &program, const QStringList &args, int timeoutMs = 1200)
 {
     const QString exe = QStandardPaths::findExecutable(program);
@@ -187,9 +192,149 @@ void appendPowermetricsTemperatures(QList<SensorReading> &out)
     }
 }
 
+using SmcKeyDataBytes = unsigned char[32];
+
+struct SmcKeyDataVersion {
+    unsigned char major = 0;
+    unsigned char minor = 0;
+    unsigned char build = 0;
+    unsigned char reserved = 0;
+    unsigned short release = 0;
+};
+
+struct SmcKeyDataPLimitData {
+    unsigned short version = 0;
+    unsigned short length = 0;
+    unsigned int cpuPLimit = 0;
+    unsigned int gpuPLimit = 0;
+    unsigned int memPLimit = 0;
+};
+
+struct SmcKeyDataKeyInfo {
+    unsigned int dataSize = 0;
+    unsigned int dataType = 0;
+    unsigned char dataAttributes = 0;
+};
+
+struct SmcKeyData {
+    unsigned int key = 0;
+    SmcKeyDataVersion vers;
+    SmcKeyDataPLimitData pLimitData;
+    SmcKeyDataKeyInfo keyInfo;
+    unsigned char result = 0;
+    unsigned char status = 0;
+    unsigned char data8 = 0;
+    unsigned int data32 = 0;
+    SmcKeyDataBytes bytes = {};
+};
+
+struct SmcVal {
+    unsigned int dataSize = 0;
+    unsigned int dataType = 0;
+    SmcKeyDataBytes bytes = {};
+};
+
+unsigned int smcFourCharCode(const char *key)
+{
+    return (static_cast<unsigned int>(key[0]) << 24)
+         | (static_cast<unsigned int>(key[1]) << 16)
+         | (static_cast<unsigned int>(key[2]) << 8)
+         |  static_cast<unsigned int>(key[3]);
+}
+
+double smcSp78ToCelsius(const unsigned char *bytes)
+{
+    const qint16 raw = static_cast<qint16>((static_cast<unsigned short>(bytes[0]) << 8)
+                                           | static_cast<unsigned short>(bytes[1]));
+    return static_cast<double>(raw) / 256.0;
+}
+
+bool smcCall(io_connect_t conn, int index, const SmcKeyData &input, SmcKeyData &output)
+{
+    size_t inSize = sizeof(SmcKeyData);
+    size_t outSize = sizeof(SmcKeyData);
+    return IOConnectCallStructMethod(conn, static_cast<uint32_t>(index),
+                                     &input, inSize, &output, &outSize) == KERN_SUCCESS;
+}
+
+bool smcReadKeyInfo(io_connect_t conn, unsigned int key, SmcKeyDataKeyInfo &info)
+{
+    SmcKeyData input;
+    SmcKeyData output;
+    input.key = key;
+    input.data8 = 9; // kSMCGetKeyInfo
+    if (!smcCall(conn, 2, input, output))
+        return false;
+    info = output.keyInfo;
+    return output.result == 0 && info.dataSize > 0;
+}
+
+bool smcReadKey(io_connect_t conn, const char *keyName, SmcVal &val)
+{
+    const unsigned int key = smcFourCharCode(keyName);
+    SmcKeyDataKeyInfo info;
+    if (!smcReadKeyInfo(conn, key, info))
+        return false;
+
+    SmcKeyData input;
+    SmcKeyData output;
+    input.key = key;
+    input.keyInfo.dataSize = info.dataSize;
+    input.data8 = 5; // kSMCReadKey
+    if (!smcCall(conn, 2, input, output) || output.result != 0)
+        return false;
+
+    val.dataSize = info.dataSize;
+    val.dataType = info.dataType;
+    std::memcpy(val.bytes, output.bytes, sizeof(val.bytes));
+    return true;
+}
+
+void appendNativeSmcTemperatures(QList<SensorReading> &out)
+{
+    io_service_t service = IOServiceGetMatchingService(kIOMainPortDefault,
+                                                       IOServiceMatching("AppleSMC"));
+    if (!service)
+        return;
+
+    io_connect_t conn = IO_OBJECT_NULL;
+    const kern_return_t openResult = IOServiceOpen(service, mach_task_self(), 0, &conn);
+    IOObjectRelease(service);
+    if (openResult != KERN_SUCCESS || conn == IO_OBJECT_NULL)
+        return;
+
+    struct KeyLabel {
+        const char *key;
+        const char *label;
+    };
+    const KeyLabel keys[] = {
+        {"TC0P", "CPU Proximity"},
+        {"TC0D", "CPU Diode"},
+        {"TC0E", "CPU"},
+        {"TC0F", "CPU"},
+        {"TC0H", "CPU Heatsink"},
+        {"TG0P", "GPU Proximity"},
+        {"TG0D", "GPU Diode"},
+        {"TB0T", "Battery"},
+        {"TW0P", "Wireless"},
+    };
+
+    for (const KeyLabel &entry : keys) {
+        SmcVal val;
+        if (!smcReadKey(conn, entry.key, val) || val.dataSize < 2)
+            continue;
+        const double tempC = smcSp78ToCelsius(val.bytes);
+        appendTemperature(out, QString::fromLatin1(entry.label), tempC);
+    }
+
+    IOServiceClose(conn);
+}
+
 QList<SensorReading> readDarwinSensors()
 {
     QList<SensorReading> out;
+
+    appendNativeSmcTemperatures(out);
 
     // Homebrew's osx-cpu-temp reads the SMC without requiring root. Prefer it
     // when present because it is an actual Celsius temperature.
@@ -240,7 +385,7 @@ QList<SensorReading> SensorStat::read()
     if (g_readOverride) return g_readOverride();
 
     QList<SensorReading> out = readLinuxHwmon();
-#if defined(Q_OS_DARWIN)
+#if defined(Q_OS_MACOS) || defined(Q_OS_DARWIN)
     if (out.isEmpty())
         out = readDarwinSensors();
 #endif

@@ -126,6 +126,11 @@ target_link_libraries(krellix PRIVATE
     Qt6::Network
 )
 
+if(APPLE)
+    find_library(IOKIT_FRAMEWORK IOKit REQUIRED)
+    target_link_libraries(krellix PRIVATE ${IOKIT_FRAMEWORK})
+endif()
+
 target_compile_definitions(krellix PRIVATE
     QT_NO_CAST_FROM_ASCII
     QT_NO_CAST_TO_ASCII
@@ -178,6 +183,9 @@ qt_add_executable(krellixd
 )
 target_include_directories(krellixd PRIVATE src)
 target_link_libraries(krellixd PRIVATE Qt6::Core Qt6::Network)
+if(APPLE)
+    target_link_libraries(krellixd PRIVATE ${IOKIT_FRAMEWORK})
+endif()
 target_compile_definitions(krellixd PRIVATE
     QT_NO_CAST_FROM_ASCII
     QT_NO_CAST_TO_ASCII
