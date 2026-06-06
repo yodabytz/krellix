@@ -7,6 +7,12 @@
 
 #if defined(Q_OS_WIN)
 #include <qt_windows.h>
+#elif defined(Q_OS_MACOS)
+#include <mach/host_info.h>
+#include <mach/mach.h>
+#include <mach/mach_host.h>
+#include <mach/processor_info.h>
+#include <mach/vm_map.h>
 #endif
 
 Q_LOGGING_CATEGORY(lcCpuStat, "krellix.sysdep.cpu")
@@ -108,6 +114,55 @@ QList<CpuSample> readWindowsCpuStat()
 }
 #endif
 
+#if defined(Q_OS_MACOS)
+QList<CpuSample> readMacCpuStat()
+{
+    processor_cpu_load_info_t cpuInfo = nullptr;
+    mach_msg_type_number_t cpuInfoCount = 0;
+    natural_t cpuCount = 0;
+
+    const kern_return_t kr = host_processor_info(mach_host_self(),
+                                                 PROCESSOR_CPU_LOAD_INFO,
+                                                 &cpuCount,
+                                                 reinterpret_cast<processor_info_array_t *>(&cpuInfo),
+                                                 &cpuInfoCount);
+    if (kr != KERN_SUCCESS || !cpuInfo || cpuCount == 0) {
+        qCWarning(lcCpuStat) << "host_processor_info failed:" << kr;
+        return {};
+    }
+
+    QList<CpuSample> samples;
+    samples.reserve(static_cast<int>(cpuCount) + 1);
+
+    CpuSample aggregate;
+    aggregate.name = QStringLiteral("cpu");
+    aggregate.index = -1;
+
+    for (natural_t i = 0; i < cpuCount; ++i) {
+        const auto *ticks = cpuInfo[i].cpu_ticks;
+        CpuSample s;
+        s.name = QStringLiteral("cpu%1").arg(i);
+        s.index = static_cast<int>(i);
+        s.user = static_cast<quint64>(ticks[CPU_STATE_USER]);
+        s.nice = static_cast<quint64>(ticks[CPU_STATE_NICE]);
+        s.sys = static_cast<quint64>(ticks[CPU_STATE_SYSTEM]);
+        s.idle = static_cast<quint64>(ticks[CPU_STATE_IDLE]);
+
+        aggregate.user += s.user;
+        aggregate.nice += s.nice;
+        aggregate.sys += s.sys;
+        aggregate.idle += s.idle;
+        samples.append(s);
+    }
+
+    samples.prepend(aggregate);
+    vm_deallocate(mach_task_self(),
+                  reinterpret_cast<vm_address_t>(cpuInfo),
+                  static_cast<vm_size_t>(cpuInfoCount * sizeof(integer_t)));
+    return samples;
+}
+#endif
+
 // Parse one "cpu" or "cpuN" line into a CpuSample. Returns false on malformed.
 bool parseCpuLine(const QByteArray &line, CpuSample &out)
 {
@@ -157,6 +212,8 @@ QList<CpuSample> CpuStat::read()
     if (g_readOverride) return g_readOverride();
 #if defined(Q_OS_WIN)
     return readWindowsCpuStat();
+#elif defined(Q_OS_MACOS)
+    return readMacCpuStat();
 #else
     QFile f(QStringLiteral("/proc/stat"));
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {

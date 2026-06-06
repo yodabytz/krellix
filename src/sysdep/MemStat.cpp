@@ -7,6 +7,10 @@
 
 #if defined(Q_OS_WIN)
 #include <qt_windows.h>
+#elif defined(Q_OS_MACOS)
+#include <mach/mach.h>
+#include <mach/mach_host.h>
+#include <sys/sysctl.h>
 #endif
 
 Q_LOGGING_CATEGORY(lcMemStat, "krellix.sysdep.mem")
@@ -39,6 +43,22 @@ quint64 parseValueKb(const QByteArray &line)
     return ok ? v : 0;
 }
 
+#if defined(Q_OS_MACOS)
+quint64 sysctlUint64(const char *name)
+{
+    quint64 value = 0;
+    size_t size = sizeof(value);
+    if (sysctlbyname(name, &value, &size, nullptr, 0) != 0)
+        return 0;
+    return value;
+}
+
+quint64 bytesToKb(quint64 bytes)
+{
+    return bytes / 1024ULL;
+}
+#endif
+
 } // namespace
 
 MemInfo MemStat::read()
@@ -58,6 +78,47 @@ MemInfo MemStat::read()
     out.freeKb = out.availableKb;
     out.swapTotalKb = static_cast<quint64>(mem.ullTotalPageFile / 1024ULL);
     out.swapFreeKb = static_cast<quint64>(mem.ullAvailPageFile / 1024ULL);
+    return out;
+#elif defined(Q_OS_MACOS)
+    const quint64 totalBytes = sysctlUint64("hw.memsize");
+    if (totalBytes == 0) {
+        qCWarning(lcMemStat) << "cannot read hw.memsize";
+        return out;
+    }
+
+    vm_size_t pageSize = 0;
+    if (host_page_size(mach_host_self(), &pageSize) != KERN_SUCCESS || pageSize == 0) {
+        qCWarning(lcMemStat) << "cannot read host page size";
+        return out;
+    }
+
+    vm_statistics64_data_t vmStats;
+    mach_msg_type_number_t count = HOST_VM_INFO64_COUNT;
+    const kern_return_t kr = host_statistics64(mach_host_self(),
+                                               HOST_VM_INFO64,
+                                               reinterpret_cast<host_info64_t>(&vmStats),
+                                               &count);
+    if (kr != KERN_SUCCESS) {
+        qCWarning(lcMemStat) << "host_statistics64 failed:" << kr;
+        return out;
+    }
+
+    const quint64 pageKb = static_cast<quint64>(pageSize) / 1024ULL;
+    const quint64 freeKb = static_cast<quint64>(vmStats.free_count) * pageKb;
+    const quint64 inactiveKb = static_cast<quint64>(vmStats.inactive_count) * pageKb;
+    const quint64 speculativeKb = static_cast<quint64>(vmStats.speculative_count) * pageKb;
+
+    out.totalKb = bytesToKb(totalBytes);
+    out.freeKb = freeKb;
+    out.availableKb = freeKb + inactiveKb + speculativeKb;
+    out.cachedKb = inactiveKb + speculativeKb;
+
+    xsw_usage swap;
+    size_t swapSize = sizeof(swap);
+    if (sysctlbyname("vm.swapusage", &swap, &swapSize, nullptr, 0) == 0) {
+        out.swapTotalKb = bytesToKb(static_cast<quint64>(swap.xsu_total));
+        out.swapFreeKb = bytesToKb(static_cast<quint64>(swap.xsu_avail));
+    }
     return out;
 #else
     QFile f(QStringLiteral("/proc/meminfo"));
