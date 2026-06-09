@@ -1,6 +1,6 @@
 Name:           krellix
 Version:        0.1.2
-Release:        1%{?dist}
+Release:        8%{?dist}
 Summary:        Themeable Qt 6 system monitor in the spirit of GKrellM
 License:        GPL-3.0-or-later
 URL:            https://github.com/yodabytz/krellix
@@ -76,6 +76,12 @@ CONF
 %config(noreplace) %{_sysconfdir}/krellixd/krellixd.conf
 
 %changelog
+* Tue Jun 09 2026 yodabytz <hello@cerberix.org> - 0.1.2-8
+- macOS: force INI settings so ~/.config/krellix/krellix.ini takes precedence
+- macOS: grouped CPU/GPU/I/O sensor temperatures with percent pressure
+- KrellStock: rotate through every configured symbol and show No data rows
+- Add default accent colors for visible green/yellow/red sensor states
+
 * Sat May 31 2026 yodabytz <hello@cerberix.org> - 0.1.2-1
 - Thermal sensor display: color-coded green/warn/red, F/C toggle,
   display mode (Temperature + %, Temperature only, % only),

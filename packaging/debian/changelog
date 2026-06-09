@@ -1,3 +1,12 @@
+krellix (0.1.2-8) unstable; urgency=medium
+
+  * macOS: force INI settings so ~/.config/krellix/krellix.ini takes precedence
+  * macOS: grouped CPU/GPU/I/O sensor temperatures with percent pressure
+  * KrellStock: rotate through every configured symbol and show No data rows
+  * Add default accent colors for visible green/yellow/red sensor states
+
+ -- yodabytz <hello@cerberix.org>  Tue, 09 Jun 2026 20:48:00 +0000
+
 krellix (0.1.2-1) unstable; urgency=medium
 
   * Thermal sensor display: color-coded green/warn/red temperature rows
