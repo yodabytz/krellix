@@ -82,7 +82,7 @@ CONF
 - KrellStock: rotate through every configured symbol and show No data rows
 - Add default accent colors for visible green/yellow/red sensor states
 
-* Sat May 31 2026 yodabytz <hello@cerberix.org> - 0.1.2-1
+* Sun May 31 2026 yodabytz <hello@cerberix.org> - 0.1.2-1
 - Thermal sensor display: color-coded green/warn/red, F/C toggle,
   display mode (Temperature + %, Temperature only, % only),
   configurable warn/critical thresholds
