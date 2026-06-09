@@ -230,6 +230,9 @@ void Theme::loadDefaults()
     m_colors.insert(QStringLiteral("text_secondary"),  QColor( 63, 191,  63));
     m_colors.insert(QStringLiteral("krell_track"),     QColor( 26,  58,  26));
     m_colors.insert(QStringLiteral("krell_indicator"), QColor(127, 255, 127));
+    m_colors.insert(QStringLiteral("accent_ok"),       QColor( 68, 204,  68));
+    m_colors.insert(QStringLiteral("accent_warning"),  QColor(238, 190,  64));
+    m_colors.insert(QStringLiteral("accent_critical"), QColor(221,  68,  68));
 
     QFont label(QStringLiteral("Monospace"), 9);
     label.setStyleHint(QFont::TypeWriter);

@@ -308,15 +308,21 @@ void appendNativeSmcTemperatures(QList<SensorReading> &out)
         const char *label;
     };
     const KeyLabel keys[] = {
-        {"TC0P", "CPU Proximity"},
-        {"TC0D", "CPU Diode"},
+        {"TC0P", "CPU"},
+        {"TC0D", "CPU"},
         {"TC0E", "CPU"},
         {"TC0F", "CPU"},
-        {"TC0H", "CPU Heatsink"},
-        {"TG0P", "GPU Proximity"},
-        {"TG0D", "GPU Diode"},
-        {"TB0T", "Battery"},
-        {"TW0P", "Wireless"},
+        {"TC0H", "CPU"},
+        {"TG0P", "GPU"},
+        {"TG0D", "GPU"},
+        {"TI0P", "I/O"},
+        {"TN0P", "I/O"},
+        {"TN0D", "I/O"},
+        {"Tm0P", "I/O"},
+        {"Ts0P", "I/O"},
+        {"TA0P", "I/O"},
+        {"TB0T", "I/O"},
+        {"TW0P", "I/O"},
     };
 
     for (const KeyLabel &entry : keys) {
@@ -341,9 +347,9 @@ QList<SensorReading> readDarwinSensors()
     const QString cpuTemp = runProgram(QStringLiteral("osx-cpu-temp"), {});
     appendFirstTemperatureMatch(out, cpuTemp, QStringLiteral("CPU"));
     appendIstatsTemperatures(out);
-    appendSmcTemperature(out, QStringLiteral("TC0P"), QStringLiteral("CPU Proximity"));
-    appendSmcTemperature(out, QStringLiteral("TC0D"), QStringLiteral("CPU Diode"));
-    appendSmcTemperature(out, QStringLiteral("TG0P"), QStringLiteral("GPU Proximity"));
+    appendSmcTemperature(out, QStringLiteral("TC0P"), QStringLiteral("CPU"));
+    appendSmcTemperature(out, QStringLiteral("TC0D"), QStringLiteral("CPU"));
+    appendSmcTemperature(out, QStringLiteral("TG0P"), QStringLiteral("GPU"));
     appendPowermetricsTemperatures(out);
 
     // Stock macOS exposes thermal pressure levels (0-100) via sysctl. These

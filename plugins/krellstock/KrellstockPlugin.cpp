@@ -129,6 +129,10 @@ QString quoteTooltipText(const QList<StockQuote> &quotes, const QString &placeho
     QStringList lines;
     lines.reserve(quotes.size());
     for (const StockQuote &q : quotes) {
+        if (!q.valid) {
+            lines << QStringLiteral("%1  No data").arg(displaySym(q.symbol));
+            continue;
+        }
         const QString pct = QStringLiteral("%1%2%")
             .arg(q.changePct >= 0 ? QStringLiteral("+") : QString())
             .arg(q.changePct, 0, 'f', 2);
@@ -337,9 +341,6 @@ void KrellstockFetcher::onReplyFinished(QNetworkReply *reply)
         }
     }
 
-    if (gotQuote)
-        publishBuilding();
-
     if (!isChart && !gotQuote) {
         startChartFallback(requestedOrder);
         if (!m_inFlight.isEmpty())
@@ -365,11 +366,18 @@ void KrellstockFetcher::publishBuilding()
     }
 
     QList<StockQuote> ordered;
-    ordered.reserve(m_building.size());
+    ordered.reserve(qMax(m_building.size(), m_requestedOrder.size()));
     for (const QString &symbol : m_requestedOrder) {
         const QString key = symbol.trimmed().toUpper();
-        if (bySymbol.contains(key))
+        if (bySymbol.contains(key)) {
             ordered << bySymbol.value(key);
+        } else {
+            StockQuote missing;
+            missing.symbol = key;
+            missing.shortName = QStringLiteral("No data");
+            missing.valid = false;
+            ordered << missing;
+        }
     }
     for (const StockQuote &q : m_building) {
         bool alreadyAdded = false;
@@ -494,6 +502,12 @@ void KrellstockTicker::rebuildSegs()
     for (int i = 0; i < m_quotes.size(); ++i) {
         const StockQuote &q = m_quotes.at(i);
         if (i > 0) addSeg(sep, cDim, false);
+
+        if (!q.valid) {
+            addSeg(displaySym(q.symbol), cPrimary, true);
+            addSeg(QStringLiteral("  No data"), cDim, false);
+            continue;
+        }
 
         const QColor cc = (q.changePct > 0.005) ? cGreen : (q.changePct < -0.005 ? cRed : cDim);
         const QString arrow = changeArrow(q.changePct);
@@ -725,6 +739,19 @@ void KrellstockQuoteWidget::paintEvent(QPaintEvent *)
         const QColor cc    = changeColor(q.changePct, m_theme);
         const QString arrow = changeArrow(q.changePct);
         const QString symText = displaySym(q.symbol);
+        if (!q.valid) {
+            const int yBase = row.top() + (row.height() + fm.ascent() - fm.descent()) / 2;
+            p.setFont(bold);
+            p.setPen(cPrimary);
+            p.drawText(QPoint(pad, yBase), symText);
+            p.setFont(base);
+            p.setPen(cDim);
+            const int symW = bfm.horizontalAdvance(symText);
+            p.drawText(QPoint(pad + symW + 8, yBase), QStringLiteral("No data"));
+            p.restore();
+            return;
+        }
+
         const QString priceText = formatPrice(q.price, q.currency);
         const QString pctText = arrow
             + (q.changePct >= 0 ? QStringLiteral("+") : QString())

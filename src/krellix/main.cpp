@@ -41,6 +41,7 @@ QString slugify(const QString &raw)
 
 int main(int argc, char *argv[])
 {
+    QSettings::setDefaultFormat(QSettings::IniFormat);
     QApplication app(argc, argv);
     QApplication::setOrganizationName(QStringLiteral("krellix"));
     QApplication::setApplicationVersion(QString::fromUtf8(KRELLIX_VERSION));
