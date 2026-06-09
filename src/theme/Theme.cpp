@@ -1,6 +1,7 @@
 #include "Theme.h"
 
 #include <QDir>
+#include <QCoreApplication>
 #include <QFile>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
@@ -101,6 +102,11 @@ QStringList Theme::searchPaths()
         QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
     if (!configHome.isEmpty())
         paths << QDir(configHome).filePath(QStringLiteral("krellix/themes"));
+
+#ifdef Q_OS_MACOS
+    const QDir appDir(QCoreApplication::applicationDirPath());
+    paths << appDir.filePath(QStringLiteral("../Resources/themes"));
+#endif
 
     paths << QString::fromUtf8(KRELLIX_THEMES_SYSTEM_DIR);
 
