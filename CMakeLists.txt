@@ -226,10 +226,17 @@ set_target_properties(krellkam PROPERTIES
 )
 install(TARGETS krellkam LIBRARY DESTINATION lib/krellix/plugins)
 
-add_library(krelldacious MODULE
-    plugins/krelldacious/KrelldaciousPlugin.cpp
-    plugins/krelldacious/KrelldaciousPlugin.h
-)
+if(APPLE)
+    add_library(krelldacious MODULE
+        plugins/krelldacious/KrelldaciousPlugin.mm
+        plugins/krelldacious/KrelldaciousPlugin.h
+    )
+else()
+    add_library(krelldacious MODULE
+        plugins/krelldacious/KrelldaciousPlugin.cpp
+        plugins/krelldacious/KrelldaciousPlugin.h
+    )
+endif()
 target_include_directories(krelldacious PRIVATE src)
 target_link_libraries(krelldacious PRIVATE
     Qt6::Core
@@ -237,6 +244,12 @@ target_link_libraries(krelldacious PRIVATE
     Qt6::Widgets
     Qt6::DBus
 )
+if(APPLE)
+    target_link_options(krelldacious PRIVATE -Wl,-undefined,dynamic_lookup)
+    find_library(APPSERVICES_FRAMEWORK ApplicationServices REQUIRED)
+    find_library(APPKIT_FRAMEWORK AppKit REQUIRED)
+    target_link_libraries(krelldacious PRIVATE ${APPSERVICES_FRAMEWORK} ${APPKIT_FRAMEWORK})
+endif()
 target_compile_definitions(krelldacious PRIVATE
     QT_NO_CAST_FROM_ASCII
     QT_NO_CAST_TO_ASCII

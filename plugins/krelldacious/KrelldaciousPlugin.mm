@@ -1,0 +1,904 @@
+#include "KrelldaciousPlugin.h"
+
+#include "theme/Theme.h"
+#include "widgets/Decal.h"
+#include "widgets/Panel.h"
+
+#if defined(Q_OS_MACOS)
+#  import <AppKit/AppKit.h>
+#  include <IOKit/hidsystem/ev_keymap.h>
+#  include <QAbstractNativeEventFilter>
+#  include <QGuiApplication>
+#  include <QScreen>
+#endif
+
+#include <QApplication>
+#include <QDBusArgument>
+#include <QDBusConnection>
+#include <QDBusInterface>
+#include <QDBusReply>
+#include <QDBusVariant>
+#include <QEvent>
+#include <QFileInfo>
+#include <QMouseEvent>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLinearGradient>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPushButton>
+#include <QProcess>
+#include <QSettings>
+#include <QSizePolicy>
+#include <QSlider>
+#include <QTimer>
+#include <QVBoxLayout>
+#include <QVariantMap>
+
+namespace {
+
+constexpr const char *kService = "org.mpris.MediaPlayer2.audacious";
+constexpr const char *kPath = "/org/mpris/MediaPlayer2";
+constexpr const char *kPlayerIface = "org.mpris.MediaPlayer2.Player";
+constexpr const char *kPropsIface = "org.freedesktop.DBus.Properties";
+
+QString audaciousBinaryPath()
+{
+#if defined(Q_OS_MACOS)
+    static const QString cached = []() {
+        const QStringList candidates = {
+            QStringLiteral("/usr/local/bin/audacious"),
+            QStringLiteral("/opt/homebrew/bin/audacious"),
+            QStringLiteral("/Applications/Audacious.app/Contents/MacOS/audacious"),
+        };
+        for (const QString &c : candidates) {
+            if (QFileInfo::exists(c))
+                return c;
+        }
+        return QStringLiteral("audacious");
+    }();
+    return cached;
+#else
+    return QStringLiteral("audacious");
+#endif
+}
+
+#if defined(Q_OS_MACOS)
+#include <ApplicationServices/ApplicationServices.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+
+pid_t audaciousPid()
+{
+    QProcess proc;
+    proc.start(QStringLiteral("/usr/bin/pgrep"),
+               QStringList{QStringLiteral("-x"), QStringLiteral("audacious")});
+    if (!proc.waitForFinished(500))
+        return 0;
+    const QByteArray out = proc.readAllStandardOutput();
+    for (const QByteArray &line : out.split('\n')) {
+        const QByteArray trimmed = line.trimmed();
+        if (trimmed.isEmpty()) continue;
+        bool ok = false;
+        const int p = trimmed.toInt(&ok);
+        if (ok && p > 0) return static_cast<pid_t>(p);
+    }
+    return 0;
+}
+
+bool audaciousIsRunning() { return audaciousPid() != 0; }
+
+QString bridgeSocketPath()
+{
+    return QStringLiteral("/tmp/krelldacious-audacious-%1.sock")
+        .arg(static_cast<unsigned long>(getuid()));
+}
+
+QByteArray sendBridgeCommand(const QByteArray &command, bool *ok = nullptr)
+{
+    if (ok) *ok = false;
+    const QByteArray path = bridgeSocketPath().toLocal8Bit();
+    const int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (fd < 0)
+        return {};
+
+    sockaddr_un addr{};
+    addr.sun_family = AF_UNIX;
+    std::snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", path.constData());
+    if (::connect(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) != 0) {
+        ::close(fd);
+        return {};
+    }
+
+    QByteArray payload = command;
+    if (!payload.endsWith('\n'))
+        payload.append('\n');
+    const ssize_t written = ::write(fd, payload.constData(), static_cast<size_t>(payload.size()));
+    if (written < 0) {
+        ::close(fd);
+        return {};
+    }
+
+    char buf[256]{};
+    const ssize_t n = ::read(fd, buf, sizeof(buf) - 1);
+    ::close(fd);
+    if (n <= 0)
+        return {};
+    if (ok) *ok = true;
+    return QByteArray(buf, static_cast<int>(n));
+}
+
+QString statusValue(const QByteArray &status, const QByteArray &key)
+{
+    const QList<QByteArray> fields = status.simplified().split(' ');
+    const QByteArray prefix = key + '=';
+    for (const QByteArray &field : fields) {
+        if (field.startsWith(prefix))
+            return QString::fromLatin1(field.mid(prefix.size()));
+    }
+    return {};
+}
+
+// Map a single-character keystroke we want to send to its macOS virtual key
+// code (kVK_ANSI_*). Returning -1 means "no mapping" and the caller skips it.
+int macKeyCodeFor(char c)
+{
+    switch (c) {
+        case 'x': return 0x07; // kVK_ANSI_X — winamp skin Play
+        case 'c': return 0x08; // kVK_ANSI_C — winamp skin Pause toggle
+        case 'v': return 0x09; // kVK_ANSI_V — winamp skin Stop
+        case 'z': return 0x06; // kVK_ANSI_Z — winamp skin Previous
+        case 'b': return 0x0B; // kVK_ANSI_B — winamp skin Next
+        case 't': return 0x11; // kVK_ANSI_T — Qt menu Pause (Cmd+T)
+        case 's': return 0x01; // kVK_ANSI_S — Qt menu Stop (Cmd+S)
+        default:  return -1;
+    }
+}
+
+// Deliver a key event directly to the target process by PID using
+// CGEventPostToPid. Unlike AppleScript keystroke, this does not require the
+// receiving window to be focused and does not steal focus from the user.
+// Caller must have been granted Accessibility permission.
+void postKeyToPid(pid_t pid, int keyCode, bool withCommand)
+{
+    if (keyCode < 0 || pid <= 0) return;
+    CGEventSourceRef src = CGEventSourceCreate(kCGEventSourceStateHIDSystemState);
+    CGEventRef keyDown = CGEventCreateKeyboardEvent(src, (CGKeyCode)keyCode, true);
+    CGEventRef keyUp = CGEventCreateKeyboardEvent(src, (CGKeyCode)keyCode, false);
+    if (withCommand) {
+        CGEventSetFlags(keyDown, kCGEventFlagMaskCommand);
+        CGEventSetFlags(keyUp,   kCGEventFlagMaskCommand);
+    }
+    if (keyDown) { CGEventPostToPid(pid, keyDown); CFRelease(keyDown); }
+    if (keyUp)   { CGEventPostToPid(pid, keyUp);   CFRelease(keyUp);   }
+    if (src)     CFRelease(src);
+}
+
+void runAppleScript(const QString &script)
+{
+    QProcess::startDetached(QStringLiteral("/usr/bin/osascript"),
+                            QStringList{QStringLiteral("-e"), script});
+}
+
+void bringAudaciousToFront()
+{
+    runAppleScript(QStringLiteral(
+        "tell application \"System Events\" to "
+        "set frontmost of process \"audacious\" to true"));
+}
+
+// Force-activate a process by PID using the native NSRunningApplication API.
+// This works from a background app whereas AppleScript 'activate' is a no-op
+// silently denied on macOS 12 when the caller isn't already frontmost.
+void activatePid(pid_t pid)
+{
+    if (pid <= 0) return;
+    @autoreleasepool {
+        NSRunningApplication *app =
+            [NSRunningApplication runningApplicationWithProcessIdentifier:pid];
+        if (app)
+            [app activateWithOptions:
+                NSApplicationActivateIgnoringOtherApps
+                | NSApplicationActivateAllWindows];
+    }
+}
+
+void postMediaKey(int keyCode)
+{
+    auto post = [keyCode](bool down) {
+        const int flags = down ? 0xA00 : 0xB00;
+        NSEvent *event = [NSEvent otherEventWithType:NSEventTypeSystemDefined
+                                            location:NSZeroPoint
+                                       modifierFlags:flags
+                                           timestamp:0
+                                        windowNumber:0
+                                             context:nil
+                                             subtype:8
+                                               data1:(keyCode << 16) | flags
+                                               data2:-1];
+        CGEventRef cgEvent = [event CGEvent];
+        if (cgEvent)
+            CGEventPost(kCGHIDEventTap, cgEvent);
+    };
+    post(true);
+    post(false);
+}
+
+#endif
+
+class TransportButton : public QPushButton
+{
+public:
+    enum Kind {
+        Previous,
+        PlayPause,
+        Next,
+    };
+
+    explicit TransportButton(Kind kind, Theme *theme, QWidget *parent = nullptr)
+        : QPushButton(parent)
+        , m_kind(kind)
+        , m_theme(theme)
+    {
+        setFixedSize(25, 19);
+        setFocusPolicy(Qt::NoFocus);
+        setCursor(Qt::PointingHandCursor);
+        setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        setFlat(true);
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter p(this);
+        p.setRenderHint(QPainter::Antialiasing, true);
+
+        const QRectF r = rect().adjusted(0.5, 0.5, -0.5, -0.5);
+        const bool hot = isEnabled() && underMouse();
+        const bool pressed = isEnabled() && isDown();
+        const QColor panel = themeColor(QStringLiteral("panel_bg"),
+                                        QColor(15, 20, 25));
+        const QColor border = themeColor(QStringLiteral("panel_border"),
+                                         QColor(138, 185, 210));
+        const QColor accent = themeColor(QStringLiteral("text_accent"),
+                                         QColor(110, 205, 230));
+        const QColor primary = themeColor(QStringLiteral("text_primary"),
+                                          QColor(210, 235, 246));
+        const QColor disabled = themeColor(QStringLiteral("text_secondary"),
+                                           QColor(155, 165, 172));
+
+        QLinearGradient bg(r.topLeft(), r.bottomLeft());
+        if (!isEnabled()) {
+            bg.setColorAt(0.0, withAlpha(panel.lighter(125), 120));
+            bg.setColorAt(1.0, withAlpha(panel.darker(135), 150));
+        } else if (pressed) {
+            bg.setColorAt(0.0, withAlpha(accent.darker(120), 230));
+            bg.setColorAt(1.0, withAlpha(panel.darker(155), 235));
+        } else if (hot) {
+            bg.setColorAt(0.0, withAlpha(accent, 225));
+            bg.setColorAt(0.48, withAlpha(panel, 230));
+            bg.setColorAt(1.0, withAlpha(panel.darker(150), 240));
+        } else {
+            bg.setColorAt(0.0, withAlpha(panel.lighter(135), 215));
+            bg.setColorAt(0.45, withAlpha(panel, 230));
+            bg.setColorAt(1.0, withAlpha(panel.darker(150), 240));
+        }
+
+        p.setPen(QPen(isEnabled() ? withAlpha(border, hot ? 210 : 150)
+                                  : withAlpha(disabled, 90), 1.0));
+        p.setBrush(bg);
+        p.drawRoundedRect(r, 4.0, 4.0);
+
+        p.setPen(Qt::NoPen);
+        p.setBrush(isEnabled() ? withAlpha(primary, 235)
+                               : withAlpha(disabled, 100));
+
+        const qreal y = height() / 2.0;
+        const qreal shift = pressed ? 1.0 : 0.0;
+        if (m_kind == PlayPause && property("playing").toBool()) {
+            p.drawRoundedRect(QRectF(8 + shift, 5 + shift, 3.5, 9), 0.8, 0.8);
+            p.drawRoundedRect(QRectF(14 + shift, 5 + shift, 3.5, 9), 0.8, 0.8);
+            return;
+        }
+
+        auto drawTriangle = [&](qreal left, bool right) {
+            QPainterPath path;
+            if (right) {
+                path.moveTo(left + shift, 5 + shift);
+                path.lineTo(left + shift, 14 + shift);
+                path.lineTo(left + 7.5 + shift, y + shift);
+            } else {
+                path.moveTo(left + 7.5 + shift, 5 + shift);
+                path.lineTo(left + 7.5 + shift, 14 + shift);
+                path.lineTo(left + shift, y + shift);
+            }
+            path.closeSubpath();
+            p.drawPath(path);
+        };
+
+        if (m_kind == Previous) {
+            p.drawRoundedRect(QRectF(6 + shift, 5 + shift, 2.2, 9), 0.6, 0.6);
+            drawTriangle(9, false);
+        } else if (m_kind == Next) {
+            drawTriangle(8, true);
+            p.drawRoundedRect(QRectF(17 + shift, 5 + shift, 2.2, 9), 0.6, 0.6);
+        } else {
+            drawTriangle(9, true);
+        }
+    }
+
+private:
+    QColor themeColor(const QString &key, const QColor &fallback) const
+    {
+        if (!m_theme) return fallback;
+        const QColor color = m_theme->color(key, fallback);
+        return color.isValid() ? color : fallback;
+    }
+
+    QColor withAlpha(QColor color, int alpha) const
+    {
+        color.setAlpha(alpha);
+        return color;
+    }
+
+    Kind m_kind;
+    Theme *m_theme = nullptr;
+};
+
+QVariant unwrapDbusVariant(QVariant v)
+{
+    if (v.canConvert<QDBusVariant>())
+        return v.value<QDBusVariant>().variant();
+    return v;
+}
+
+QString metadataString(const QVariantMap &metadata,
+                       const QString &key)
+{
+    const QVariant raw = metadata.value(key);
+    if (raw.typeId() == QMetaType::QStringList)
+        return raw.toStringList().join(QStringLiteral(", "));
+    return raw.toString();
+}
+
+QVariantMap metadataMapFromVariant(QVariant value)
+{
+    value = unwrapDbusVariant(value);
+    if (value.canConvert<QVariantMap>())
+        return value.toMap();
+
+    QVariantMap out;
+    const QDBusArgument arg = value.value<QDBusArgument>();
+    if (arg.currentType() != QDBusArgument::MapType)
+        return out;
+
+    arg.beginMap();
+    while (!arg.atEnd()) {
+        QString key;
+        QVariant val;
+        arg.beginMapEntry();
+        arg >> key >> val;
+        arg.endMapEntry();
+        out.insert(key, unwrapDbusVariant(val));
+    }
+    arg.endMap();
+    return out;
+}
+
+QString trackTextFromMetadata(const QVariantMap &metadata)
+{
+    const QString artist = metadataString(metadata, QStringLiteral("xesam:artist"));
+    const QString title = metadataString(metadata, QStringLiteral("xesam:title"));
+    if (!artist.isEmpty() && !title.isEmpty())
+        return artist + QStringLiteral(" - ") + title;
+    if (!title.isEmpty()) return title;
+    if (!artist.isEmpty()) return artist;
+    const QString url = metadataString(metadata, QStringLiteral("xesam:url"));
+    return url.isEmpty() ? QStringLiteral("(no track)") : url;
+}
+
+void styleTransportButton(QPushButton *button, const QString &tip)
+{
+    button->setToolTip(tip);
+    button->setAccessibleName(tip);
+    button->setFixedSize(25, 19);
+    button->setFocusPolicy(Qt::NoFocus);
+    button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+}
+
+QString cssColor(const QColor &color)
+{
+    return QStringLiteral("rgba(%1, %2, %3, %4)")
+        .arg(color.red())
+        .arg(color.green())
+        .arg(color.blue())
+        .arg(color.alpha());
+}
+
+QColor themeColor(Theme *theme, const QString &key, const QColor &fallback)
+{
+    if (!theme) return fallback;
+    const QColor color = theme->color(key, fallback);
+    return color.isValid() ? color : fallback;
+}
+
+QColor textColor(Theme *theme,
+                 const QString &key,
+                 const QString &fallbackKey = QStringLiteral("text_primary"))
+{
+    if (!theme) return QColor(226, 240, 246, 235);
+    const QColor color = theme->textStyle(key, fallbackKey).color;
+    return color.isValid() ? color : QColor(226, 240, 246, 235);
+}
+
+QColor withAlpha(QColor color, int alpha)
+{
+    color.setAlpha(alpha);
+    return color;
+}
+
+void styleVolume(QSlider *slider, Theme *theme)
+{
+    slider->setFixedHeight(13);
+    slider->setFocusPolicy(Qt::NoFocus);
+    const QColor groove = themeColor(theme, QStringLiteral("chart_bg"), QColor(5, 8, 10));
+    const QColor border = themeColor(theme, QStringLiteral("panel_border"), QColor(135, 170, 190));
+    const QColor accent = textColor(theme, QStringLiteral("text_accent"));
+    const QColor primary = textColor(theme, QStringLiteral("text_primary"));
+    const QColor handle = themeColor(theme, QStringLiteral("panel_bg"), primary);
+    const QString style = QStringLiteral(
+        "QSlider::groove:horizontal {"
+        "  height: 3px;"
+        "  background: %1;"
+        "  border: 1px solid %2;"
+        "  border-radius: 1px;"
+        "}"
+        "QSlider::sub-page:horizontal {"
+        "  background: %3;"
+        "  border-radius: 1px;"
+        "}"
+        "QSlider::handle:horizontal {"
+        "  width: 7px;"
+        "  height: 9px;"
+        "  margin: -4px 0;"
+        "  background: %4;"
+        "  border: 1px solid %5;"
+        "  border-radius: 2px;"
+        "}"
+    ).arg(cssColor(withAlpha(groove, 185)),
+          cssColor(withAlpha(border, 120)),
+          cssColor(withAlpha(accent, 220)),
+          cssColor(withAlpha(handle.lighter(125), 235)),
+          cssColor(withAlpha(border.darker(140), 230)));
+    slider->setStyleSheet(style);
+}
+
+} // namespace
+
+#if defined(Q_OS_MACOS)
+// Catches Cocoa NSLeftMouseDown events at the application level before Qt
+// translates them into QMouseEvents and before Panel/MainWindow's
+// startSystemMove() in mousePressEvent eats the click as a window drag.
+// When the click is over one of the krelldacious transport buttons we fire
+// the action directly and consume the event so no drag starts.
+class MacClickInterceptor : public QAbstractNativeEventFilter
+{
+public:
+    QList<QPointer<KrelldaciousMonitor>> monitors;
+
+    bool nativeEventFilter(const QByteArray &eventType,
+                           void *message,
+                           qintptr * /*result*/) override
+    {
+        if (eventType != QByteArrayLiteral("mac_generic_NSEvent"))
+            return false;
+        NSEvent *evt = static_cast<NSEvent *>(message);
+        if ([evt type] != NSEventTypeLeftMouseDown)
+            return false;
+
+        // [NSEvent mouseLocation] returns global screen coords with origin
+        // at the bottom-left of the primary display. Qt's screen coords use
+        // the top-left of the primary display as origin; flip Y.
+        NSPoint p = [NSEvent mouseLocation];
+        const QScreen *primary = QGuiApplication::primaryScreen();
+        if (!primary) return false;
+        const QRect g = primary->geometry();
+        const QPoint qtPos(static_cast<int>(p.x),
+                           g.height() - static_cast<int>(p.y));
+
+        fprintf(stderr, "[krd-native] NSLeftMouseDown screen=(%d,%d) monitors=%lld\n",
+                qtPos.x(), qtPos.y(), (long long)monitors.size());
+        fflush(stderr);
+
+        for (auto &m : monitors) {
+            if (!m) continue;
+            if (m->handleNativeClickAtScreen(qtPos)) {
+                fprintf(stderr, "[krd-native] consumed by monitor\n");
+                fflush(stderr);
+                return true;
+            }
+        }
+        return false;
+    }
+};
+
+static MacClickInterceptor *macInterceptor()
+{
+    static MacClickInterceptor *inst = []() {
+        auto *i = new MacClickInterceptor;
+        qApp->installNativeEventFilter(i);
+        return i;
+    }();
+    return inst;
+}
+
+static void installMacClickInterceptor(KrelldaciousMonitor *m)
+{
+    auto *i = macInterceptor();
+    // Drop any stale (deleted) monitor pointers, then add ourselves.
+    i->monitors.removeAll(QPointer<KrelldaciousMonitor>{});
+    i->monitors.append(QPointer<KrelldaciousMonitor>(m));
+    fprintf(stderr, "[krd-install] interceptor installed, monitors=%lld\n",
+            (long long)i->monitors.size());
+    fflush(stderr);
+}
+#endif
+
+KrelldaciousMonitor::KrelldaciousMonitor(Theme *theme, QObject *parent)
+    : MonitorBase(theme, parent)
+{
+}
+
+KrelldaciousMonitor::~KrelldaciousMonitor() = default;
+
+QString KrelldaciousMonitor::id() const
+{
+    return QStringLiteral("krelldacious");
+}
+
+QString KrelldaciousMonitor::displayName() const
+{
+    return QStringLiteral("Krelldacious");
+}
+
+int KrelldaciousMonitor::tickIntervalMs() const
+{
+    return 1000;
+}
+
+QWidget *KrelldaciousMonitor::createWidget(QWidget *parent)
+{
+    auto *panel = new Panel(theme(), parent);
+    panel->setSurfaceKey(QStringLiteral("panel_bg_krelldacious"));
+
+    auto *body = new QWidget(panel);
+    auto *layout = new QVBoxLayout(body);
+    const int pad = theme()->metric(QStringLiteral("panel_spacing"), 2);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(pad);
+
+    m_track = new Decal(theme(), QStringLiteral("label"), QStringLiteral("text_primary"), body);
+    m_track->setAlignment(Qt::AlignHCenter);
+    m_track->setAlwaysScroll(true);
+
+    m_openAudacious = new QLabel(body);
+    m_openAudacious->setAlignment(Qt::AlignCenter);
+    m_openAudacious->setTextFormat(Qt::RichText);
+    m_openAudacious->setTextInteractionFlags(Qt::LinksAccessibleByMouse);
+    m_openAudacious->setOpenExternalLinks(false);
+    m_openAudacious->setText(QStringLiteral("<a href=\"open\">Open Audacious</a>"));
+    connect(m_openAudacious, &QLabel::linkActivated, this, [this](const QString &) {
+        openAudacious();
+    });
+
+    auto *buttons = new QHBoxLayout;
+    buttons->setContentsMargins(0, 0, 0, 0);
+    buttons->setSpacing(2);
+    buttons->addStretch(1);
+    m_prev = new TransportButton(TransportButton::Previous, theme(), body);
+    m_playPause = new TransportButton(TransportButton::PlayPause, theme(), body);
+    m_next = new TransportButton(TransportButton::Next, theme(), body);
+    styleTransportButton(m_prev, QStringLiteral("Previous"));
+    styleTransportButton(m_playPause, QStringLiteral("Play / pause"));
+    styleTransportButton(m_next, QStringLiteral("Next"));
+    buttons->addWidget(m_prev);
+    buttons->addWidget(m_playPause);
+    buttons->addWidget(m_next);
+    buttons->addStretch(1);
+
+    m_volume = new QSlider(Qt::Horizontal, body);
+    m_volume->setRange(0, 100);
+    styleVolume(m_volume, theme());
+#if defined(Q_OS_MACOS)
+    m_volume->hide();
+#endif
+
+    layout->addWidget(m_track);
+    layout->addWidget(m_openAudacious);
+    layout->addLayout(buttons);
+    layout->addWidget(m_volume);
+    panel->addWidget(body);
+
+    connect(m_prev, &QPushButton::clicked, this, [this]() {
+        sendPlayerCommand(QStringLiteral("Previous"));
+    });
+    connect(m_playPause, &QPushButton::clicked, this, [this]() {
+        sendPlayerCommand(QStringLiteral("PlayPause"));
+    });
+    connect(m_next, &QPushButton::clicked, this, [this]() {
+        sendPlayerCommand(QStringLiteral("Next"));
+    });
+    connect(m_volume, &QSlider::valueChanged, this, [this](int value) {
+        if (!m_updatingVolume)
+            setAudaciousVolume(value);
+    });
+    connect(theme(), &Theme::themeChanged, this, [this]() {
+        applyThemeColors();
+        if (m_prev) m_prev->update();
+        if (m_playPause) m_playPause->update();
+        if (m_next) m_next->update();
+    });
+
+    applyThemeColors();
+    tick();
+
+#if defined(Q_OS_MACOS)
+    installMacClickInterceptor(this);
+#endif
+
+    return panel;
+}
+
+bool KrelldaciousMonitor::handleNativeClickAtScreen(const QPoint &screenPos)
+{
+    auto rectFor = [](QPushButton *btn) -> QRect {
+        if (!btn) return {};
+        return QRect(btn->mapToGlobal(QPoint(0,0)), btn->size());
+    };
+    const QRect rPrev = rectFor(m_prev);
+    const QRect rPp   = rectFor(m_playPause);
+    const QRect rNext = rectFor(m_next);
+    fprintf(stderr,
+        "[krd-handle] click=(%d,%d) prev=(%d,%d %dx%d v=%d) "
+        "play=(%d,%d %dx%d v=%d) next=(%d,%d %dx%d v=%d)\n",
+        screenPos.x(), screenPos.y(),
+        rPrev.x(), rPrev.y(), rPrev.width(), rPrev.height(),
+        (m_prev && m_prev->isVisible() && m_prev->isEnabled()) ? 1 : 0,
+        rPp.x(),   rPp.y(),   rPp.width(),   rPp.height(),
+        (m_playPause && m_playPause->isVisible() && m_playPause->isEnabled()) ? 1 : 0,
+        rNext.x(), rNext.y(), rNext.width(), rNext.height(),
+        (m_next && m_next->isVisible() && m_next->isEnabled()) ? 1 : 0);
+    fflush(stderr);
+
+    auto hits = [&](QWidget *widget) -> bool {
+        if (!widget || !widget->isVisible() || !widget->isEnabled()) return false;
+        return QRect(widget->mapToGlobal(QPoint(0,0)), widget->size()).contains(screenPos);
+    };
+    if (hits(m_openAudacious)) { fprintf(stderr, "[krd-handle] -> Open Audacious\n"); fflush(stderr); openAudacious(); return true; }
+    if (hits(m_prev))      { fprintf(stderr, "[krd-handle] -> Previous\n");  fflush(stderr); sendPlayerCommand(QStringLiteral("Previous"));  return true; }
+    if (hits(m_playPause)) { fprintf(stderr, "[krd-handle] -> PlayPause\n"); fflush(stderr); sendPlayerCommand(QStringLiteral("PlayPause")); return true; }
+    if (hits(m_next))      { fprintf(stderr, "[krd-handle] -> Next\n");      fflush(stderr); sendPlayerCommand(QStringLiteral("Next"));      return true; }
+    return false;
+}
+
+void KrelldaciousMonitor::openAudacious()
+{
+#if defined(Q_OS_MACOS)
+    const pid_t pid = audaciousPid();
+    if (pid != 0) {
+        activatePid(pid);
+        return;
+    }
+    QProcess::startDetached(audaciousBinaryPath(), QStringList{QStringLiteral("--show-main-window")});
+    QTimer::singleShot(1200, this, [this]() { tick(); });
+#else
+    QProcess::startDetached(audaciousBinaryPath(), QStringList{});
+#endif
+}
+
+void KrelldaciousMonitor::applyThemeColors()
+{
+    const QColor primary = textColor(theme(), QStringLiteral("text_primary"));
+    if (m_track) {
+        m_track->update();
+    }
+    if (m_openAudacious) {
+        m_openAudacious->setStyleSheet(QStringLiteral(
+            "QLabel { font-size: 9px; font-weight: 700; color: %1; background: transparent; }")
+            .arg(cssColor(primary)));
+    }
+    if (m_volume)
+        styleVolume(m_volume, theme());
+}
+
+void KrelldaciousMonitor::tick()
+{
+    bool ok = false;
+    const QString playback =
+        playerProperty(QStringLiteral("PlaybackStatus"), &ok).toString();
+    if (!ok) {
+        if (m_track) m_track->setText(QStringLiteral("Audacious is not running"));
+        if (m_openAudacious) m_openAudacious->show();
+#if defined(Q_OS_MACOS)
+        if (m_prev) m_prev->setEnabled(false);
+        if (m_playPause) {
+            m_playPause->setEnabled(true);
+            m_playPause->setProperty("playing", false);
+            m_playPause->update();
+        }
+        if (m_next) m_next->setEnabled(false);
+#else
+        if (m_prev) m_prev->setEnabled(false);
+        if (m_playPause) m_playPause->setEnabled(false);
+        if (m_next) m_next->setEnabled(false);
+#endif
+        if (m_volume) m_volume->setEnabled(false);
+        return;
+    }
+
+    if (m_prev) m_prev->setEnabled(true);
+    if (m_playPause) m_playPause->setEnabled(true);
+    if (m_next) m_next->setEnabled(true);
+    if (m_volume) m_volume->setEnabled(true);
+    if (m_openAudacious) m_openAudacious->hide();
+
+    if (m_playPause) {
+        m_playPause->setProperty("playing", playback == QStringLiteral("Playing"));
+        m_playPause->update();
+    }
+    if (m_track) {
+        const QVariantMap metadata =
+            metadataMapFromVariant(playerProperty(QStringLiteral("Metadata")));
+        m_track->setText(trackTextFromMetadata(metadata));
+    }
+    if (m_volume) {
+        const QVariant vol = playerProperty(QStringLiteral("Volume"));
+        const int percent = qBound(0, static_cast<int>(vol.toDouble() * 100.0 + 0.5), 100);
+        m_updatingVolume = true;
+        m_volume->setValue(percent);
+        m_updatingVolume = false;
+    }
+}
+
+void KrelldaciousMonitor::sendPlayerCommand(const QString &method)
+{
+#if defined(Q_OS_MACOS)
+    // Audacious on macOS has no D-Bus IPC (Homebrew formula sets
+    // -Ddbus=false), so we drive the running process directly via
+    // CGEventPostToPid using winamp-skin hotkeys (x=play, c=pause, v=stop,
+    // z=prev, b=next). CGEventPostToPid does not steal focus.
+    if (!audaciousIsRunning()) {
+        if (method == QStringLiteral("PlayPause") || method == QStringLiteral("Play")) {
+            QProcess::startDetached(audaciousBinaryPath(), QStringList{QStringLiteral("--show-main-window")});
+            m_macPlayState = MacPlayState::Playing;
+            QTimer::singleShot(1500, this, [this]() {
+                sendBridgeCommand("play");
+                tick();
+            });
+        }
+        return;
+    }
+
+    QByteArray command;
+    if (method == QStringLiteral("PlayPause"))
+        command = "playpause";
+    else if (method == QStringLiteral("Previous"))
+        command = "previous";
+    else if (method == QStringLiteral("Next"))
+        command = "next";
+    else if (method == QStringLiteral("Play"))
+        command = "play";
+    else if (method == QStringLiteral("Pause"))
+        command = "pause";
+    else if (method == QStringLiteral("Stop"))
+        command = "stop";
+
+    if (!command.isEmpty()) {
+        bool ok = false;
+        const QByteArray status = sendBridgeCommand(command, &ok);
+        if (ok) {
+            const bool playing = statusValue(status, "playing") == QStringLiteral("1");
+            const bool paused = statusValue(status, "paused") == QStringLiteral("1");
+            m_macPlayState = !playing ? MacPlayState::Stopped
+                : paused ? MacPlayState::Paused : MacPlayState::Playing;
+        }
+    }
+    QTimer::singleShot(250, this, [this]() { tick(); });
+#else
+    QDBusInterface player(QString::fromLatin1(kService),
+                          QString::fromLatin1(kPath),
+                          QString::fromLatin1(kPlayerIface),
+                          QDBusConnection::sessionBus());
+    if (player.isValid())
+        player.call(method);
+    tick();
+#endif
+}
+
+void KrelldaciousMonitor::setAudaciousVolume(int percent)
+{
+#if defined(Q_OS_MACOS)
+    Q_UNUSED(percent);
+#else
+    QDBusInterface props(QString::fromLatin1(kService),
+                         QString::fromLatin1(kPath),
+                         QString::fromLatin1(kPropsIface),
+                         QDBusConnection::sessionBus());
+    if (!props.isValid()) return;
+    const double volume = qBound(0, percent, 100) / 100.0;
+    props.call(QStringLiteral("Set"),
+               QString::fromLatin1(kPlayerIface),
+               QStringLiteral("Volume"),
+               QVariant::fromValue(QDBusVariant(volume)));
+#endif
+}
+
+QVariant KrelldaciousMonitor::playerProperty(const QString &name, bool *ok) const
+{
+#if defined(Q_OS_MACOS)
+    if (ok) *ok = false;
+    if (!audaciousIsRunning()) {
+        m_macPlayState = MacPlayState::Stopped;
+        return {};
+    }
+    bool bridgeOk = false;
+    const QByteArray status = sendBridgeCommand("status", &bridgeOk);
+    if (ok) *ok = bridgeOk;
+    if (!bridgeOk)
+        return {};
+
+    if (name == QStringLiteral("PlaybackStatus")) {
+        const bool playing = statusValue(status, "playing") == QStringLiteral("1");
+        const bool paused = statusValue(status, "paused") == QStringLiteral("1");
+        m_macPlayState = !playing ? MacPlayState::Stopped
+            : paused ? MacPlayState::Paused : MacPlayState::Playing;
+        return (m_macPlayState == MacPlayState::Playing)
+            ? QStringLiteral("Playing")
+            : QStringLiteral("Paused");
+    }
+    if (name == QStringLiteral("Metadata")) {
+        QVariantMap meta;
+        meta.insert(QStringLiteral("xesam:title"), QStringLiteral("Audacious"));
+        return meta;
+    }
+    if (name == QStringLiteral("Volume"))
+        return 0.0;
+    return {};
+#else
+    if (ok) *ok = false;
+    QDBusInterface props(QString::fromLatin1(kService),
+                         QString::fromLatin1(kPath),
+                         QString::fromLatin1(kPropsIface),
+                         QDBusConnection::sessionBus());
+    if (!props.isValid()) return {};
+
+    const QDBusReply<QVariant> reply =
+        props.call(QStringLiteral("Get"), QString::fromLatin1(kPlayerIface), name);
+    if (!reply.isValid()) return {};
+    if (ok) *ok = true;
+    return unwrapDbusVariant(reply.value());
+#endif
+}
+
+QString KrelldaciousPlugin::pluginId() const
+{
+    return QStringLiteral("io.krellix.krelldacious");
+}
+
+QString KrelldaciousPlugin::pluginName() const
+{
+    return QStringLiteral("Krelldacious");
+}
+
+QString KrelldaciousPlugin::pluginVersion() const
+{
+    return QStringLiteral("0.1.0");
+}
+
+QList<MonitorBase *> KrelldaciousPlugin::createMonitors(Theme *theme, QObject *parent)
+{
+    if (!QSettings().value(QStringLiteral("plugins/krelldacious/enabled"), false).toBool())
+        return {};
+    return {new KrelldaciousMonitor(theme, parent)};
+}

@@ -6,6 +6,7 @@
 #include <QPointer>
 
 class QLabel;
+class QPoint;
 class QPushButton;
 class QSlider;
 class Decal;
@@ -24,9 +25,13 @@ public:
     QWidget *createWidget(QWidget *parent) override;
     void tick() override;
 
+public:
+    bool handleNativeClickAtScreen(const QPoint &screenPos);
+
 private:
     void applyThemeColors();
     void sendPlayerCommand(const QString &method);
+    void openAudacious();
     void setAudaciousVolume(int percent);
     QVariant playerProperty(const QString &name, bool *ok = nullptr) const;
 
@@ -37,6 +42,8 @@ private:
     QPointer<QPushButton> m_next;
     QPointer<QSlider> m_volume;
     bool m_updatingVolume = false;
+    enum class MacPlayState { Stopped, Playing, Paused };
+    mutable MacPlayState m_macPlayState = MacPlayState::Stopped;
 };
 
 class KrelldaciousPlugin : public QObject, public IKrellixPlugin
