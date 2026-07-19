@@ -45,6 +45,7 @@ public:
     void attachRemoteSource(RemoteSource *remote);
 
 protected:
+    bool event(QEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
     void mouseReleaseEvent(QMouseEvent *event) override;
@@ -81,6 +82,7 @@ private:
     void applyFixedWidth();
     void applyFrameMargins();
     void fitToPanelStack();
+    void scheduleFitToPanelStack();
     void applySettingsOverridesToTheme();
     void restorePosition();
     void persistPosition();
@@ -97,6 +99,7 @@ private:
     class Panel   *m_topStrip     = nullptr;   // optional decorative header
     QList<LiveMonitor> m_monitors;
     bool m_rebuildingPanels = false;
+    bool m_fitPending = false;
 
     bool   m_dragging   = false;
     QPoint m_dragOffset;

@@ -110,6 +110,42 @@ bool isBuiltinMonitorId(const QString &id)
     return ids.contains(id);
 }
 
+void invalidateLayoutTree(QLayout *layout)
+{
+    if (!layout)
+        return;
+
+    layout->invalidate();
+    for (int i = 0; i < layout->count(); ++i) {
+        QLayoutItem *item = layout->itemAt(i);
+        if (!item)
+            continue;
+        if (QLayout *childLayout = item->layout()) {
+            invalidateLayoutTree(childLayout);
+        } else if (QWidget *childWidget = item->widget()) {
+            childWidget->updateGeometry();
+            if (QLayout *childWidgetLayout = childWidget->layout())
+                invalidateLayoutTree(childWidgetLayout);
+        }
+    }
+}
+
+void invalidateWidgetTree(QWidget *root)
+{
+    if (!root)
+        return;
+
+    root->updateGeometry();
+    if (QLayout *layout = root->layout())
+        invalidateLayoutTree(layout);
+    const QList<QWidget *> children = root->findChildren<QWidget *>();
+    for (QWidget *child : children) {
+        child->updateGeometry();
+        if (QLayout *layout = child->layout())
+            invalidateLayoutTree(layout);
+    }
+}
+
 } // namespace
 
 MainWindow::MainWindow(Theme *theme,
@@ -563,6 +599,7 @@ void MainWindow::rebuildPanels()
     applyFrameMargins();
     applyFixedWidth();
     fitToPanelStack();
+    scheduleFitToPanelStack();
     update();
     m_rebuildingPanels = false;
 }
@@ -601,6 +638,7 @@ void MainWindow::refreshLiveSettings()
         m_layout->invalidate();
     }
     fitToPanelStack();
+    scheduleFitToPanelStack();
     update();
 }
 
@@ -631,10 +669,28 @@ void MainWindow::fitToPanelStack()
     if (!m_layout) return;
     setMinimumHeight(0);
     setMaximumHeight(QWIDGETSIZE_MAX);
+    invalidateWidgetTree(this);
     m_layout->activate();
     updateGeometry();
     const int h = m_layout->sizeHint().height();
-    if (h > 0) resize(width(), h);
+    if (h > 0 && height() != h)
+        resize(width(), h);
+}
+
+void MainWindow::scheduleFitToPanelStack()
+{
+    // Child size hints settle one event-loop pass after panels are added,
+    // removed, or re-skinned; a same-turn fit can read a stale layout
+    // sizeHint and leave the frame stretched or short. Re-fit once the
+    // queue drains, coalescing bursts into a single pass.
+    if (m_fitPending)
+        return;
+    m_fitPending = true;
+    QTimer::singleShot(0, this, [this]() {
+        m_fitPending = false;
+        fitToPanelStack();
+        update();
+    });
 }
 
 void MainWindow::applySettingsOverridesToTheme()
@@ -672,6 +728,7 @@ void MainWindow::onThemeChanged()
     applyFixedWidth();
     applyTopStripFromTheme();
     fitToPanelStack();
+    scheduleFitToPanelStack();
     update();
 }
 
@@ -694,6 +751,25 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     persistPosition();
     QWidget::closeEvent(event);
+}
+
+bool MainWindow::event(QEvent *e)
+{
+    const bool handled = QWidget::event(e);
+    // A LayoutRequest lands whenever any child's size hint changes —
+    // panels growing or shrinking on their own (player controls swapping
+    // in for the launch link, banners toggling), not just explicit
+    // rebuilds. Snap the window to the stack height so the theme frame
+    // always fits the content exactly.
+    if (e->type() == QEvent::LayoutRequest && m_layout) {
+        const int h = m_layout->sizeHint().height();
+        if (h > 0 && height() != h) {
+            setMinimumHeight(0);
+            setMaximumHeight(QWIDGETSIZE_MAX);
+            resize(width(), h);
+        }
+    }
+    return handled;
 }
 
 void MainWindow::paintEvent(QPaintEvent *)
