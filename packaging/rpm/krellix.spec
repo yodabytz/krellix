@@ -11,6 +11,7 @@ BuildRequires:  ninja-build
 BuildRequires:  gcc-c++
 BuildRequires:  qt6-qtbase-devel
 BuildRequires:  qt6-qttools-devel
+BuildRequires:  systemd-rpm-macros
 
 Requires:       qt6-qtbase
 
