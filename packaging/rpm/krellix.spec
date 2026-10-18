@@ -43,12 +43,9 @@ QT_QPA_PLATFORM=offscreen ctest --test-dir %{__cmake_builddir} --output-on-failu
 
 %install
 %cmake_install
-rm -f %{buildroot}%{_bindir}/krellixd
 rm -rf %{buildroot}%{_prefix}/lib/krellix/plugins %{buildroot}%{_libdir}/krellix/plugins
 rm -rf %{buildroot}%{_datadir}/krellix/plugins
 
-install -Dm755 %{__cmake_builddir}/bin/krellixd \
-    %{buildroot}%{_bindir}/krellixd
 
 install -Dm644 packaging/systemd/krellixd.service \
     %{buildroot}%{_unitdir}/krellixd.service
