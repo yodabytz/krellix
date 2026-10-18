@@ -1263,6 +1263,10 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             auto *layout = new QVBoxLayout(&dlg);
             auto *form   = new QFormLayout;
             QSettings s;
+            auto *showAll = new QCheckBox(QStringLiteral("Show all sensor readings"), &dlg);
+            showAll->setChecked(s.value(QStringLiteral("monitors/sensors/show_all"), false).toBool());
+            showAll->setToolTip(QStringLiteral("When unchecked, show the hottest temperature per sensor chip instead of every core and probe."));
+            form->addRow(showAll);
             auto *unit = new QComboBox(&dlg);
             unit->addItem(QStringLiteral("Celsius"),    false);
             unit->addItem(QStringLiteral("Fahrenheit"), true);
@@ -1290,6 +1294,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             layout->addWidget(bb);
             if (dlg.exec() == QDialog::Accepted) {
                 QSettings out;
+                out.setValue(QStringLiteral("monitors/sensors/show_all"), showAll->isChecked());
                 out.setValue(QStringLiteral("monitors/sensors/use_fahrenheit"), unit->currentData().toBool());
                 out.setValue(QStringLiteral("monitors/sensors/display_mode"), mode->currentData().toInt());
                 out.setValue(QStringLiteral("monitors/sensors/warn_celsius"), warn->value());

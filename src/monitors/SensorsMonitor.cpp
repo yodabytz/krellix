@@ -1,6 +1,7 @@
 #include "SensorsMonitor.h"
 
 #include "sysdep/SensorStat.h"
+#include "sysdep/SensorDisplay.h"
 #include "widgets/Decal.h"
 #include "widgets/Panel.h"
 
@@ -89,7 +90,8 @@ void SensorsMonitor::tick()
 
     QHash<QString, GroupedReading> grouped;
     QStringList order;
-    const QList<SensorReading> readings = SensorStat::read();
+    const QList<SensorReading> readings = sensorDisplayReadings(SensorStat::read(),
+        s.value(QStringLiteral("monitors/sensors/show_all"), false).toBool());
     for (const SensorReading &r : readings) {
         const QString key = rowKeyForReading(r);
         if (!grouped.contains(key))

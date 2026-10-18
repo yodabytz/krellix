@@ -7,6 +7,11 @@
 #include <QFileInfo>
 #include <QLoggingCategory>
 
+#if defined(Q_OS_MACOS)
+#include <IOKit/IOKitLib.h>
+#include <CoreFoundation/CoreFoundation.h>
+#endif
+
 #if defined(Q_OS_WIN)
 #include <qt_windows.h>
 #include <winioctl.h>
@@ -80,7 +85,41 @@ QList<DiskSample> DiskStat::read()
     }
 
     return samples;
-#else
+#elif defined(Q_OS_MACOS)
+    QList<DiskSample> samples;
+    io_iterator_t devices = IO_OBJECT_NULL;
+    if (IOServiceGetMatchingServices(kIOMainPortDefault,
+            IOServiceMatching("IOBlockStorageDriver"), &devices) != KERN_SUCCESS)
+        return samples;
+    io_object_t device;
+    while ((device = IOIteratorNext(devices))) {
+        CFTypeRef stats = IORegistryEntryCreateCFProperty(device, CFSTR("Statistics"), kCFAllocatorDefault, 0);
+        CFTypeRef name = IORegistryEntrySearchCFProperty(device, kIOServicePlane, CFSTR("BSD Name"),
+            kCFAllocatorDefault, kIORegistryIterateRecursively);
+        char diskName[256] = {};
+        if (stats && CFGetTypeID(stats) == CFDictionaryGetTypeID()
+            && name && CFGetTypeID(name) == CFStringGetTypeID()
+            && CFStringGetCString(static_cast<CFStringRef>(name), diskName, sizeof(diskName), kCFStringEncodingUTF8)) {
+            auto counter = [stats](CFStringRef key) -> quint64 {
+                const auto value = CFDictionaryGetValue(static_cast<CFDictionaryRef>(stats), key);
+                qint64 bytes = 0;
+                if (value && CFGetTypeID(value) == CFNumberGetTypeID())
+                    CFNumberGetValue(static_cast<CFNumberRef>(value), kCFNumberSInt64Type, &bytes);
+                return static_cast<quint64>(qMax<qint64>(0, bytes)) / DiskStat::kSectorSize;
+            };
+            DiskSample sample;
+            sample.name = QString::fromUtf8(diskName);
+            sample.sectorsRead = counter(CFSTR("Bytes (Read)"));
+            sample.sectorsWritten = counter(CFSTR("Bytes (Write)"));
+            samples.append(sample);
+        }
+        if (name) CFRelease(name);
+        if (stats) CFRelease(stats);
+        IOObjectRelease(device);
+    }
+    IOObjectRelease(devices);
+    return samples;
+#elif defined(Q_OS_LINUX)
     QFile f(QStringLiteral("/proc/diskstats"));
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qCWarning(lcDiskStat) << "cannot open /proc/diskstats:" << f.errorString();
@@ -115,5 +154,7 @@ QList<DiskSample> DiskStat::read()
         start = nl + 1;
     }
     return samples;
+#else
+    return {};
 #endif
 }

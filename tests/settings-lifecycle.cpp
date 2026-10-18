@@ -7,6 +7,7 @@
 #include <QTimer>
 #include <QPointer>
 #include <QTemporaryDir>
+#include "sysdep/SensorDisplay.h"
 
 static int completed = 0;
 static void exercise()
@@ -57,6 +58,18 @@ Q_COREAPP_STARTUP_FUNCTION(scheduleTest)
 
 int main(int argc, char **argv)
 {
+    SensorReading a, b, disk;
+    a.chip = b.chip = QStringLiteral("coretemp");
+    a.label = QStringLiteral("Core 0"); a.value = 50;
+    b.label = QStringLiteral("Core 1"); b.value = 80; b.critC = 100;
+    disk.chip = QStringLiteral("nvme"); disk.label = QStringLiteral("Composite"); disk.value = 40;
+    const QList<SensorReading> input{a, b, disk};
+    const auto compact = sensorDisplayReadings(input, false);
+    if (compact.size() != 2 || compact[0].value != 80 || compact[0].critC != 100
+        || compact[0].label != QStringLiteral("coretemp max") || compact[1].value != 40)
+        qFatal("Compact sensors lost maximum temperature or mixed chip readings");
+    if (sensorDisplayReadings(input, true).size() != 3
+        || !sensorDisplayReadings({}, false).isEmpty()) qFatal("Detailed/empty sensor regression");
     QTemporaryDir config;
     qputenv("XDG_CONFIG_HOME", config.path().toUtf8());
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, config.path());
