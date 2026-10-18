@@ -3,6 +3,7 @@
 #include "krellix/KrellmailOAuthBroker.h"
 #include "krellix/PluginLoader.h"
 #include "krellix/SettingsDialog.h"
+#include <QMoveEvent>
 #include "remote/RemoteSource.h"
 #include "monitors/BatteryMonitor.h"
 #include "monitors/ClockMonitor.h"
@@ -192,6 +193,10 @@ MainWindow::MainWindow(Theme *theme,
     applyFixedWidth();
     fitToPanelStack();
     restorePosition();
+    m_positionSaveTimer = new QTimer(this);
+    m_positionSaveTimer->setSingleShot(true);
+    m_positionSaveTimer->setInterval(250);
+    connect(m_positionSaveTimer, &QTimer::timeout, this, &MainWindow::persistPosition);
     connect(m_theme, &Theme::themeChanged, this, &MainWindow::onThemeChanged);
 
     // Keybindings: T / Shift+T and Up / Down (with optional Shift) cycle
@@ -719,13 +724,21 @@ void MainWindow::restorePosition()
     // Width is fixed by setting; only the on-screen position is restored.
     QSettings s;
     const QPoint savedPos = s.value(QStringLiteral("window/pos")).toPoint();
-    if (!savedPos.isNull()) move(savedPos);
+    if (s.contains(QStringLiteral("window/pos"))) move(savedPos);
+}
+
+void MainWindow::moveEvent(QMoveEvent *event)
+{
+    QWidget::moveEvent(event);
+    if (m_positionSaveTimer)
+        m_positionSaveTimer->start();
 }
 
 void MainWindow::persistPosition()
 {
     QSettings s;
     s.setValue(QStringLiteral("window/pos"), pos());
+    s.sync();
 }
 
 void MainWindow::onThemeChanged()

@@ -15,6 +15,15 @@ static void exercise()
     for (QWidget *widget : QApplication::topLevelWidgets())
         if (auto *candidate = qobject_cast<MainWindow *>(widget)) window = candidate;
     if (!window) qFatal("Main window missing");
+    static bool moved = false;
+    if (!moved) {
+        moved = true;
+        window->move(42, 73);
+        QTimer::singleShot(400, qApp, exercise);
+        return;
+    }
+    if (QSettings().value(QStringLiteral("window/pos")).toPoint() != QPoint(42, 73))
+        qFatal("Window position was not saved before closing");
     if (completed == 3) {
         if (!window->isVisible()) qFatal("Main window disappeared");
         window->close(); // Explicit main-window close must still exit.

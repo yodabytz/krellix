@@ -13,6 +13,7 @@ class RemoteSource;
 class Theme;
 class QVBoxLayout;
 class QMouseEvent;
+class QMoveEvent;
 class QContextMenuEvent;
 class QCloseEvent;
 class QPaintEvent;
@@ -51,6 +52,7 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
+    void moveEvent(QMoveEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
 
 private slots:
@@ -100,6 +102,7 @@ private:
     QList<LiveMonitor> m_monitors;
     bool m_rebuildingPanels = false;
     bool m_remotePanelsReady = false;
+    QTimer *m_positionSaveTimer = nullptr;
     bool m_fitPending = false;
 
     bool   m_dragging   = false;
