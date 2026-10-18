@@ -1,4 +1,5 @@
 #include "ClockMonitor.h"
+#include "remote/RemoteSource.h"
 
 #include "widgets/Decal.h"
 #include "widgets/Panel.h"
@@ -38,7 +39,13 @@ void ClockMonitor::tick()
     const bool military =
         QSettings().value(QStringLiteral("clock/military"), true).toBool();
 
-    const QDateTime now = QDateTime::currentDateTime();
+    const auto *remote = RemoteSource::instance();
+    const QDateTime now = remote ? remote->remoteTime() : QDateTime::currentDateTime();
+    if (!now.isValid()) {
+        m_timeDecal->setText(QStringLiteral("Remote time unavailable"));
+        m_dateDecal->setText(QString());
+        return;
+    }
     const QString timeFmt = military
         ? QStringLiteral("HH:mm:ss")
         : QStringLiteral("h:mm:ss AP");

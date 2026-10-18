@@ -4,6 +4,8 @@
 #include "widgets/Panel.h"
 
 #include <QDateTime>
+#include <QCoreApplication>
+#include <QDir>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -138,6 +140,12 @@ QString phaseSlug(double k)
 QStringList moonAssetSearchDirs()
 {
     QStringList dirs;
+#ifdef Q_OS_MACOS
+    dirs << QDir::homePath() + QStringLiteral("/.config/krellix/plugins/krellmoon");
+    dirs << QDir::homePath() + QStringLiteral("/.config/krelix/plugins/krellmoon");
+    dirs << QDir(QCoreApplication::applicationDirPath()).absoluteFilePath(
+        QStringLiteral("../Resources/plugins/krellmoon"));
+#endif
     const QString userData =
         QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
     if (!userData.isEmpty())

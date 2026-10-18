@@ -1,4 +1,5 @@
 #include "PluginLoader.h"
+#include "remote/RemoteSource.h"
 
 #include "monitors/MonitorBase.h"
 #include "sdk/KrellixPlugin.h"
@@ -41,6 +42,17 @@ QStringList PluginLoader::searchPaths()
         paths << QDir(dataHome).filePath(QStringLiteral("krellix/plugins"));
 
 #ifdef Q_OS_MACOS
+    const QString configHome =
+        QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
+    if (!configHome.isEmpty())
+        paths << QDir(configHome).filePath(QStringLiteral("krellix/plugins"));
+
+    const QString home = QDir::homePath();
+    if (!home.isEmpty()) {
+        paths << QDir(home).filePath(QStringLiteral(".config/krellix/plugins"));
+        paths << QDir(home).filePath(QStringLiteral(".config/krelix/plugins"));
+    }
+
     const QDir appDir(QCoreApplication::applicationDirPath());
     paths << appDir.filePath(QStringLiteral("../PlugIns/krellix"));
     paths << appDir.filePath(QStringLiteral("../Resources/plugins"));
@@ -124,6 +136,12 @@ QList<MonitorBase *> PluginLoader::discoverAndLoad(Theme *theme,
                 << " " << plugin->pluginVersion()
                 << " (factory ready)";
 
+            if (RemoteSource::instance() && (plugin->pluginId() == QStringLiteral("krellwifi")
+                || plugin->pluginId() == QStringLiteral("krellpkg"))) {
+                qCInfo(lcPlugin) << "Local-only plugin unavailable for remote host:" << plugin->pluginId();
+                loader->deleteLater();
+                continue;
+            }
             m_loaders.append(loader);
             m_plugins.append(plugin);
             ++loaded;

@@ -246,8 +246,14 @@ void MainWindow::attachRemoteSource(RemoteSource *remote)
         });
     }
 
+    connect(m_remote, &RemoteSource::sampleReceived, this, [this]() {
+        if (m_remotePanelsReady) return;
+        m_remotePanelsReady = true;
+        QTimer::singleShot(0, this, [this]() { rebuildPanels(); });
+    });
     connect(m_remote, &RemoteSource::connectionStateChanged, this,
             [this](bool connected) {
+                if (!connected) m_remotePanelsReady = false;
                 if (!m_alertBanner) return;
                 if (connected) {
                     m_alertDebounce->stop();

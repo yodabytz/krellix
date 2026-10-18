@@ -70,26 +70,11 @@ QWidget *SensorsMonitor::createWidget(QWidget *parent)
     p->setSurfaceKey(QStringLiteral("panel_bg_sensors"));
     p->setTitle(QStringLiteral("Sensors"));
 
-    const QList<SensorReading> readings = SensorStat::read();
-    if (readings.isEmpty()) {
-        Decal *d = p->addDecal(QStringLiteral("label"),
-                               QStringLiteral("text_secondary"));
-        d->setAlignment(Qt::AlignHCenter);
-        d->setText(QStringLiteral("(no sensors found)"));
-        return p;
-    }
+    m_panel = p;
+    m_empty = p->addDecal(QStringLiteral("label"), QStringLiteral("text_secondary"));
+    m_empty->setAlignment(Qt::AlignHCenter);
+    m_empty->setText(QStringLiteral("(no sensors available)"));
 
-    QSet<QString> seen;
-    for (const SensorReading &r : readings) {
-        const QString key = rowKeyForReading(r);
-        if (seen.contains(key))
-            continue;
-        seen.insert(key);
-        Decal *d = p->addDecal(QStringLiteral("label"),
-                               QStringLiteral("text_primary"));
-        d->setAlignment(Qt::AlignHCenter);
-        m_rows.insert(key, d);
-    }
     tick();
     return p;
 }
@@ -132,7 +117,16 @@ void SensorsMonitor::tick()
         }
     }
 
+    if (!m_panel) return;
+    if (m_empty) m_empty->setVisible(order.isEmpty());
+    for (auto it = m_rows.begin(); it != m_rows.end(); ++it)
+        if (it.value()) it.value()->setVisible(order.contains(it.key()));
     for (const QString &key : order) {
+        if (!m_rows.value(key)) {
+            auto *row = m_panel->addDecal(QStringLiteral("label"), QStringLiteral("text_primary"));
+            row->setAlignment(Qt::AlignHCenter);
+            m_rows.insert(key, row);
+        }
         auto it = m_rows.constFind(key);
         if (it == m_rows.constEnd() || !it.value()) continue;
         Decal *d = it.value().data();

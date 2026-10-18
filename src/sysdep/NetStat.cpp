@@ -10,6 +10,12 @@
 #include <QLoggingCategory>
 #include <QStringList>
 
+#if defined(Q_OS_MACOS)
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <net/if_dl.h>
+#endif
+
 Q_LOGGING_CATEGORY(lcNetStat, "krellix.sysdep.net")
 
 namespace {
@@ -33,6 +39,49 @@ QStringList bridgeMembers(const QString &bridgeName)
     if (!d.exists()) return {};
     return d.entryList(QDir::AllEntries | QDir::NoDotAndDotDot);
 }
+
+#if defined(Q_OS_MACOS)
+QList<NetSample> readMacNetStat()
+{
+    QList<NetSample> samples;
+    ifaddrs *ifaddr = nullptr;
+    if (getifaddrs(&ifaddr) != 0)
+        return samples;
+
+    QHash<QString, int> indexByName;
+    for (ifaddrs *ifa = ifaddr; ifa; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_name || !ifa->ifa_addr || !ifa->ifa_data)
+            continue;
+        if (ifa->ifa_addr->sa_family != AF_LINK)
+            continue;
+        if ((ifa->ifa_flags & IFF_UP) == 0 || (ifa->ifa_flags & IFF_LOOPBACK) != 0)
+            continue;
+
+        auto *data = reinterpret_cast<if_data *>(ifa->ifa_data);
+        if (!data)
+            continue;
+
+        const QString name = QString::fromLocal8Bit(ifa->ifa_name);
+        int index = indexByName.value(name, -1);
+        if (index < 0) {
+            index = samples.size();
+            indexByName.insert(name, index);
+            NetSample s;
+            s.name = name;
+            samples.append(s);
+        }
+
+        NetSample &s = samples[index];
+        s.rxBytes = data->ifi_ibytes;
+        s.txBytes = data->ifi_obytes;
+        s.rxPackets = data->ifi_ipackets;
+        s.txPackets = data->ifi_opackets;
+    }
+
+    freeifaddrs(ifaddr);
+    return samples;
+}
+#endif
 }
 
 void NetStat::setReadOverride(NetStat::ReadFn fn) { g_readOverride = fn; }
@@ -55,6 +104,9 @@ bool NetStat::isMainInterface(const QString &name)
 QList<NetSample> NetStat::read()
 {
     if (g_readOverride) return g_readOverride();
+#if defined(Q_OS_MACOS)
+    return readMacNetStat();
+#else
     QFile f(QStringLiteral("/proc/net/dev"));
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qCWarning(lcNetStat) << "cannot open /proc/net/dev:" << f.errorString();
@@ -181,4 +233,5 @@ QList<NetSample> NetStat::read()
     }
 
     return samples;
+#endif
 }

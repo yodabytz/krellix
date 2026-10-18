@@ -99,8 +99,11 @@ void RemoteSource::onSocketDisconnected()
 
 void RemoteSource::onSocketError()
 {
-    qCWarning(lcRemote) << "socket error from" << remoteAddress() << ":"
-                        << m_socket->errorString();
+    if (m_socket
+        && m_socket->error() != QAbstractSocket::RemoteHostClosedError) {
+        qCWarning(lcRemote) << "socket error from" << remoteAddress() << ":"
+                            << m_socket->errorString();
+    }
     // For a connection that *was* established, `disconnected` fires next
     // and reconnect is scheduled there. For a failed initial connect
     // (host unreachable, refused, etc.) we never reach ConnectedState, so
@@ -265,17 +268,89 @@ void RemoteSource::parseLine(const QByteArray &line)
     pi.users     = p.value(QStringLiteral("users")).toInt();
     m_proc = pi;
 
+    const QJsonObject st = obj.value(QStringLiteral("stack")).toObject();
+    StackInfo stack;
+    stack.containers = st.value(QStringLiteral("containers")).toInt();
+    stack.running = st.value(QStringLiteral("running")).toInt();
+    stack.images = st.value(QStringLiteral("images")).toInt();
+    stack.compose = st.value(QStringLiteral("compose")).toInt();
+    stack.unhealthy = st.value(QStringLiteral("unhealthy")).toInt();
+    stack.dockerNetworks = st.value(QStringLiteral("docker_networks")).toInt();
+    stack.source = st.value(QStringLiteral("source")).toString();
+    stack.error = st.value(QStringLiteral("error")).toString();
+    m_stack = stack;
+
+    const QJsonObject healthObj = obj.value(QStringLiteral("health")).toObject();
+    HealthInfo health;
+    health.critical = healthObj.value(QStringLiteral("critical")).toInt();
+    health.warnings = healthObj.value(QStringLiteral("warnings")).toInt();
+    for (const QJsonValue &v : healthObj.value(QStringLiteral("findings")).toArray()) {
+        const QJsonObject f = v.toObject();
+        HealthFindingInfo finding;
+        finding.severity = f.value(QStringLiteral("severity")).toString();
+        finding.title = f.value(QStringLiteral("title")).toString();
+        finding.detail = f.value(QStringLiteral("detail")).toString();
+        if (!finding.title.isEmpty())
+            health.findings.append(finding);
+    }
+    m_health = health;
+
+    QList<TopProcessInfo> top;
+    for (const QJsonValue &v : obj.value(QStringLiteral("top")).toArray()) {
+        const QJsonObject p = v.toObject();
+        TopProcessInfo row;
+        row.pid = p.value(QStringLiteral("pid")).toInt();
+        row.cpu = p.value(QStringLiteral("cpu")).toDouble();
+        row.mem = p.value(QStringLiteral("mem")).toDouble();
+        row.rssKiB = static_cast<qint64>(p.value(QStringLiteral("rss")).toDouble());
+        row.name = p.value(QStringLiteral("name")).toString();
+        row.command = p.value(QStringLiteral("cmd")).toString();
+        if (row.pid > 0 && !row.name.isEmpty())
+            top.append(row);
+    }
+    m_top = top;
+
+    m_sensors.clear();
+    for (const auto &value : obj.value(QStringLiteral("sensors")).toArray()) {
+        const auto item = value.toObject();
+        const int type = item.value(QStringLiteral("type")).toInt(-1);
+        if (type < SensorReading::Temp || type > SensorReading::Percent) continue;
+        SensorReading s;
+        s.type = static_cast<SensorReading::Type>(type);
+        s.chip = item.value(QStringLiteral("chip")).toString();
+        s.label = item.value(QStringLiteral("label")).toString();
+        s.value = item.value(QStringLiteral("value")).toDouble();
+        s.maxC = item.value(QStringLiteral("max")).toDouble();
+        s.critC = item.value(QStringLiteral("crit")).toDouble();
+        m_sensors.append(s);
+    }
+    const auto battery = obj.value(QStringLiteral("battery")).toObject();
+    m_battery = BatteryInfo{};
+    m_battery.present = battery.value(QStringLiteral("present")).toBool();
+    m_battery.percent = qBound(0, battery.value(QStringLiteral("percent")).toInt(), 100);
+    m_battery.status = battery.value(QStringLiteral("status")).toString();
+    m_battery.acOnline = battery.value(QStringLiteral("ac_online")).toBool();
+    m_battery.timeRemainSec = qint64(battery.value(QStringLiteral("remaining")).toDouble(-1));
+    m_battery.batteryName = battery.value(QStringLiteral("name")).toString();
+    m_time = QDateTime::fromString(obj.value(QStringLiteral("datetime")).toString(), Qt::ISODate);
+    m_timeAge.start();
     emit sampleReceived();
 }
 
 void RemoteSource::resetCachedState()
 {
+    m_sensors.clear();
+    m_battery = BatteryInfo{};
+    m_time = QDateTime{};
     m_cpu.clear();
     m_mem  = MemInfo{};
     m_net.clear();
     m_netPorts.clear();
     m_disk.clear();
     m_proc = ProcInfo{};
+    m_stack = StackInfo{};
+    m_health = HealthInfo{};
+    m_top.clear();
     // -1 is the "unknown" sentinel UptimeMonitor uses to render "?".
     // Zero would render as "00:00" — actively misleading during a
     // disconnect window.

@@ -3,6 +3,7 @@
 #include <QByteArray>
 #include <QDir>
 #include <QFileInfo>
+#include <QProcess>
 #include <QSet>
 #include <QString>
 
@@ -34,6 +35,17 @@ ProcInfo ProcStat::read()
 
     ProcInfo out;
 
+#if defined(Q_OS_MACOS)
+    QProcess p;
+    p.start(QStringLiteral("ps"), {QStringLiteral("-A"), QStringLiteral("-o"), QStringLiteral("pid=")});
+    if (p.waitForFinished(1500)
+        && p.exitStatus() == QProcess::NormalExit
+        && p.exitCode() == 0) {
+        const QStringList lines = QString::fromLocal8Bit(p.readAllStandardOutput())
+                                      .split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+        out.processes = lines.size();
+    }
+#else
     const QFileInfoList procEntries =
         QDir(QStringLiteral("/proc")).entryInfoList(QDir::Dirs
                                                     | QDir::NoDotAndDotDot
@@ -42,6 +54,7 @@ ProcInfo ProcStat::read()
         if (isPidDir(entry.fileName()))
             ++out.processes;
     }
+#endif
 
     QSet<QString> users;
     setutxent();

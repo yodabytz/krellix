@@ -99,6 +99,7 @@ private:
     class Panel   *m_topStrip     = nullptr;   // optional decorative header
     QList<LiveMonitor> m_monitors;
     bool m_rebuildingPanels = false;
+    bool m_remotePanelsReady = false;
     bool m_fitPending = false;
 
     bool   m_dragging   = false;

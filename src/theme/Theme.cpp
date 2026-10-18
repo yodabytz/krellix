@@ -104,6 +104,12 @@ QStringList Theme::searchPaths()
         paths << QDir(configHome).filePath(QStringLiteral("krellix/themes"));
 
 #ifdef Q_OS_MACOS
+    const QString home = QDir::homePath();
+    if (!home.isEmpty()) {
+        paths << QDir(home).filePath(QStringLiteral(".config/krellix/themes"));
+        paths << QDir(home).filePath(QStringLiteral(".config/krelix/themes"));
+    }
+
     const QDir appDir(QCoreApplication::applicationDirPath());
     paths << appDir.filePath(QStringLiteral("../Resources/themes"));
 #endif

@@ -114,13 +114,11 @@ void HostMonitor::tick()
     // kernel reported by the daemon. Still respect the FQDN setting —
     // strip the domain when the user has it unchecked, even though the
     // wire format always carries the full name.
-    if (auto *r = RemoteSource::instance(); r && r->isConnected()) {
+    if (auto *r = RemoteSource::instance()) {
         const QString rh = r->remoteHostname();
-        const QString rk = r->remoteKernel();
-        if (!rh.isEmpty()) m_hostnameDecal->setText(applyFqdnSetting(rh));
-        if (!rk.isEmpty()) m_sysDecal->setText(rk);
-        if (!rh.isEmpty() || !rk.isEmpty()) return;
-        // fall through to local readings until first remote sample arrives
+        m_hostnameDecal->setText(applyFqdnSetting(rh.isEmpty() ? r->remoteAddress() : rh));
+        m_sysDecal->setText(r->isConnected() ? r->remoteKernel() : QStringLiteral("Disconnected"));
+        return;
     }
 
     const QString name = bestLocalHostname(fqdn);

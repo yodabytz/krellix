@@ -1,6 +1,10 @@
 #pragma once
 
 #include "sysdep/CpuStat.h"
+#include "sysdep/SensorStat.h"
+#include "sysdep/BatteryStat.h"
+#include <QDateTime>
+#include <QElapsedTimer>
 #include "sysdep/DiskStat.h"
 #include "sysdep/MemStat.h"
 #include "sysdep/NetStat.h"
@@ -8,13 +12,44 @@
 #include "sysdep/ProcStat.h"
 
 #include <QByteArray>
-#include <QHostAddress>
 #include <QList>
 #include <QObject>
 #include <QString>
 
 class QTcpSocket;
 class QTimer;
+
+struct StackInfo {
+    int containers = 0;
+    int running = 0;
+    int images = 0;
+    int compose = 0;
+    int unhealthy = 0;
+    int dockerNetworks = 0;
+    QString source;
+    QString error;
+};
+
+struct HealthFindingInfo {
+    QString severity;
+    QString title;
+    QString detail;
+};
+
+struct HealthInfo {
+    int critical = 0;
+    int warnings = 0;
+    QList<HealthFindingInfo> findings;
+};
+
+struct TopProcessInfo {
+    int pid = 0;
+    double cpu = 0.0;
+    double mem = 0.0;
+    qint64 rssKiB = 0;
+    QString name;
+    QString command;
+};
 
 // Client-side counterpart of krellixd. Maintains a TCP connection,
 // parses JSON-lines messages, and caches the latest sample so that the
@@ -49,6 +84,13 @@ public:
     QList<NetPortSample> netPortSamples() const { return m_netPorts; }
     QList<DiskSample> diskSamples() const { return m_disk; }
     ProcInfo          procInfo()    const { return m_proc; }
+    StackInfo         stackInfo()   const { return m_stack; }
+    HealthInfo        healthInfo()  const { return m_health; }
+    QList<TopProcessInfo> topProcesses() const { return m_top; }
+
+    QList<SensorReading> sensorReadings() const { return m_sensors; }
+    BatteryInfo batteryInfo() const { return m_battery; }
+    QDateTime remoteTime() const { return m_time.isValid() ? m_time.addMSecs(m_timeAge.elapsed()) : QDateTime{}; }
 
 signals:
     void connectionStateChanged(bool connected);
@@ -83,7 +125,14 @@ private:
     QList<NetPortSample> m_netPorts;
     QList<DiskSample> m_disk;
     ProcInfo          m_proc;
+    StackInfo         m_stack;
+    HealthInfo        m_health;
+    QList<TopProcessInfo> m_top;
 
+    QList<SensorReading> m_sensors;
+    BatteryInfo m_battery;
+    QDateTime m_time;
+    QElapsedTimer m_timeAge;
     int               m_consecutiveParseErrors = 0;
     int               m_reconnectDelayMs       = 1000;
 

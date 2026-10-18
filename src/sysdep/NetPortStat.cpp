@@ -5,6 +5,7 @@
 #include <QFile>
 #include <QHostAddress>
 #include <QLoggingCategory>
+#include <QProcess>
 
 Q_LOGGING_CATEGORY(lcNetPortStat, "krellix.sysdep.netport")
 
@@ -105,6 +106,78 @@ void readSocketFile(const QString &path,
     }
 }
 
+#if defined(Q_OS_MACOS)
+void parseBsdEndpoint(const QString &endpoint, QString &address, quint16 &port)
+{
+    address.clear();
+    port = 0;
+
+    const QString value = endpoint.trimmed();
+    if (value.isEmpty() || value == QStringLiteral("*.*"))
+        return;
+
+    const int dot = value.lastIndexOf(QLatin1Char('.'));
+    if (dot < 0) {
+        address = value;
+        return;
+    }
+
+    address = value.left(dot);
+    if (address == QStringLiteral("*"))
+        address.clear();
+
+    const QString portText = value.mid(dot + 1);
+    if (portText == QStringLiteral("*"))
+        return;
+
+    bool ok = false;
+    const uint raw = portText.toUInt(&ok);
+    if (ok && raw <= 65535)
+        port = static_cast<quint16>(raw);
+}
+
+void readMacSocketTable(const QString &protocol, QList<NetPortSample> &out)
+{
+    QProcess p;
+    p.start(QStringLiteral("netstat"),
+            {QStringLiteral("-an"), QStringLiteral("-p"), protocol});
+    if (!p.waitForFinished(2000)
+        || p.exitStatus() != QProcess::NormalExit
+        || p.exitCode() != 0) {
+        return;
+    }
+
+    const QStringList lines = QString::fromLocal8Bit(p.readAllStandardOutput())
+                                  .split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+    for (const QString &line : lines) {
+        const QString trimmed = line.trimmed();
+        if (!trimmed.startsWith(protocol))
+            continue;
+
+        const QStringList parts = trimmed.simplified().split(QLatin1Char(' '));
+        if ((protocol == QStringLiteral("tcp") && parts.size() < 6)
+            || (protocol == QStringLiteral("udp") && parts.size() < 5)) {
+            continue;
+        }
+
+        NetPortSample s;
+        s.protocol = protocol;
+        QString localAddress;
+        parseBsdEndpoint(parts.at(3), localAddress, s.localPort);
+        quint16 remotePort = 0;
+        QString remoteAddress;
+        parseBsdEndpoint(parts.at(4), remoteAddress, remotePort);
+        s.remotePort = remotePort;
+        if (!remoteAddress.isEmpty())
+            s.remoteAddress = remoteAddress;
+        if (protocol == QStringLiteral("tcp"))
+            s.state = parts.last().toUpper();
+        if (s.localPort > 0)
+            out.append(s);
+    }
+}
+#endif
+
 } // namespace
 
 void NetPortStat::setReadOverride(NetPortStat::ReadFn fn)
@@ -117,9 +190,14 @@ QList<NetPortSample> NetPortStat::read()
     if (g_readOverride) return g_readOverride();
 
     QList<NetPortSample> out;
+#if defined(Q_OS_MACOS)
+    readMacSocketTable(QStringLiteral("tcp"), out);
+    readMacSocketTable(QStringLiteral("udp"), out);
+#else
     readSocketFile(QStringLiteral("/proc/net/tcp"),  QStringLiteral("tcp"), out);
     readSocketFile(QStringLiteral("/proc/net/tcp6"), QStringLiteral("tcp"), out);
     readSocketFile(QStringLiteral("/proc/net/udp"),  QStringLiteral("udp"), out);
     readSocketFile(QStringLiteral("/proc/net/udp6"), QStringLiteral("udp"), out);
+#endif
     return out;
 }

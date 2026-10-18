@@ -42,11 +42,25 @@ int main(int argc, char **argv)
 {
     QTemporaryDir config;
     qputenv("XDG_CONFIG_HOME", config.path().toUtf8());
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, config.path());
     const int result = krellixMain(argc, argv);
     if (completed != 3) {
         qCritical("FAIL: application exited after closing settings (%d/3 completed)", completed);
         return 1;
     }
-    qInfo("PASS: window close, Escape, Close button, and explicit app close");
+    QSettings base(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("isolation-test"), QStringLiteral("krellix"));
+    base.setValue(QStringLiteral("theme/name"), QStringLiteral("base"));
+    base.sync();
+    migrateLegacySettings(QStringLiteral("isolation-test"), QStringLiteral("krellix-host-a"), QStringLiteral("krellix"));
+    QSettings first(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("isolation-test"), QStringLiteral("krellix-host-a"));
+    first.setValue(QStringLiteral("theme/name"), QStringLiteral("custom-a"));
+    first.sync();
+    migrateLegacySettings(QStringLiteral("isolation-test"), QStringLiteral("krellix-host-b"), QStringLiteral("krellix"));
+    migrateLegacySettings(QStringLiteral("isolation-test"), QStringLiteral("krellix-host-a"), QStringLiteral("krellix"));
+    QSettings reopened(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("isolation-test"), QStringLiteral("krellix-host-a"));
+    QSettings second(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("isolation-test"), QStringLiteral("krellix-host-b"));
+    if (reopened.value(QStringLiteral("theme/name")).toString() != QStringLiteral("custom-a")
+        || second.value(QStringLiteral("theme/name")).toString() != QStringLiteral("base")) qFatal("Instance settings leaked or were overwritten");
+    qInfo("PASS: settings lifecycle and independent persistent instance settings");
     return result;
 }

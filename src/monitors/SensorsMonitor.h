@@ -6,6 +6,7 @@
 #include <QPointer>
 
 class Decal;
+class Panel;
 
 // One panel listing each detected temperature sensor as a row of text.
 // First cut: text-only ("CPU 47°C"); fan/voltage and per-sensor krells
@@ -26,6 +27,8 @@ public:
     void     tick() override;
 
 private:
+    QPointer<Panel> m_panel;
+    QPointer<Decal> m_empty;
     QHash<QString, QPointer<Decal>> m_rows;   // key = "chip:label"
 
     Q_DISABLE_COPY_MOVE(SensorsMonitor)
