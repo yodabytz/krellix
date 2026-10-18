@@ -1,3 +1,10 @@
+krellix (0.1.2-9) unstable; urgency=medium
+
+  * Keep the monitor running when Settings is closed; explicitly handle app exit.
+  * Add a settings lifecycle regression test.
+
+ -- yodabytz <hello@cerberix.org>  Sun, 18 Oct 2026 05:00:00 +0000
+
 krellix (0.1.2-8) unstable; urgency=medium
 
   * macOS: force INI settings so ~/.config/krellix/krellix.ini takes precedence

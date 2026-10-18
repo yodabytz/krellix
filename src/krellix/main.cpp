@@ -43,6 +43,10 @@ int main(int argc, char *argv[])
 {
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QApplication app(argc, argv);
+    // The monitor is a Qt::Tool window, which Qt excludes when counting
+    // remaining primary windows. Closing a settings/about dialog must not
+    // terminate the monitor. MainWindow handles explicit close requests.
+    app.setQuitOnLastWindowClosed(false);
     QApplication::setOrganizationName(QStringLiteral("krellix"));
     QApplication::setApplicationVersion(QString::fromUtf8(KRELLIX_VERSION));
 

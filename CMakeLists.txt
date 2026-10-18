@@ -386,3 +386,17 @@ set_target_properties(krellstock PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
 )
 install(TARGETS krellstock LIBRARY DESTINATION lib/krellix/plugins)
+
+include(CTest)
+if(BUILD_TESTING)
+    set(LIFECYCLE_SOURCES ${KRELLIX_SOURCES})
+    list(REMOVE_ITEM LIFECYCLE_SOURCES src/krellix/main.cpp)
+    qt_add_executable(settings-lifecycle tests/settings-lifecycle.cpp ${LIFECYCLE_SOURCES})
+    target_include_directories(settings-lifecycle PRIVATE src)
+    target_link_libraries(settings-lifecycle PRIVATE Qt6::Widgets Qt6::Network)
+    if(APPLE)
+        target_link_libraries(settings-lifecycle PRIVATE ${IOKIT_FRAMEWORK})
+    endif()
+    add_test(NAME settings-lifecycle COMMAND settings-lifecycle --monitors clock)
+    set_tests_properties(settings-lifecycle PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 15)
+endif()

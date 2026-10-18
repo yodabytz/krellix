@@ -1,6 +1,6 @@
 Name:           krellix
 Version:        0.1.2
-Release:        8%{?dist}
+Release:        9%{?dist}
 Summary:        Themeable Qt 6 system monitor in the spirit of GKrellM
 License:        GPL-3.0-or-later
 URL:            https://github.com/yodabytz/krellix
@@ -38,10 +38,13 @@ krellix at it with --host.
     -DCMAKE_INSTALL_PREFIX=%{_prefix}
 %cmake_build
 
+%check
+QT_QPA_PLATFORM=offscreen ctest --test-dir %{__cmake_builddir} --output-on-failure
+
 %install
 %cmake_install
 rm -f %{buildroot}%{_bindir}/krellixd
-rm -rf %{buildroot}%{_libdir}/krellix/plugins
+rm -rf %{buildroot}%{_prefix}/lib/krellix/plugins %{buildroot}%{_libdir}/krellix/plugins
 rm -rf %{buildroot}%{_datadir}/krellix/plugins
 
 install -Dm755 %{__cmake_builddir}/bin/krellixd \
@@ -76,6 +79,9 @@ CONF
 %config(noreplace) %{_sysconfdir}/krellixd/krellixd.conf
 
 %changelog
+* Sun Oct 18 2026 yodabytz <hello@cerberix.org> - 0.1.2-9
+- Keep the monitor running when Settings closes; test dialog lifecycle
+
 * Tue Jun 09 2026 yodabytz <hello@cerberix.org> - 0.1.2-8
 - macOS: force INI settings so ~/.config/krellix/krellix.ini takes precedence
 - macOS: grouped CPU/GPU/I/O sensor temperatures with percent pressure

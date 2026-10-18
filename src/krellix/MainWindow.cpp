@@ -751,6 +751,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     persistPosition();
     QWidget::closeEvent(event);
+    if (event->isAccepted())
+        QCoreApplication::quit();
 }
 
 bool MainWindow::event(QEvent *e)
