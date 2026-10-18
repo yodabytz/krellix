@@ -160,7 +160,12 @@ MainWindow::MainWindow(Theme *theme,
 {
     Q_ASSERT(m_theme);
 
+    // macOS tool panels hide on deactivation and float with other app windows.
+#ifdef Q_OS_MACOS
+    Qt::WindowFlags flags = Qt::FramelessWindowHint | Qt::Window;
+#else
     Qt::WindowFlags flags = Qt::FramelessWindowHint | Qt::Tool;
+#endif
     {
         QSettings s;
         if (s.value(QStringLiteral("window/always_on_top"), false).toBool())
@@ -990,5 +995,6 @@ void MainWindow::showSettings()
                 rebuildPanels();
             });
 
-    dlg->open();
+    // QDialog::open() forces window modality (a sheet on macOS).
+    dlg->show();
 }

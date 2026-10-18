@@ -15,6 +15,9 @@ static void exercise()
     for (QWidget *widget : QApplication::topLevelWidgets())
         if (auto *candidate = qobject_cast<MainWindow *>(widget)) window = candidate;
     if (!window) qFatal("Main window missing");
+#ifdef Q_OS_MACOS
+    if (window->windowType() != Qt::Window) qFatal("Main window must remain a normal Mac window");
+#endif
     static bool moved = false;
     if (!moved) {
         moved = true;
@@ -32,6 +35,11 @@ static void exercise()
     QMetaObject::invokeMethod(window, "showSettings", Qt::DirectConnection);
     auto *dialog = window->findChild<SettingsDialog *>();
     if (!dialog) qFatal("Settings missing");
+    if (dialog->isModal() || dialog->windowModality() != Qt::NonModal)
+        qFatal("Settings must not attach as a modal sheet");
+    const QPoint original = window->pos();
+    dialog->move(dialog->pos() + QPoint(30, 40));
+    if (window->pos() != original) qFatal("Moving settings moved the monitor");
     QPointer<SettingsDialog> guard(dialog);
     QTimer::singleShot(30, dialog, [dialog]() {
         if (completed == 0) dialog->close();
