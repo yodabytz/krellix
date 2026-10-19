@@ -29,6 +29,10 @@ public:
     void     tick() override;
 
 private:
+    void rebuildDisks(const QList<DiskSample> &samples);
+    QPointer<QWidget> m_container;
+    QStringList m_visibleDisks;
+
     struct DiskUI {
         QPointer<Decal> textDecal;
         QPointer<Krell> readKrell;

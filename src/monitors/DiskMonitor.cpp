@@ -6,6 +6,7 @@
 #include "widgets/Panel.h"
 
 #include <QSettings>
+#include <QDebug>
 #include <QString>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -48,7 +49,24 @@ QWidget *DiskMonitor::createWidget(QWidget *parent)
     vbox->setContentsMargins(0, 0, 0, 0);
     vbox->setSpacing(0);
 
-    const QList<DiskSample> samples = DiskStat::read();
+    m_container = container;
+    rebuildDisks(DiskStat::read());
+    return container;
+}
+
+void DiskMonitor::rebuildDisks(const QList<DiskSample> &samples)
+{
+    auto *container = m_container.data();
+    if (!container) return;
+    auto *vbox = static_cast<QVBoxLayout *>(container->layout());
+    while (auto *item = vbox->takeAt(0)) {
+        delete item->widget();
+        delete item;
+    }
+    m_disks.clear();
+    m_prevSamples.clear();
+    m_visibleDisks.clear();
+    m_havePrev = false;
     if (samples.isEmpty()) {
         auto *p = new Panel(theme(), container);
         p->setSurfaceKey(QStringLiteral("panel_bg_disk"));
@@ -57,7 +75,7 @@ QWidget *DiskMonitor::createWidget(QWidget *parent)
                                QStringLiteral("text_secondary"));
         d->setText(QStringLiteral("(no whole disks found)"));
         vbox->addWidget(p);
-        return container;
+        return;
     }
 
     bool added = false;
@@ -79,6 +97,7 @@ QWidget *DiskMonitor::createWidget(QWidget *parent)
         ui.chart      = p->addChart(QStringLiteral("chart_line_disk"));
         if (ui.chart) ui.chart->setMaxValue(ui.maxBps);
 
+        m_visibleDisks.append(s.name);
         m_disks.insert(s.name, ui);
         m_prevSamples.insert(s.name, s);
         vbox->addWidget(p);
@@ -97,12 +116,17 @@ QWidget *DiskMonitor::createWidget(QWidget *parent)
 
     m_havePrev = true;
     m_lastReadTimer.start();
-    return container;
+    qInfo() << "Disk panels updated:" << m_visibleDisks;
+    container->updateGeometry();
 }
 
 void DiskMonitor::tick()
 {
     const QList<DiskSample> samples = DiskStat::read();
+    QStringList visible;
+    for (const auto &sample : samples)
+        if (diskEnabled(sample.name)) visible.append(sample.name);
+    if (visible != m_visibleDisks) rebuildDisks(samples);
     if (samples.isEmpty()) return;
 
     const qint64 elapsedMs = m_lastReadTimer.isValid() ? m_lastReadTimer.elapsed() : 1000;

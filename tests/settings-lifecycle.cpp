@@ -8,6 +8,8 @@
 #include <QPointer>
 #include <QTemporaryDir>
 #include "sysdep/SensorDisplay.h"
+#include "monitors/DiskMonitor.h"
+#include "widgets/Decal.h"
 
 static int completed = 0;
 static void exercise()
@@ -19,6 +21,31 @@ static void exercise()
 #ifdef Q_OS_MACOS
     if (window->windowType() != Qt::Window) qFatal("Main window must remain a normal Mac window");
 #endif
+    static bool diskChecked = false;
+    if (!diskChecked) {
+        diskChecked = true;
+        auto *existing = window->findChild<MonitorBase *>();
+        if (!existing) qFatal("No monitor for disk test theme");
+        DiskMonitor disk(existing->theme());
+        DiskStat::setReadOverride([]() { return QList<DiskSample>{}; });
+        QWidget *panel = disk.createWidget(nullptr);
+        DiskStat::setReadOverride([]() { DiskSample s; s.name = QStringLiteral("vda"); s.sectorsRead = 100; return QList<DiskSample>{s}; });
+        disk.tick();
+        bool foundRate = false;
+        for (auto *label : panel->findChildren<Decal *>()) {
+            if (label->text().contains(QStringLiteral("no whole disks"))) qFatal("Disk panel stayed empty after remote sample");
+            if (label->text().startsWith(QStringLiteral("R "))) foundRate = true;
+        }
+        if (!foundRate) qFatal("Remote disk panel never appeared");
+        DiskStat::setReadOverride([]() { return QList<DiskSample>{}; });
+        disk.tick();
+        bool foundEmpty = false;
+        for (auto *label : panel->findChildren<Decal *>())
+            if (label->text().contains(QStringLiteral("no whole disks"))) foundEmpty = true;
+        if (!foundEmpty) qFatal("Disconnected disk left stale panel");
+        delete panel;
+        DiskStat::setReadOverride(nullptr);
+    }
     static bool moved = false;
     if (!moved) {
         moved = true;
