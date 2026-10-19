@@ -28,3 +28,10 @@ Description: krellixd — remote monitoring daemon for krellix
  The krellixd daemon exposes system metrics over TCP so that krellix
  can monitor remote hosts. Configure it on the host to watch and point
  krellix at it with --host.
+
+Package: krellix-krellbluetooth
+Architecture: any
+Depends: krellix (>= 0.1.2-10), ${shlibs:Depends}, ${misc:Depends}, bluez
+Description: Compact KrellBT Bluetooth monitor plugin for Krellix
+ Shows connected local Bluetooth devices and available battery percentages.
+ Uses the current theme and remains disabled until enabled in Settings.

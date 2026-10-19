@@ -27,6 +27,12 @@ This package contains Intel x86_64 binaries. Apple Silicon requires Rosetta
 and has not been tested. Qt/runtime libraries are bundled; no Homebrew needed.
 Optional external tools/services used by plugins remain separately configured.
 
+Bluetooth is included but disabled by default. Enable it in Settings > Plugins.
+It shows compact, theme-colored device names and available battery percentages.
+Allow Bluetooth access if macOS asks, so it can read connected BLE accessories.
+An em dash means the device/OS did not provide a battery level. Classic headset
+batteries are not available on every Mac/device combination.
+
 The build is ad-hoc signed, not Apple Developer ID signed or notarized.
 macOS may require approving it in System Settings > Privacy & Security after
 you try opening it. Do not disable Gatekeeper globally.

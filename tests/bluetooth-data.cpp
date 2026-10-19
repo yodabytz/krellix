@@ -39,6 +39,17 @@ int main(int argc, char **argv)
     const auto bsd = Bluetooth::parseFreeBsd("Remote BD_ADDR    Handle Type Mode Role Encrypt Pending Queue State\n00:80:37:29:19:a4 41 ACL 0 MAST NONE 0 0 OPEN\n00:80:37:29:19:a4 42 SCO 0 MAST NONE 0 0 OPEN\n00:80:37:29:19:a5 43 ACL 0 MAST NONE 0 0 W4_CONN_COMPLETE\n");
     check(bsd.devices.size() == 1 && bsd.devices.first().battery == -1, "FreeBSD established only, deduplicated, no fake battery");
     check(Bluetooth::parseFreeBsd("permission denied").status == QStringLiteral("Invalid Bluetooth data"), "FreeBSD failure not empty success");
+    Bluetooth::Snapshot ble;
+    ble.devices = {{QStringLiteral("Keyboard"), {}, -1, {}}, {QStringLiteral("Mouse"), {}, 39, {}}};
+    Bluetooth::mergeBleBatteries(ble, R"([{"name":"Keyboard","battery":60},{"name":"Mouse","battery":80}])");
+    check(ble.devices.first().battery == 60 && ble.devices.last().battery == 39, "BLE battery merged, existing reading preserved");
+    ble.devices.first().battery = -1;
+    Bluetooth::mergeBleBatteries(ble, R"([{"name":"Keyboard","battery":60},{"name":"Keyboard","battery":70}])");
+    check(ble.devices.first().battery == -1, "Ambiguous BLE names not matched");
+    Bluetooth::mergeBleBatteries(ble, R"([{"name":"Keyboard","battery":255}])");
+    check(ble.devices.first().battery == -1, "Invalid BLE reading rejected");
+    Bluetooth::mergeBleBatteries(ble, "invalid");
+    check(ble.devices.first().battery == -1, "Malformed BLE output harmless");
     if (argc == 2) {
         QFile file(QString::fromLocal8Bit(argv[1]));
         check(file.open(QIODevice::ReadOnly), "Live Mac capture opens");
@@ -52,6 +63,15 @@ int main(int argc, char **argv)
         qInfo() << "Live Mac connected device count:" << live.devices.size();
         check(!live.devices.isEmpty(), "Live hardware capture contains connected devices");
     }
+#ifdef Q_OS_MACOS
+    Bluetooth::Snapshot renamed;
+    renamed.devices = {{QStringLiteral("Short JBL"), QStringLiteral("AA:BB:CC:DD:EE:FF"), -1, {}}};
+    Bluetooth::mergeMacAccessoryBatteries(renamed, R"([{"name":"Original Name","address":"aa-bb-cc-dd-ee-ff","battery":50,"source":"accessory"}])");
+    check(renamed.devices.first().battery == 50, "Accessory battery follows address after rename");
+    renamed.devices.first().battery = -1;
+    Bluetooth::mergeMacAccessoryBatteries(renamed, R"([{"name":"Short JBL","address":"00:11:22:33:44:55","battery":80,"source":"accessory"}])");
+    check(renamed.devices.first().battery == -1, "Different hardware address never matched by name");
+#endif
     qInfo() << "Bluetooth parser failures:" << failures;
     return failures ? 1 : 0;
 }

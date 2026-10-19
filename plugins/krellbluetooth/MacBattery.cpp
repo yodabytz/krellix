@@ -1,8 +1,32 @@
 #include "BluetoothData.h"
 #include <IOKit/IOKitLib.h>
 #include <CoreFoundation/CoreFoundation.h>
+#include <QJsonDocument>
+#include <QJsonArray>
 
 namespace Bluetooth {
+void mergeMacAccessoryBatteries(Snapshot &snapshot, const QByteArray &json)
+{
+    const auto records = QJsonDocument::fromJson(json).array();
+    QJsonArray ble;
+    for (const auto &record : records) {
+        const auto object = record.toObject();
+        if (object.value(QStringLiteral("source")).toString() == QStringLiteral("ble")) {
+            ble.append(record);
+            continue;
+        }
+        const QString address = object.value(QStringLiteral("address")).toString().replace(QLatin1Char('-'), QLatin1Char(':'));
+        const int battery = object.value(QStringLiteral("battery")).toInt(-1);
+        if (address.isEmpty() || battery < 0 || battery > 100) continue;
+        for (auto &device : snapshot.devices) {
+            if (device.battery < 0 && device.address.compare(address, Qt::CaseInsensitive) == 0) {
+                device.battery = battery;
+                device.batteryDetail = QStringLiteral("Battery: %1% (macOS accessory power)").arg(battery);
+            }
+        }
+    }
+    mergeBleBatteries(snapshot, QJsonDocument(ble).toJson(QJsonDocument::Compact));
+}
 void supplementMacBatteries(Snapshot &snapshot)
 {
     // Apple HID devices often expose their battery in IORegistry rather than

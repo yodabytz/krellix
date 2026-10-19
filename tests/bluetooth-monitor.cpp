@@ -24,6 +24,8 @@ public:
         if (panel->width() != 120 || panel->height() > 110) qFatal("Bluetooth panel is not compact");
         if (monitor.m_rows->layout()->count() != 2) qFatal("Not one row per connected device");
         auto *first = monitor.m_rows->layout()->itemAt(0)->widget();
+        monitor.display(fixture);
+        if (monitor.m_rows->layout()->itemAt(0)->widget() != first) qFatal("Refresh recreated rows and could flash");
         if (!first->toolTip().contains(fixture.devices.first().name) || !first->toolTip().contains(QStringLiteral("39%")))
             qFatal("Full device details missing");
         if (!monitor.m_rows->layout()->itemAt(1)->widget()->toolTip().contains(QStringLiteral("not reported")))

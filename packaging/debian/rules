@@ -8,4 +8,5 @@ override_dh_auto_configure:
 
 override_dh_auto_install:
 	dh_auto_install --destdir=debian/tmp
-	rm -rf debian/tmp/usr/lib/krellix/plugins debian/tmp/usr/share/krellix/plugins
+	find debian/tmp/usr/lib/krellix/plugins -type f ! -name libkrellbluetooth.so -delete
+	rm -rf debian/tmp/usr/share/krellix/plugins

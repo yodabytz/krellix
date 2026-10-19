@@ -4,10 +4,11 @@ root=$(cd "$(dirname "$0")/../.." && pwd)
 build=${KRELLIX_BUILD_DIR:?Set KRELLIX_BUILD_DIR to the tested native Mac build}
 qt=${KRELLIX_QT_PREFIX:?Set KRELLIX_QT_PREFIX to the Qt used for that build}
 out=${KRELLIX_OUT_DIR:-"$root/dist/packages/macos"}
-release=${KRELLIX_MACOS_RELEASE:-0.1.2-20261019}
+release=${KRELLIX_MACOS_RELEASE:-0.1.2-20261019.2}
 stage=$(mktemp -d /tmp/krellix-package.XXXXXX)
 app="$stage/Krellix.app"
-mkdir -p "$app/Contents/"{MacOS,Resources/cli,Resources/plugins/krellmoon,PlugIns/krellix} "$out"
+mkdir -p "$app/Contents/"{MacOS,Helpers,Resources/cli,Resources/plugins/krellmoon,PlugIns/krellix} "$out"
+cp "$build/bin/krellbt-battery" "$app/Contents/Helpers/"
 cp "$build/bin/krellix" "$app/Contents/MacOS/"
 for plugin in krellkam krelldacious krellweather krellwire krellmail krellmoon krellspectrum krellstock krellhealth krellstack krellbluetooth; do
     cp "$build/plugins/lib$plugin.so" "$app/Contents/PlugIns/krellix/"
@@ -30,10 +31,12 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>CFBundleExecutable</key><string>krellix</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.1.2</string>
-<key>CFBundleVersion</key><string>20261019</string>
+<key>CFBundleVersion</key><string>20261019.2</string>
 <key>LSMinimumSystemVersion</key><string>12.0</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>
+<key>NSBluetoothAlwaysUsageDescription</key><string>KrellBT reads battery levels from your connected Bluetooth accessories.</string>
+<key>NSBluetoothPeripheralUsageDescription</key><string>KrellBT reads battery levels from your connected Bluetooth accessories.</string>
 </dict></plist>
 PLIST
 printf '[Paths]\nPlugins = PlugIns\n' > "$app/Contents/Resources/qt.conf"

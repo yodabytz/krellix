@@ -91,4 +91,27 @@ Snapshot parseFreeBsd(const QByteArray &output)
     }
     return result;
 }
+
+void mergeBleBatteries(Snapshot &snapshot, const QByteArray &json)
+{
+    const auto readings = QJsonDocument::fromJson(json).array();
+    // CoreBluetooth exposes a UUID, not a hardware address. Match only names
+    // unique in BOTH connected-device lists; ambiguous devices stay unknown.
+    for (auto &device : snapshot.devices) {
+        if (device.battery >= 0 || device.name.isEmpty()) continue;
+        int devicesWithName = 0, readingsWithName = 0, battery = -1;
+        for (const auto &candidate : snapshot.devices)
+            if (candidate.name == device.name) ++devicesWithName;
+        for (const auto &reading : readings) {
+            const auto object = reading.toObject();
+            if (object.value(QStringLiteral("name")).toString() != device.name) continue;
+            ++readingsWithName;
+            battery = percentage(object.value(QStringLiteral("battery")));
+        }
+        if (devicesWithName == 1 && readingsWithName == 1 && battery >= 0) {
+            device.battery = battery;
+            device.batteryDetail = QStringLiteral("Battery: %1% (Bluetooth Battery Service)").arg(battery);
+        }
+    }
+}
 }

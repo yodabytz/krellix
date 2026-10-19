@@ -1,14 +1,15 @@
 # Maintainer: yodabytz <yodabytz@gmail.com>
 
 pkgbase=krellix
-pkgname=('krellix' 'krellix-server')
+pkgname=('krellix' 'krellix-server' 'krellix-krellbluetooth')
 pkgver=0.1.2
-pkgrel=1
+pkgrel=25
 arch=('x86_64' 'aarch64')
 url='https://github.com/yodabytz/krellix'
 license=('GPL-3.0-or-later')
 makedepends=('cmake' 'ninja' 'qt6-tools' 'qt6-base')
-source=("$pkgbase-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+# Generate from this checkout with git archive --prefix=krellix-0.1.2/.
+source=("$pkgbase-$pkgver.tar.gz")
 sha256sums=('SKIP')
 
 build() {
@@ -22,14 +23,29 @@ build() {
 package_krellix() {
     pkgdesc='Themeable Qt 6 system monitor in the spirit of GKrellM (GUI client)'
     depends=('qt6-base')
-    optdepends=('krellix-server: monitor remote hosts via krellix --host')
+    optdepends=('krellix-server: monitor remote hosts via krellix --host'
+                'krellix-krellbluetooth: connected Bluetooth devices and battery levels')
 
     cd "$pkgbase-$pkgver"
     DESTDIR="$pkgdir" cmake --install build
     rm -f "$pkgdir/usr/bin/krellixd"
+    rm -rf "$pkgdir/usr/lib/krellix/plugins" "$pkgdir/usr/share/krellix/plugins"
 
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
     install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}
+
+package_krellix-krellbluetooth() {
+    pkgdesc='Compact Bluetooth device and battery monitor plugin for Krellix'
+    depends=('krellix>=0.1.2-25' 'qt6-base' 'bluez')
+    cd "$pkgbase-$pkgver"
+    install -Dm755 build/plugins/libkrellbluetooth.so "$pkgdir/usr/lib/krellix/plugins/libkrellbluetooth.so"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
+
+check() {
+    cd "$pkgbase-$pkgver"
+    QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
 }
 
 package_krellix-server() {

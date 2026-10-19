@@ -105,7 +105,7 @@ const QList<QPair<QString, QString>> kMonitorOrderItems = {
     {QStringLiteral("krellhealth"), QStringLiteral("KrellHealth")},
     {QStringLiteral("krelltop"), QStringLiteral("KrellTop")},
     {QStringLiteral("krellwifi"), QStringLiteral("KrellWiFi")},
-    {QStringLiteral("krellbluetooth"), QStringLiteral("KrellBluetooth")},
+    {QStringLiteral("krellbluetooth"), QStringLiteral("Bluetooth")},
     {QStringLiteral("krellstack"), QStringLiteral("KrellStack")},
     {QStringLiteral("disk"),    QStringLiteral("Disk I/O")},
     {QStringLiteral("sensors"), QStringLiteral("Sensors")},
@@ -1087,7 +1087,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         addSimplePluginPage(QStringLiteral("krellwifi"), QStringLiteral("KrellWiFi"),
                             QStringLiteral("Nearby WiFi AP count, strongest signal, busy channels, and security summary."),
                             &m_krellwifiEnabled);
-        addSimplePluginPage(QStringLiteral("krellbluetooth"), QStringLiteral("KrellBluetooth"),
+        addSimplePluginPage(QStringLiteral("krellbluetooth"), QStringLiteral("Bluetooth"),
                             QStringLiteral("Connected local Bluetooth devices and battery levels when reported. Refreshes every 15 seconds; hover for full names and battery details. Remote hosts are not supported."),
                             &m_krellbluetoothEnabled);
         addSimplePluginPage(QStringLiteral("krellhealth"), QStringLiteral("KrellHealth"),

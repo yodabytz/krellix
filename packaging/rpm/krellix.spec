@@ -1,6 +1,6 @@
 Name:           krellix
 Version:        0.1.2
-Release:        9%{?dist}
+Release:        10%{?dist}
 Summary:        Themeable Qt 6 system monitor in the spirit of GKrellM
 License:        GPL-3.0-or-later
 URL:            https://github.com/yodabytz/krellix
@@ -30,6 +30,13 @@ The krellixd daemon exposes system metrics over TCP so that krellix can
 monitor remote hosts. Run it on the host you want to watch and point
 krellix at it with --host.
 
+%package krellbluetooth
+Summary:        KrellBT compact Bluetooth device and battery monitor plugin
+Requires:       krellix >= 0.1.2-10
+Requires:       bluez
+%description krellbluetooth
+Optional local Bluetooth monitor using BlueZ. Disabled by default.
+
 %prep
 %autosetup -n %{name}-%{version}
 
@@ -44,7 +51,7 @@ QT_QPA_PLATFORM=offscreen ctest --test-dir %{__cmake_builddir} --output-on-failu
 
 %install
 %cmake_install
-rm -rf %{buildroot}%{_prefix}/lib/krellix/plugins %{buildroot}%{_libdir}/krellix/plugins
+find %{buildroot}%{_prefix}/lib/krellix/plugins -type f ! -name libkrellbluetooth.so -delete
 rm -rf %{buildroot}%{_datadir}/krellix/plugins
 
 
@@ -76,7 +83,14 @@ CONF
 %{_unitdir}/krellixd.service
 %config(noreplace) %{_sysconfdir}/krellixd/krellixd.conf
 
+%files krellbluetooth
+%license LICENSE
+%{_prefix}/lib/krellix/plugins/libkrellbluetooth.so
+
 %changelog
+* Mon Oct 19 2026 yodabytz <hello@cerberix.org> - 0.1.2-10
+- Add optional compact KrellBT plugin with theme accents and battery monitoring
+
 * Sun Oct 18 2026 yodabytz <hello@cerberix.org> - 0.1.2-9
 - Keep the monitor running when Settings closes; test dialog lifecycle
 
