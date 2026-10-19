@@ -9,7 +9,7 @@ stage=$(mktemp -d /tmp/krellix-package.XXXXXX)
 app="$stage/Krellix.app"
 mkdir -p "$app/Contents/"{MacOS,Resources/cli,Resources/plugins/krellmoon,PlugIns/krellix} "$out"
 cp "$build/bin/krellix" "$app/Contents/MacOS/"
-for plugin in krellkam krelldacious krellweather krellwire krellmail krellmoon krellspectrum krellstock krellhealth krellstack; do
+for plugin in krellkam krelldacious krellweather krellwire krellmail krellmoon krellspectrum krellstock krellhealth krellstack krellbluetooth; do
     cp "$build/plugins/lib$plugin.so" "$app/Contents/PlugIns/krellix/"
 done
 cp -R "$root/themes" "$app/Contents/Resources/"

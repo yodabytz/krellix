@@ -169,6 +169,7 @@ private:
     QCheckBox   *m_krellhealthEnabled = nullptr;
     QCheckBox   *m_krelltopEnabled = nullptr;
     QCheckBox   *m_krellwifiEnabled = nullptr;
+    QCheckBox   *m_krellbluetoothEnabled = nullptr;
     QCheckBox   *m_krellstackEnabled = nullptr;
     QLineEdit   *m_krellstackHosts = nullptr;
     QList<QCheckBox *> m_krellpkgSystemChecks;

@@ -137,7 +137,8 @@ QList<MonitorBase *> PluginLoader::discoverAndLoad(Theme *theme,
                 << " (factory ready)";
 
             if (RemoteSource::instance() && (plugin->pluginId().section(QLatin1Char('.'), -1) == QStringLiteral("krellwifi")
-                || plugin->pluginId().section(QLatin1Char('.'), -1) == QStringLiteral("krellpkg"))) {
+                || plugin->pluginId().section(QLatin1Char('.'), -1) == QStringLiteral("krellpkg")
+                || plugin->pluginId().section(QLatin1Char('.'), -1) == QStringLiteral("krellbluetooth"))) {
                 qCInfo(lcPlugin) << "Local-only plugin unavailable for remote host:" << plugin->pluginId();
                 loader->deleteLater();
                 continue;

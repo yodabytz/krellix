@@ -105,6 +105,7 @@ const QList<QPair<QString, QString>> kMonitorOrderItems = {
     {QStringLiteral("krellhealth"), QStringLiteral("KrellHealth")},
     {QStringLiteral("krelltop"), QStringLiteral("KrellTop")},
     {QStringLiteral("krellwifi"), QStringLiteral("KrellWiFi")},
+    {QStringLiteral("krellbluetooth"), QStringLiteral("KrellBluetooth")},
     {QStringLiteral("krellstack"), QStringLiteral("KrellStack")},
     {QStringLiteral("disk"),    QStringLiteral("Disk I/O")},
     {QStringLiteral("sensors"), QStringLiteral("Sensors")},
@@ -1086,6 +1087,9 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         addSimplePluginPage(QStringLiteral("krellwifi"), QStringLiteral("KrellWiFi"),
                             QStringLiteral("Nearby WiFi AP count, strongest signal, busy channels, and security summary."),
                             &m_krellwifiEnabled);
+        addSimplePluginPage(QStringLiteral("krellbluetooth"), QStringLiteral("KrellBluetooth"),
+                            QStringLiteral("Connected local Bluetooth devices and battery levels when reported. Refreshes every 15 seconds; hover for full names and battery details. Remote hosts are not supported."),
+                            &m_krellbluetoothEnabled);
         addSimplePluginPage(QStringLiteral("krellhealth"), QStringLiteral("KrellHealth"),
                             QStringLiteral("Compact health summary with tooltip details for failed services, storage, SMART, package transactions, certificates, time sync, backups, and reboot state."),
                             &m_krellhealthEnabled);
@@ -1733,6 +1737,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         });
     }
     wireSimplePlugin(m_krellwifiEnabled, QStringLiteral("plugins/krellwifi/enabled"));
+    wireSimplePlugin(m_krellbluetoothEnabled, QStringLiteral("plugins/krellbluetooth/enabled"));
     wireSimplePlugin(m_krellhealthEnabled, QStringLiteral("plugins/krellhealth/enabled"));
     wireSimplePlugin(m_krelltopEnabled, QStringLiteral("plugins/krelltop/enabled"));
     wireSimplePlugin(m_krellstackEnabled, QStringLiteral("plugins/krellstack/enabled"));
@@ -2022,6 +2027,8 @@ void SettingsDialog::loadFromSettings()
             s.value(QStringLiteral("plugins/krellpkg/exclude_patterns")).toString());
     if (m_krellwifiEnabled)
         m_krellwifiEnabled->setChecked(s.value(QStringLiteral("plugins/krellwifi/enabled"), false).toBool());
+    if (m_krellbluetoothEnabled)
+        m_krellbluetoothEnabled->setChecked(s.value(QStringLiteral("plugins/krellbluetooth/enabled"), false).toBool());
     if (m_krellhealthEnabled)
         m_krellhealthEnabled->setChecked(s.value(QStringLiteral("plugins/krellhealth/enabled"), false).toBool());
     if (m_krelltopEnabled)
