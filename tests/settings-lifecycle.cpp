@@ -66,7 +66,7 @@ int main(int argc, char **argv)
     const QList<SensorReading> input{a, b, disk};
     const auto compact = sensorDisplayReadings(input, false);
     if (compact.size() != 2 || compact[0].value != 80 || compact[0].critC != 100
-        || compact[0].label != QStringLiteral("coretemp max") || compact[1].value != 40)
+        || compact[0].label != QStringLiteral("CPU") || compact[1].value != 40)
         qFatal("Compact sensors lost maximum temperature or mixed chip readings");
     if (sensorDisplayReadings(input, true).size() != 3
         || !sensorDisplayReadings({}, false).isEmpty()) qFatal("Detailed/empty sensor regression");

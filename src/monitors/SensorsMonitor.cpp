@@ -84,7 +84,7 @@ void SensorsMonitor::tick()
 {
     QSettings s;
     const bool useFahrenheit = s.value(QStringLiteral("monitors/sensors/use_fahrenheit"), false).toBool();
-    const int  displayMode   = s.value(QStringLiteral("monitors/sensors/display_mode"), kModeTempAndPct).toInt();
+    const int  displayMode   = s.value(QStringLiteral("monitors/sensors/display_mode"), kModeTempOnly).toInt();
     const double warnC       = s.value(QStringLiteral("monitors/sensors/warn_celsius"),  70).toDouble();
     const double critC       = s.value(QStringLiteral("monitors/sensors/crit_celsius"),  85).toDouble();
 
@@ -139,6 +139,7 @@ void SensorsMonitor::tick()
 
         if (g.hasTemp) {
             const SensorReading &r = g.temp;
+            d->setToolTip(QStringLiteral("%1: %2").arg(r.chip, r.label));
             const double hwCrit = effectiveCritC(r, critC);
             const int pct = g.hasPercent
                                 ? qBound(0, qRound(g.percent.value), 100)

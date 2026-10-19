@@ -21,7 +21,13 @@ inline QList<SensorReading> sensorDisplayReadings(const QList<SensorReading> &re
         } else if (reading.value > result[temperatures.value(chip)].value) {
             result[temperatures.value(chip)] = reading;
         }
-        result[temperatures.value(chip)].label = chip + QStringLiteral(" max");
+        QString label = chip;
+        if (chip == QStringLiteral("coretemp") || chip == QStringLiteral("k10temp")) label = QStringLiteral("CPU");
+        else if (chip == QStringLiteral("nvme")) label = QStringLiteral("SSD");
+        else if (chip.startsWith(QStringLiteral("pch_"))) label = QStringLiteral("PCH");
+        else if (chip == QStringLiteral("jc42")) label = QStringLiteral("RAM");
+        else if (chip == QStringLiteral("acpitz")) label = QStringLiteral("ACPI");
+        result[temperatures.value(chip)].label = label;
     }
     return result;
 }

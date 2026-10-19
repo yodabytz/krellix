@@ -1276,7 +1276,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             mode->addItem(QStringLiteral("Temperature + Percent"), 0);
             mode->addItem(QStringLiteral("Temperature only"),      1);
             mode->addItem(QStringLiteral("Percent only"),          2);
-            const int modeIdx = s.value(QStringLiteral("monitors/sensors/display_mode"), 0).toInt();
+            const int modeIdx = s.value(QStringLiteral("monitors/sensors/display_mode"), 1).toInt();
             mode->setCurrentIndex(qBound(0, modeIdx, 2));
             form->addRow(QStringLiteral("Display mode:"), mode);
             auto *warn = new QSpinBox(&dlg);
