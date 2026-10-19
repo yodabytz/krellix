@@ -1,0 +1,44 @@
+#!/bin/bash
+set -eu
+base="${KRELLIX_INSTANCES_DIR:-$HOME/Library/Application Support/Krellix/Instances}"
+domain="gui/$(id -u)"
+app="${KRELLIX_APP:-/Applications/Krellix.app}"
+mkdir -p "$base"
+chmod 700 "$base"
+add_instance() {
+    name="$1"; host="${2:-}"
+    [[ "$name" =~ ^[A-Za-z0-9_-]+$ ]] || { echo 'Invalid instance name.' >&2; exit 2; }
+    [[ -z "$host" || "$host" =~ ^[A-Za-z0-9.:_-]+$ ]] || { echo 'Invalid host; use hostname[:port] or IPv4.' >&2; exit 2; }
+    label="com.krellix.$name"
+    /bin/launchctl print "$domain/$label" >/dev/null 2>&1 && { echo "Stop $name before changing it." >&2; exit 2; }
+    plist="$base/$label.plist"
+    [[ ! -e "$plist" ]] || cp "$plist" "$plist.backup"
+    /usr/libexec/PlistBuddy -c Clear "$plist" >/dev/null
+    /usr/libexec/PlistBuddy -c "Add :Label string $label" -c 'Add :ProgramArguments array' -c "Add :ProgramArguments:0 string $app/Contents/MacOS/krellix" "$plist"
+    if [[ -n "$host" ]]; then
+        /usr/libexec/PlistBuddy -c 'Add :ProgramArguments:1 string --host' -c "Add :ProgramArguments:2 string $host" -c 'Add :ProgramArguments:3 string --instance' -c "Add :ProgramArguments:4 string $name" "$plist"
+    fi
+    /usr/libexec/PlistBuddy -c 'Add :RunAtLoad bool true' -c 'Add :KeepAlive bool false' -c 'Add :ProcessType string Interactive' -c 'Add :LimitLoadToSessionType string Aqua' -c "Add :StandardOutPath string $base/$label.log" -c "Add :StandardErrorPath string $base/$label.log" "$plist"
+    /usr/bin/plutil -lint "$plist" >/dev/null
+    echo "Configured $name${host:+: $host}"
+}
+case "${1:-start}" in
+add) [[ $# -ge 2 && $# -le 3 ]] || { echo 'Usage: krellix-all add NAME [HOST[:PORT]]' >&2; exit 2; }; add_instance "$2" "${3:-}" ;;
+start|stop|status)
+    shopt -s nullglob
+    files=("$base"/com.krellix.*.plist)
+    if [[ ${#files[@]} -eq 0 && "${1:-start}" == start ]]; then add_instance local; files=("$base"/com.krellix.*.plist); fi
+    for plist in "${files[@]}"; do
+        label=$(/usr/libexec/PlistBuddy -c 'Print :Label' "$plist")
+        case "${1:-start}" in
+        start)
+            if /bin/launchctl print "$domain/$label" >/dev/null 2>&1; then
+                if ! /bin/launchctl print "$domain/$label" | /usr/bin/grep -q 'pid ='; then /bin/launchctl kickstart "$domain/$label"; fi
+            else /bin/launchctl bootstrap "$domain" "$plist"; fi ;;
+        stop) /bin/launchctl bootout "$domain/$label" 2>/dev/null || true ;;
+        status)
+            if /bin/launchctl print "$domain/$label" 2>/dev/null | /usr/bin/grep -q 'pid ='; then echo "$label: running"; else echo "$label: stopped"; fi ;;
+        esac
+    done ;;
+*) echo 'Usage: krellix-all [start|stop|status|add NAME [HOST[:PORT]]]' >&2; exit 2 ;;
+esac

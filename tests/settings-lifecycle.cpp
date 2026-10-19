@@ -19,6 +19,7 @@ static void exercise()
         if (auto *candidate = qobject_cast<MainWindow *>(widget)) window = candidate;
     if (!window) qFatal("Main window missing");
 #ifdef Q_OS_MACOS
+    if (!isMacAccessoryApplication()) qFatal("Mac monitor unexpectedly appears in Dock");
     if (window->windowType() != Qt::Window) qFatal("Main window must remain a normal Mac window");
 #endif
     static bool diskChecked = false;

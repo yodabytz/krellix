@@ -314,7 +314,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             for (const DiskSample &disk : disks) {
                 auto *cb = new QCheckBox(disk.name, page);
                 cb->setChecked(ds.value(QStringLiteral("monitors/disk/devices/") + disk.name,
-                                        true).toBool());
+                                        !disk.name.startsWith(QStringLiteral("loop"))).toBool());
                 cb->setEnabled(ds.value(QStringLiteral("monitors/disk"), true).toBool());
                 layout->addWidget(cb);
                 const QString name = disk.name;

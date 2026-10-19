@@ -29,7 +29,7 @@ constexpr double kAdaptiveGrow   = 1.10;
 bool diskEnabled(const QString &name)
 {
     return QSettings().value(QStringLiteral("monitors/disk/devices/") + name,
-                             true).toBool();
+                             !name.startsWith(QStringLiteral("loop"))).toBool();
 }
 
 } // namespace

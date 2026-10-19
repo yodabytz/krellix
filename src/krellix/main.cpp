@@ -23,6 +23,10 @@
 #  define KRELLIX_VERSION "0.0.0"
 #endif
 
+#ifdef Q_OS_MACOS
+bool configureMacAccessoryApplication();
+bool isMacAccessoryApplication();
+#endif
 namespace {
 
 // Slug-safe per-instance suffix derived from a free-form name. Drops anything
@@ -108,6 +112,10 @@ int main(int argc, char *argv[])
 {
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QApplication app(argc, argv);
+#ifdef Q_OS_MACOS
+    if (!configureMacAccessoryApplication())
+        qWarning("Unable to hide the Krellix Dock icon");
+#endif
     // The monitor is a Qt::Tool window, which Qt excludes when counting
     // remaining primary windows. Closing a settings/about dialog must not
     // terminate the monitor. MainWindow handles explicit close requests.
