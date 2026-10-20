@@ -194,14 +194,24 @@ QJsonObject healthObject()
         addFinding(findings, QStringLiteral("warning"), QStringLiteral("Time sync off"));
     }
 
-    const QString pkgErrors = runProgram(QStringLiteral("sh"),
-        {QStringLiteral("-c"),
-         QStringLiteral("(grep -Ei 'error|failed|conflict' /var/log/pacman.log 2>/dev/null; "
-                        "find /var/log/apt -type f \\( -name '*.log' -o -name 'term.log' \\) 2>/dev/null | xargs -r grep -Ei 'error|failed|conflict' 2>/dev/null; "
-                        "grep -Ei 'error|failed|conflict' /var/log/dnf.log 2>/dev/null) | tail -n 5")}, 2500);
-    if (!pkgErrors.isEmpty()) {
-        addFinding(findings, QStringLiteral("warning"), QStringLiteral("Package transaction errors"),
-                   nonEmptyLineList(pkgErrors).mid(0, 3).join(QStringLiteral("; ")).left(180));
+    if (!QStandardPaths::findExecutable(QStringLiteral("dpkg")).isEmpty()) {
+        QProcess audit;
+        audit.start(QStringLiteral("dpkg"), {QStringLiteral("--audit")});
+        const bool finished = audit.waitForFinished(5000);
+        if (!finished) { audit.kill(); audit.waitForFinished(200); }
+        const QString result = QString::fromLocal8Bit(audit.readAllStandardOutput()).trimmed();
+        if (!finished || audit.exitStatus() != QProcess::NormalExit || audit.exitCode() != 0)
+            addFinding(findings, QStringLiteral("warning"), QStringLiteral("Package check unavailable"),
+                       QStringLiteral("dpkg --audit could not complete"));
+        else if (!result.isEmpty())
+            addFinding(findings, QStringLiteral("warning"), QStringLiteral("Package configuration incomplete"),
+                       nonEmptyLineList(result).mid(0, 3).join(QStringLiteral("; ")).left(180));
+    } else {
+        const QString pkgErrors = runProgram(QStringLiteral("sh"),
+            {QStringLiteral("-c"), QStringLiteral("(grep -Ei 'error|failed|conflict' /var/log/pacman.log 2>/dev/null; grep -Ei 'error|failed|conflict' /var/log/dnf.log 2>/dev/null) | tail -n 5")}, 2500);
+        if (!pkgErrors.isEmpty())
+            addFinding(findings, QStringLiteral("warning"), QStringLiteral("Package log warnings"),
+                       QStringLiteral("Historical log entries: ") + nonEmptyLineList(pkgErrors).mid(0, 3).join(QStringLiteral("; ")).left(180));
     }
 
     QJsonObject out;

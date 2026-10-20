@@ -249,10 +249,9 @@ void KrellhealthMonitor::tick()
         m_pendingJobs << CheckJob{QStringLiteral("pacmanlog"), QStringLiteral("pacman"),
                                   QStringLiteral("sh"), {QStringLiteral("-c"),
                                   QStringLiteral("grep -Ei 'error|failed|conflict' /var/log/pacman.log 2>/dev/null | tail -n 5")}, 2500};
-    if (haveCommand(QStringLiteral("apt")))
-        m_pendingJobs << CheckJob{QStringLiteral("aptlog"), QStringLiteral("apt"),
-                                  QStringLiteral("sh"), {QStringLiteral("-c"),
-                                  QStringLiteral("find /var/log/apt -type f -name '*.log' -o -name 'term.log' 2>/dev/null | xargs -r grep -Ei 'error|failed|conflict' | tail -n 5")}, 2500};
+    if (haveCommand(QStringLiteral("dpkg")))
+        m_pendingJobs << CheckJob{QStringLiteral("dpkg-audit"), QStringLiteral("dpkg"),
+                                  QStringLiteral("dpkg"), {QStringLiteral("--audit")}, 5000};
     if (haveCommand(QStringLiteral("dnf")))
         m_pendingJobs << CheckJob{QStringLiteral("dnflog"), QStringLiteral("dnf"),
                                   QStringLiteral("sh"), {QStringLiteral("-c"),
@@ -418,6 +417,11 @@ void KrellhealthMonitor::finishJob(const CheckJob &job, const QString &output, i
         if (output.contains(QStringLiteral("no"), Qt::CaseInsensitive)
             || output.contains(QStringLiteral("false"), Qt::CaseInsensitive))
             addFinding(Severity::Warn, QStringLiteral("Time sync off"));
+    } else if (job.id == QStringLiteral("dpkg-audit")) {
+        if (exitCode != 0)
+            addFinding(Severity::Warn, QStringLiteral("Package check unavailable"), QStringLiteral("dpkg --audit could not complete"));
+        else if (!outLines.isEmpty())
+            addFinding(Severity::Warn, QStringLiteral("Package configuration incomplete"), outLines.mid(0, 3).join(QStringLiteral("; ")).left(180));
     } else if (job.id.endsWith(QStringLiteral("log"))) {
         if (!outLines.isEmpty())
             addFinding(Severity::Warn, QStringLiteral("%1 transaction errors").arg(job.label),

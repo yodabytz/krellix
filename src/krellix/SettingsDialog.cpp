@@ -1063,8 +1063,13 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
                 const QString id = packageSystems.at(i).first;
                 auto *cb = new QCheckBox(packageSystems.at(i).second, group);
                 cb->setProperty("krellpkg_system_id", id);
+#ifdef Q_OS_MACOS
+                const bool defaultPackageSystem = id == QStringLiteral("brew");
+#else
+                const bool defaultPackageSystem = false;
+#endif
                 cb->setChecked(pkgSettings.value(QStringLiteral("plugins/krellpkg/systems/") + id,
-                                                  false).toBool());
+                                                  defaultPackageSystem).toBool());
                 systems->addWidget(cb, i / 2, i % 2);
                 m_krellpkgSystemChecks.append(cb);
             }
