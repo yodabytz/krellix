@@ -1,4 +1,5 @@
 #include "ClientSession.h"
+#include "PackageProbe.h"
 
 #include "sysdep/CpuStat.h"
 #include "sysdep/SensorStat.h"
@@ -455,7 +456,7 @@ QJsonObject helloObject(int intervalMs)
         << QStringLiteral("net_ports")
         << QStringLiteral("disk")
         << QStringLiteral("top")
-        << QStringLiteral("health");
+        << QStringLiteral("health") << QStringLiteral("packages");
     mon << QStringLiteral("sensors") << QStringLiteral("battery") << QStringLiteral("clock");
     o.insert(QStringLiteral("monitors"), mon);
     return o;
@@ -577,6 +578,7 @@ QJsonObject sampleObject()
     proc.insert(QStringLiteral("processes"), p.processes);
     proc.insert(QStringLiteral("users"),     p.users);
     o.insert(QStringLiteral("proc"), proc);
+    o.insert(QStringLiteral("packages"), packageUpdateObject());
     o.insert(QStringLiteral("health"), healthObject());
     o.insert(QStringLiteral("top"), topProcessArray());
 

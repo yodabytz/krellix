@@ -12,6 +12,7 @@
 #include "sysdep/ProcStat.h"
 
 #include <QByteArray>
+#include <QJsonObject>
 #include <QList>
 #include <QObject>
 #include <QString>
@@ -86,6 +87,7 @@ public:
     ProcInfo          procInfo()    const { return m_proc; }
     StackInfo         stackInfo()   const { return m_stack; }
     HealthInfo        healthInfo()  const { return m_health; }
+    QJsonObject       packageInfo() const { return m_packages; }
     QList<TopProcessInfo> topProcesses() const { return m_top; }
 
     QList<SensorReading> sensorReadings() const { return m_sensors; }
@@ -135,6 +137,9 @@ private:
     QElapsedTimer m_timeAge;
     int               m_consecutiveParseErrors = 0;
     int               m_reconnectDelayMs       = 1000;
+
+    // Append telemetry fields to preserve offsets used by existing plugins.
+    QJsonObject       m_packages;
 
     Q_DISABLE_COPY_MOVE(RemoteSource)
 };

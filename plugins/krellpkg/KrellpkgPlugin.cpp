@@ -6,6 +6,7 @@
 #include <QProcessEnvironment>
 #include <QDebug>
 #include <memory>
+#include <QJsonArray>
 
 #include <QProcess>
 #include <QRegularExpression>
@@ -190,6 +191,10 @@ QList<KrellpkgMonitor::CheckJob> enabledJobs()
 KrellpkgMonitor::KrellpkgMonitor(Theme *theme, QObject *parent)
     : MonitorBase(theme, parent)
 {
+    if (auto *remote = RemoteSource::instance()) {
+        connect(remote, &RemoteSource::sampleReceived, this, &KrellpkgMonitor::updateRemote);
+        connect(remote, &RemoteSource::connectionStateChanged, this, &KrellpkgMonitor::updateRemote);
+    }
 }
 
 QWidget *KrellpkgMonitor::createWidget(QWidget *parent)
@@ -209,6 +214,7 @@ QWidget *KrellpkgMonitor::createWidget(QWidget *parent)
 
 void KrellpkgMonitor::tick()
 {
+    if (RemoteSource::instance()) { updateRemote(); return; }
     if (m_updating)
         return;
 
@@ -226,6 +232,32 @@ void KrellpkgMonitor::tick()
     if (m_summary)
         m_summary->setText(QStringLiteral("Checking packages..."));
     startNextCheck();
+}
+
+void KrellpkgMonitor::updateRemote()
+{
+    auto *remote = RemoteSource::instance();
+    if (!remote || !m_summary) return;
+    const auto info = remote->packageInfo();
+    const QString status = info.value(QStringLiteral("status")).toString();
+    QString text;
+    if (!remote->isConnected()) text = QStringLiteral("Server disconnected");
+    else if (status == QStringLiteral("checking")) text = QStringLiteral("Checking packages...");
+    else if (status == QStringLiteral("ok") && info.value(QStringLiteral("count")).isDouble())
+        text = QStringLiteral("%1 %2").arg(info.value(QStringLiteral("system")).toString()).arg(info.value(QStringLiteral("count")).toInt());
+    else if (status == QStringLiteral("error")) text = QStringLiteral("Server check failed");
+    else text = QStringLiteral("Server data unavailable");
+    if (m_summary->text() != text) {
+        m_summary->setText(text);
+        qInfo().noquote() << "krellpkg remote:" << remote->remoteAddress() << text;
+    }
+    QStringList details{QStringLiteral("Server: ") + remote->remoteHostname(),
+        QStringLiteral("Checked: ") + info.value(QStringLiteral("checked_at")).toString(),
+        QStringLiteral("Uses the server's cached package lists; no upgrades are installed."),
+        QStringLiteral("Package lists updated: ") + info.value(QStringLiteral("index_updated_at")).toString()};
+    for (const auto &name : info.value(QStringLiteral("packages")).toArray()) details << name.toString();
+    m_summary->setToolTip(details.join(QLatin1Char('\n')));
+    if (m_detail) m_detail->setText(QString());
 }
 
 void KrellpkgMonitor::startNextCheck()
@@ -308,7 +340,7 @@ void KrellpkgMonitor::updateDisplay()
 
 QList<MonitorBase *> KrellpkgPlugin::createMonitors(Theme *theme, QObject *parent)
 {
-    if (RemoteSource::instance() || !QSettings().value(QStringLiteral("plugins/krellpkg/enabled"), false).toBool())
+    if (!QSettings().value(QStringLiteral("plugins/krellpkg/enabled"), false).toBool())
         return {};
     return {new KrellpkgMonitor(theme, parent)};
 }

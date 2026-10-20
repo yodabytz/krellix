@@ -56,7 +56,17 @@ int main(int argc, char **argv) {
  KrellpkgPlugin plugin;
  if (!plugin.createMonitors(&theme, &app).isEmpty()) qFatal("Enabled by default");
  QSettings().setValue(QStringLiteral("plugins/krellpkg/enabled"), true);
- { RemoteSource remote; if (!plugin.createMonitors(&theme, &app).isEmpty()) qFatal("Local packages leaked into remote"); }
+ { RemoteSource remote;
+   auto monitors = plugin.createMonitors(&theme, &app);
+   if (monitors.size() != 1) qFatal("Remote package panel missing");
+   QWidget *panel = monitors.first()->createWidget(nullptr);
+   monitors.first()->tick();
+   bool disconnected = false;
+   for (auto *label : panel->findChildren<Decal*>())
+       if (label->text() == QStringLiteral("Server disconnected")) disconnected = true;
+   if (!disconnected) qFatal("Remote panel did not show connection state");
+   delete panel; qDeleteAll(monitors);
+ }
  PackageMonitorTest::run(theme, tmp.path());
  qInfo("PASS: slow package check, stderr exclusion, failed/empty/missing checks, no selection and remote isolation");
 }

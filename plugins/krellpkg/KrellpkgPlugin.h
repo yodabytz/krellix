@@ -33,6 +33,7 @@ public:
 private:
     friend class PackageMonitorTest;
     void startNextCheck();
+    void updateRemote();
     void finishCheck(const CheckJob &job, const QString &output);
     void updateDisplay();
 

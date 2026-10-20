@@ -1,3 +1,4 @@
+#include "remote/RemoteSource.h"
 #include "SettingsDialog.h"
 
 #include "krellix/KrellmailOAuthBroker.h"
@@ -1084,6 +1085,12 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             label->setWordWrap(true);
             form->addRow(QStringLiteral("Filters:"), label);
 
+            if (RemoteSource::instance()) {
+                systemsWidget->setEnabled(false);
+                m_krellpkgIncludePatterns->setEnabled(false);
+                m_krellpkgExcludePatterns->setEnabled(false);
+                label->setText(QStringLiteral("Shows available updates from this server's package lists. Local package-system selections and filters do not apply. The daemon checks every five minutes without installing upgrades."));
+            }
             pluginLayout->addWidget(group);
             pluginLayout->addStretch(1);
             m_pluginList->addItem(QStringLiteral("Krellpkg"));

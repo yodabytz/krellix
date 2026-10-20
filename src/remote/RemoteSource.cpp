@@ -294,6 +294,7 @@ void RemoteSource::parseLine(const QByteArray &line)
             health.findings.append(finding);
     }
     m_health = health;
+    m_packages = obj.value(QStringLiteral("packages")).toObject();
 
     QList<TopProcessInfo> top;
     for (const QJsonValue &v : obj.value(QStringLiteral("top")).toArray()) {
@@ -350,6 +351,7 @@ void RemoteSource::resetCachedState()
     m_proc = ProcInfo{};
     m_stack = StackInfo{};
     m_health = HealthInfo{};
+    m_packages = QJsonObject{};
     m_top.clear();
     // -1 is the "unknown" sentinel UptimeMonitor uses to render "?".
     // Zero would render as "00:00" — actively misleading during a
