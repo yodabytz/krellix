@@ -38,7 +38,6 @@ private:
     void updateDisplay();
 
     QPointer<Decal> m_summary;
-    QPointer<Decal> m_detail;
     QPointer<QProcess> m_process;
     QList<CheckJob> m_pendingJobs;
     QStringList m_details;

@@ -204,8 +204,6 @@ QWidget *KrellpkgMonitor::createWidget(QWidget *parent)
     panel->setTitle(QStringLiteral("Packages"));
     m_summary = panel->addDecal(QStringLiteral("label"), QStringLiteral("text_primary"));
     m_summary->setAlignment(Qt::AlignHCenter);
-    m_detail = panel->addDecal(QStringLiteral("label"), QStringLiteral("text_secondary"));
-    m_detail->setAlignment(Qt::AlignHCenter);
     if (m_summary)
         m_summary->setText(QStringLiteral("Checking packages..."));
     QTimer::singleShot(0, this, &KrellpkgMonitor::tick);
@@ -257,7 +255,6 @@ void KrellpkgMonitor::updateRemote()
         QStringLiteral("Package lists updated: ") + info.value(QStringLiteral("index_updated_at")).toString()};
     for (const auto &name : info.value(QStringLiteral("packages")).toArray()) details << name.toString();
     m_summary->setToolTip(details.join(QLatin1Char('\n')));
-    if (m_detail) m_detail->setText(QString());
 }
 
 void KrellpkgMonitor::startNextCheck()
@@ -330,12 +327,10 @@ void KrellpkgMonitor::updateDisplay()
     const QString summary = !compact.isEmpty() ? compact.join(QStringLiteral(" | "))
         : m_checks == 0 ? QStringLiteral("Select package systems") : QStringLiteral("Check failed");
     if (m_summary) {
-        m_summary->setText(summary);
+        m_summary->setText(summary + (!m_errors.isEmpty() && !compact.isEmpty() ? QStringLiteral(" !") : QString()));
         m_summary->setToolTip((m_details + m_errors).join(QLatin1Char('\n')));
     }
     qInfo().noquote() << "krellpkg:" << summary << m_errors.join(QStringLiteral("; "));
-    if (m_detail)
-        m_detail->setText(m_errors.isEmpty() ? QString() : m_errors.first());
 }
 
 QList<MonitorBase *> KrellpkgPlugin::createMonitors(Theme *theme, QObject *parent)
