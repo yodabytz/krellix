@@ -498,3 +498,14 @@ if(BUILD_TESTING)
     add_test(NAME package-probe COMMAND package-probe)
     set_tests_properties(package-probe PROPERTIES TIMEOUT 15)
 endif()
+
+if(BUILD_TESTING)
+    qt_add_executable(netport-count tests/netport-count.cpp
+        src/monitors/NetPortMonitor.cpp src/monitors/NetPortMonitor.h src/sysdep/NetPortStat.cpp
+        src/monitors/MonitorBase.cpp src/theme/Theme.cpp src/widgets/Panel.cpp
+        src/widgets/Decal.cpp src/widgets/Krell.cpp src/widgets/Chart.cpp src/widgets/Meter.cpp)
+    target_include_directories(netport-count PRIVATE src)
+    target_link_libraries(netport-count PRIVATE Qt6::Widgets Qt6::Network)
+    add_test(NAME netport-count COMMAND netport-count)
+    set_tests_properties(netport-count PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 20)
+endif()

@@ -138,11 +138,12 @@ protected:
         p.setFont(m_theme->font(QStringLiteral("label")));
 
         const QFontMetrics fm(p.font());
-        const int countW = fm.horizontalAdvance(QStringLiteral("99"));
+        const QString countText = QString::number(m_count);
+        const int countW = qMax(fm.horizontalAdvance(QStringLiteral("99")),
+                               fm.horizontalAdvance(countText));
         const int gapW = qMax(3, fm.horizontalAdvance(QStringLiteral(" ")));
         const QRect countRect(0, 0, countW, height());
         const QRect labelRect(countW + gapW, 0, qMax(0, width() - countW - gapW), height());
-        const QString countText = QString::number(m_count).rightJustified(2, QLatin1Char(' '), true);
 
         drawStyledText(p,
                        m_theme->textStyle(QStringLiteral("text_secondary")),
@@ -279,19 +280,20 @@ QStringList NetPortMonitor::connectionEntriesForWatch(const Watch &watch,
         if (!portInRanges(sample.localPort, ranges))
             continue;
         if (sample.protocol == QLatin1String("tcp")
-            && sample.state != QLatin1String("01"))
+            && sample.state != QLatin1String("01")
+            && sample.state != QLatin1String("ESTABLISHED"))
             continue;
+        if (sample.protocol == QLatin1String("udp")
+            && (sample.remoteAddress.isEmpty() || sample.remotePort == 0)) {
+            out.append(QStringLiteral("UDP :%1 (bound socket; peer not reported)").arg(sample.localPort));
+            continue;
+        }
         if (sample.remoteAddress.isEmpty() || sample.remotePort == 0)
             continue;
 
         out.append(QStringLiteral("%1:%2").arg(sample.remoteAddress).arg(sample.remotePort));
     }
     out.sort(Qt::CaseInsensitive);
-    if (out.size() > 12) {
-        const int extra = out.size() - 12;
-        out = out.mid(0, 12);
-        out.append(QStringLiteral("... %1 more").arg(extra));
-    }
     return out;
 }
 
@@ -312,6 +314,9 @@ void NetPortMonitor::tick()
         if (!m_rows.at(i)) continue;
         const Watch &watch = m_watches.at(i);
         const QStringList connections = connectionEntriesForWatch(watch, samples);
-        m_rows.at(i)->setRow(watch.label, connections.size(), connections);
+        QStringList tooltip = connections.mid(0, 12);
+        if (connections.size() > 12)
+            tooltip.append(QStringLiteral("... %1 more").arg(connections.size() - 12));
+        m_rows.at(i)->setRow(watch.label, connections.size(), tooltip);
     }
 }
