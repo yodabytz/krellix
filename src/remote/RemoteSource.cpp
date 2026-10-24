@@ -7,6 +7,8 @@
 #include <QLoggingCategory>
 #include <QTcpSocket>
 #include <QTimer>
+#include <QSignalBlocker>
+#include <array>
 
 Q_LOGGING_CATEGORY(lcRemote, "krellix.remote")
 
@@ -15,8 +17,7 @@ namespace {
 constexpr qint64 kMaxLineBytes        = 1024 * 1024;
 constexpr qint64 kMaxBufferBytes      = 2 * 1024 * 1024;   // hard cap before drop
 constexpr int    kMaxParseErrorsBeforeReset = 5;
-constexpr int    kBaseReconnectMs     = 1000;
-constexpr int    kMaxReconnectMs      = 30 * 1000;
+constexpr std::array<int, 6> kReconnectDelaysMs{5000, 10000, 20000, 60000, 300000, 1200000};
 
 RemoteSource *g_instance = nullptr;
 
@@ -42,6 +43,25 @@ RemoteSource::RemoteSource(QObject *parent)
             this, &RemoteSource::onSocketError);
 
     m_reconnectTimer->setSingleShot(true);
+    m_reconnectTimer->setObjectName(QStringLiteral("remoteReconnectTimer"));
+    // Bound DNS/TCP attempts as well as the delay between failed attempts.
+    auto *attemptTimer = new QTimer(this);
+    attemptTimer->setObjectName(QStringLiteral("remoteConnectTimeout"));
+    attemptTimer->setSingleShot(true);
+    attemptTimer->setInterval(15000);
+    connect(m_socket, &QTcpSocket::stateChanged, attemptTimer,
+            [attemptTimer](QAbstractSocket::SocketState state) {
+        if (state == QAbstractSocket::HostLookupState || state == QAbstractSocket::ConnectingState) {
+            if (!attemptTimer->isActive()) attemptTimer->start();
+        } else {
+            attemptTimer->stop();
+        }
+    });
+    connect(attemptTimer, &QTimer::timeout, this, [this]() {
+        m_socket->abort();
+        emit connectionStateChanged(false);
+        scheduleReconnect();
+    });
     connect(m_reconnectTimer, &QTimer::timeout, this, [this]() {
         if (m_socket->state() == QAbstractSocket::UnconnectedState
             && !m_host.isEmpty()) {
@@ -58,9 +78,19 @@ RemoteSource::~RemoteSource()
 
 void RemoteSource::connectToHost(const QString &host, quint16 port)
 {
+    m_reconnectTimer->stop();
+    findChild<QTimer *>(QStringLiteral("remoteConnectTimeout"))->stop();
+    {
+        const QSignalBlocker blocker(m_socket);
+        m_socket->abort();
+    }
+    resetCachedState();
+    m_buffer.clear();
     m_host = host;
     m_port = port ? port : 19150;
-    m_reconnectDelayMs = kBaseReconnectMs;
+    m_reconnectAttempt = 0;
+    emit connectionStateChanged(false);
+    if (m_host.isEmpty()) return;
     qCInfo(lcRemote) << "connecting to" << m_host << m_port;
     m_socket->connectToHost(m_host, m_port);
 }
@@ -80,7 +110,8 @@ void RemoteSource::onSocketConnected()
     qCInfo(lcRemote) << "connected to" << remoteAddress();
     m_buffer.clear();
     m_consecutiveParseErrors = 0;
-    m_reconnectDelayMs = kBaseReconnectMs;
+    m_reconnectTimer->stop();
+    m_reconnectAttempt = 0;
     emit connectionStateChanged(true);
 }
 
@@ -111,15 +142,22 @@ void RemoteSource::onSocketError()
     // we don't get wedged after a one-time outage at startup.
     if (m_socket
         && m_socket->state() == QAbstractSocket::UnconnectedState) {
+        emit connectionStateChanged(false);
         scheduleReconnect();
     }
 }
 
 void RemoteSource::scheduleReconnect()
 {
-    if (m_host.isEmpty()) return;
-    m_reconnectTimer->start(m_reconnectDelayMs);
-    m_reconnectDelayMs = qMin(m_reconnectDelayMs * 2, kMaxReconnectMs);
+    // errorOccurred and disconnected can describe the same failure.
+    if (m_host.isEmpty() || m_reconnectTimer->isActive() || isConnected()) return;
+    if (m_reconnectAttempt >= int(kReconnectDelaysMs.size())) {
+        emit retriesExhausted();
+        return;
+    }
+    const int delay = kReconnectDelaysMs.at(m_reconnectAttempt++);
+    qCInfo(lcRemote) << "retry" << m_reconnectAttempt << "in" << delay << "ms";
+    m_reconnectTimer->start(delay);
 }
 
 void RemoteSource::onReadyRead()

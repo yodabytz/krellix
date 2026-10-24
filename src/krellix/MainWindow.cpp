@@ -246,7 +246,7 @@ void MainWindow::attachRemoteSource(RemoteSource *remote)
     if (!m_alertDebounce) {
         m_alertDebounce = new QTimer(this);
         m_alertDebounce->setSingleShot(true);
-        m_alertDebounce->setInterval(5000);     // 5s grace before alarming
+        m_alertDebounce->setInterval(0); // Show disconnected status on the next event-loop turn.
         connect(m_alertDebounce, &QTimer::timeout, this, [this]() {
             if (m_remote && !m_remote->isConnected() && m_alertBanner) {
                 m_alertBanner->showAlert(
@@ -269,11 +269,15 @@ void MainWindow::attachRemoteSource(RemoteSource *remote)
                     m_alertDebounce->stop();
                     m_alertBanner->hideAlert();
                 } else {
-                    // Debounce: a quick reconnect (< 5s) won't show the
-                    // banner. Only sustained loss does.
                     m_alertDebounce->start();
                 }
             });
+    connect(m_remote, &RemoteSource::retriesExhausted, this, [this]() {
+        m_alertDebounce->stop();
+        m_alertBanner->showAlert(QStringLiteral("Disconnected: %1 - retries stopped")
+                                    .arg(m_remote->remoteAddress()));
+    });
+    if (!m_remote->isConnected()) m_alertDebounce->start();
 }
 
 void MainWindow::addMonitor(MonitorBase *m)

@@ -6,8 +6,8 @@ class QLabel;
 class QTimer;
 
 // A flashing red banner that appears at the top of MainWindow when a
-// connection (e.g. to krellixd) has been lost for more than the debounce
-// window. Hidden by default; toggled via showAlert/hideAlert from the
+// connection (e.g. to krellixd) is unavailable, including at startup.
+// Hidden by default; toggled via showAlert/hideAlert from the
 // owner. Internally uses a QTimer to alternate between full-bright and
 // dimmer red so it pulses for attention without being seizure-inducing.
 class AlertBanner : public QWidget

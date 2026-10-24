@@ -97,6 +97,7 @@ public:
 signals:
     void connectionStateChanged(bool connected);
     void sampleReceived();
+    void retriesExhausted();
 
 private slots:
     void onSocketConnected();
@@ -136,7 +137,7 @@ private:
     QDateTime m_time;
     QElapsedTimer m_timeAge;
     int               m_consecutiveParseErrors = 0;
-    int               m_reconnectDelayMs       = 1000;
+    int               m_reconnectAttempt       = 0;
 
     // Append telemetry fields to preserve offsets used by existing plugins.
     QJsonObject       m_packages;
