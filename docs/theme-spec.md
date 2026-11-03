@@ -75,8 +75,13 @@ Recognized keys:
 | ------- | -------------------------------- |
 | `label` | Decals showing labels / units    |
 | `value` | Decals showing values / titles   |
+| `netports` | Optional Linux Net Ports row font override |
 
 Sizes are clamped to `4..72` points.
+
+On Linux, Net Ports rows default to 75% of the `label` font size (minimum
+4 points), retaining the theme's family, weight and style. An explicit
+`netports` font is used at its specified size. macOS continues to use `label`.
 
 ### `metrics`
 
@@ -86,6 +91,7 @@ Map of name → integer (clamped to `0..4096`).
 | ------------------ | ------- | --------------------------------------- |
 | `panel_padding`    | 4       | Inner padding around each panel         |
 | `panel_spacing`    | 2       | Gap between widgets within a panel      |
+| `netports_row_spacing` | 0   | Linux Net Ports row gap; updates live   |
 | `panel_border`     | 1       | Panel border line width (0 = none)      |
 | `panel_min_width`  | 200     | Window/panel fixed width in pixels      |
 | `krell_height`     | 8       | Krell strip height                      |

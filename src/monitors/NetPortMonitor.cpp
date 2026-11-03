@@ -17,6 +17,31 @@ namespace {
 
 constexpr int kMaxWatches = 8;
 
+QFont rowFont(const Theme *theme)
+{
+    QFont font = theme->font(QStringLiteral("label"));
+#ifdef Q_OS_LINUX
+    // Keep this dense list closer to the Mac's 72-DPI label sizing, without
+    // changing other monitors or disabling Qt's high-DPI/font scaling.
+    if (font.pointSizeF() > 0)
+        font.setPointSizeF(qMax(4.0, font.pointSizeF() * 0.75));
+    else if (font.pixelSize() > 0)
+        font.setPixelSize(qMax(5, qRound(font.pixelSize() * 0.75)));
+    return theme->font(QStringLiteral("netports"), font);
+#else
+    return font;
+#endif
+}
+
+int rowSpacing(const Theme *theme)
+{
+#ifdef Q_OS_LINUX
+    return qMax(0, theme->metric(QStringLiteral("netports_row_spacing"), 0));
+#else
+    return theme->metric(QStringLiteral("panel_spacing"), 2);
+#endif
+}
+
 QList<QPair<int, int>> parsePorts(QString spec)
 {
     QList<QPair<int, int>> out;
@@ -83,9 +108,11 @@ public:
         , m_theme(theme)
     {
         Q_ASSERT(m_theme);
+        setFont(rowFont(m_theme));
         setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         setAttribute(Qt::WA_OpaquePaintEvent, false);
         connect(m_theme, &Theme::themeChanged, this, [this] {
+            setFont(rowFont(m_theme));
             updateGeometry();
             update();
         });
@@ -117,14 +144,14 @@ public:
 
     QSize sizeHint() const override
     {
-        const QFontMetrics fm(m_theme->font(QStringLiteral("label")));
+        const QFontMetrics fm(font());
         return QSize(fm.horizontalAdvance(QStringLiteral("99  WWWWW")) + 4,
                      fm.height() + 2);
     }
 
     QSize minimumSizeHint() const override
     {
-        const QFontMetrics fm(m_theme->font(QStringLiteral("label")));
+        const QFontMetrics fm(font());
         return QSize(0, fm.height() + 2);
     }
 
@@ -135,7 +162,7 @@ protected:
 
         QPainter p(this);
         p.setRenderHint(QPainter::TextAntialiasing, true);
-        p.setFont(m_theme->font(QStringLiteral("label")));
+        p.setFont(font());
 
         const QFontMetrics fm(p.font());
         const QString countText = QString::number(m_count);
@@ -194,7 +221,13 @@ QWidget *NetPortMonitor::createWidget(QWidget *parent)
     m_rowsWidget = new QWidget(panel);
     m_rowsLayout = new QVBoxLayout(m_rowsWidget);
     m_rowsLayout->setContentsMargins(0, 0, 0, 0);
-    m_rowsLayout->setSpacing(theme()->metric(QStringLiteral("panel_spacing"), 2));
+    m_rowsLayout->setSpacing(rowSpacing(theme()));
+#ifdef Q_OS_LINUX
+    connect(theme(), &Theme::themeChanged, m_rowsWidget, [this] {
+        m_rowsLayout->setSpacing(rowSpacing(theme()));
+        m_rowsWidget->updateGeometry();
+    });
+#endif
     panel->addWidget(m_rowsWidget);
     m_panel = panel;
 

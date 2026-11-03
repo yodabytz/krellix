@@ -1,6 +1,6 @@
 Name:           krellix
 Version:        0.1.2
-Release:        10%{?dist}
+Release:        28%{?dist}
 Summary:        Themeable Qt 6 system monitor in the spirit of GKrellM
 License:        GPL-3.0-or-later
 URL:            https://github.com/yodabytz/krellix
@@ -88,6 +88,10 @@ CONF
 %{_prefix}/lib/krellix/plugins/libkrellbluetooth.so
 
 %changelog
+* Mon Nov 02 2026 yodabytz <hello@cerberix.org> - 0.1.2-28
+- Compact Linux Net Ports rows while preserving theme preferences and Mac rendering
+- Add live theme, row geometry and high-DPI regression tests
+
 * Mon Oct 19 2026 yodabytz <hello@cerberix.org> - 0.1.2-10
 - Add optional compact KrellBT plugin with theme accents and battery monitoring
 

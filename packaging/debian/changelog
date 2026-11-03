@@ -1,3 +1,11 @@
+krellix (0.1.2-28) unstable; urgency=medium
+
+  * Compact Linux Net Ports text and row spacing without changing Mac rendering.
+  * Preserve theme fonts, live theme updates, port counts and remote recovery.
+  * Test eight watches and explicit theme overrides at 100%, 150% and 200% scale.
+
+ -- yodabytz <hello@cerberix.org>  Mon, 02 Nov 2026 21:00:00 +0000
+
 krellix (0.1.2-10) unstable; urgency=medium
 
   * Add optional compact KrellBT plugin with BlueZ batteries and theme accents.

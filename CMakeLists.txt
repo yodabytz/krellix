@@ -513,4 +513,14 @@ if(BUILD_TESTING)
     target_link_libraries(netport-count PRIVATE Qt6::Widgets Qt6::Network)
     add_test(NAME netport-count COMMAND netport-count)
     set_tests_properties(netport-count PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 20)
+    qt_add_executable(netport-layout tests/netport-layout.cpp
+        src/monitors/NetPortMonitor.cpp src/monitors/NetPortMonitor.h src/sysdep/NetPortStat.cpp
+        src/monitors/MonitorBase.cpp src/theme/Theme.cpp src/widgets/Panel.cpp
+        src/widgets/Decal.cpp src/widgets/Krell.cpp src/widgets/Chart.cpp src/widgets/Meter.cpp)
+    target_include_directories(netport-layout PRIVATE src)
+    target_link_libraries(netport-layout PRIVATE Qt6::Widgets Qt6::Network)
+    foreach(scale IN ITEMS 1 1.5 2)
+        add_test(NAME netport-layout-${scale} COMMAND netport-layout)
+        set_tests_properties(netport-layout-${scale} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_SCALE_FACTOR=${scale}" TIMEOUT 20)
+    endforeach()
 endif()
