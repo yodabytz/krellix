@@ -5,6 +5,7 @@ Maintainer: yodabytz <hello@cerberix.org>
 Build-Depends: debhelper-compat (= 13),
                cmake (>= 3.21),
                ninja-build,
+               python3,
                qt6-base-dev
 Standards-Version: 4.6.2
 Homepage: https://github.com/yodabytz/krellix
@@ -23,7 +24,7 @@ Description: Themeable Qt 6 system monitor in the spirit of GKrellM
 
 Package: krellix-server
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, python3
 Description: krellixd — remote monitoring daemon for krellix
  The krellixd daemon exposes system metrics over TCP so that krellix
  can monitor remote hosts. Configure it on the host to watch and point

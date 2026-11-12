@@ -1,6 +1,6 @@
 Name:           krellix
 Version:        0.1.2
-Release:        28%{?dist}
+Release:        29%{?dist}
 Summary:        Themeable Qt 6 system monitor in the spirit of GKrellM
 License:        GPL-3.0-or-later
 URL:            https://github.com/yodabytz/krellix
@@ -12,6 +12,7 @@ BuildRequires:  gcc-c++
 BuildRequires:  qt6-qtbase-devel
 BuildRequires:  qt6-qttools-devel
 BuildRequires:  systemd-rpm-macros
+BuildRequires:  python3
 
 Requires:       qt6-qtbase
 
@@ -25,6 +26,7 @@ Requires a running X11 or Wayland session.
 %package server
 Summary:        krellixd — remote monitoring daemon for krellix
 Requires:       qt6-qtbase
+Requires:       python3
 %description server
 The krellixd daemon exposes system metrics over TCP so that krellix can
 monitor remote hosts. Run it on the host you want to watch and point
@@ -81,6 +83,10 @@ CONF
 %license LICENSE
 %{_bindir}/krellixd
 %{_unitdir}/krellixd.service
+%{_prefix}/lib/systemd/system/krellixd.service.d/zz-security.conf
+%{_prefix}/lib/systemd/system/krellixd-docker-snapshot.service
+%{_prefix}/lib/systemd/system/krellixd-docker-snapshot.timer
+%{_prefix}/lib/krellix/docker-snapshot.py
 %config(noreplace) %{_sysconfdir}/krellixd/krellixd.conf
 
 %files krellbluetooth
@@ -88,6 +94,10 @@ CONF
 %{_prefix}/lib/krellix/plugins/libkrellbluetooth.so
 
 %changelog
+* Thu Nov 12 2026 yodabytz <hello@cerberix.org> - 0.1.2-29
+- Harden daemon peer admission, resource limits and disconnect handling
+- Isolate Docker metadata collection and remove process argument disclosure
+
 * Mon Nov 02 2026 yodabytz <hello@cerberix.org> - 0.1.2-28
 - Compact Linux Net Ports rows while preserving theme preferences and Mac rendering
 - Add live theme, row geometry and high-DPI regression tests

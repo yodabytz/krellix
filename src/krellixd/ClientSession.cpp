@@ -1,5 +1,6 @@
 #include "ClientSession.h"
 #include "PackageProbe.h"
+#include "DockerSnapshot.h"
 
 #include "sysdep/CpuStat.h"
 #include "sysdep/SensorStat.h"
@@ -28,8 +29,6 @@
 #include <QTcpSocket>
 #include <QTimer>
 
-#include <netdb.h>
-
 #include <algorithm>
 
 Q_LOGGING_CATEGORY(lcSession, "krellixd.session")
@@ -38,7 +37,7 @@ namespace {
 
 // Even malicious clients can send us at most this much before we drop
 // them. We never need to read more than a hello byte.
-constexpr qint64 kMaxClientSendBytes = 4 * 1024;
+constexpr qint64 kMaxSampleBytes = 1024 * 1024;
 constexpr qint64 kStackProbeIntervalMs = 30 * 1000;
 constexpr qint64 kHealthProbeIntervalMs = 60 * 1000;
 
@@ -66,32 +65,39 @@ struct TopProcess {
     QString command;
 };
 
-QString runProgram(const QString &program, const QStringList &args, int timeoutMs = 1500)
+QString runProgram(const QString &program, const QStringList &args, int timeoutMs = 1500,
+                   bool *success = nullptr)
 {
+    if (success) *success = false;
     if (QStandardPaths::findExecutable(program).isEmpty())
         return {};
     QProcess proc;
     proc.setProgram(program);
     proc.setArguments(args);
     proc.setProcessChannelMode(QProcess::MergedChannels);
+    QByteArray output;
+    bool overflow = false;
+    auto drain = [&] {
+        const QByteArray chunk = proc.read(1024 * 1024 - output.size() + 1);
+        if (chunk.size() + output.size() > 1024 * 1024) {
+            overflow = true;
+            proc.kill();
+        } else {
+            output.append(chunk);
+        }
+    };
+    QObject::connect(&proc, &QProcess::readyRead, &proc, drain);
     proc.start();
     if (!proc.waitForFinished(timeoutMs)) {
         proc.kill();
         proc.waitForFinished(200);
         return {};
     }
-    if (proc.exitCode() != 0)
+    drain();
+    if (overflow || proc.exitStatus() != QProcess::NormalExit || proc.exitCode() != 0)
         return {};
-    return QString::fromLocal8Bit(proc.readAll()).trimmed();
-}
-
-int nonEmptyLines(const QString &text)
-{
-    int count = 0;
-    for (const QString &line : text.split(QLatin1Char('\n')))
-        if (!line.trimmed().isEmpty())
-            ++count;
-    return count;
+    if (success) *success = true;
+    return QString::fromLocal8Bit(output).trimmed();
 }
 
 QStringList nonEmptyLineList(const QString &text)
@@ -196,12 +202,10 @@ QJsonObject healthObject()
     }
 
     if (!QStandardPaths::findExecutable(QStringLiteral("dpkg")).isEmpty()) {
-        QProcess audit;
-        audit.start(QStringLiteral("dpkg"), {QStringLiteral("--audit")});
-        const bool finished = audit.waitForFinished(5000);
-        if (!finished) { audit.kill(); audit.waitForFinished(200); }
-        const QString result = QString::fromLocal8Bit(audit.readAllStandardOutput()).trimmed();
-        if (!finished || audit.exitStatus() != QProcess::NormalExit || audit.exitCode() != 0)
+        bool finished = false;
+        const QString result = runProgram(QStringLiteral("dpkg"),
+            {QStringLiteral("--audit")}, 5000, &finished);
+        if (!finished)
             addFinding(findings, QStringLiteral("warning"), QStringLiteral("Package check unavailable"),
                        QStringLiteral("dpkg --audit could not complete"));
         else if (!result.isEmpty())
@@ -238,53 +242,16 @@ QJsonObject healthObject()
     return out;
 }
 
-int composeCount(const QString &text)
-{
-    const QString trimmed = text.trimmed();
-    if (trimmed.isEmpty() || trimmed == QLatin1String("[]"))
-        return 0;
-    const QJsonDocument doc = QJsonDocument::fromJson(trimmed.toUtf8());
-    if (doc.isArray())
-        return doc.array().size();
-    if (doc.isObject())
-        return 1;
-    return nonEmptyLines(trimmed);
-}
-
 StackProbe readStackProbe()
 {
-    const QString containers = runProgram(
-        QStringLiteral("docker"),
-        {QStringLiteral("ps"), QStringLiteral("-a"), QStringLiteral("--format"),
-         QStringLiteral("{{.Names}}|{{.Status}}|{{.Image}}|{{.Ports}}")});
-    const QString images = runProgram(
-        QStringLiteral("docker"),
-        {QStringLiteral("images"), QStringLiteral("--format"),
-         QStringLiteral("{{.Repository}}:{{.Tag}}|{{.Size}}")});
-    const QString compose = runProgram(
-        QStringLiteral("docker"),
-        {QStringLiteral("compose"), QStringLiteral("ls"),
-         QStringLiteral("--format"), QStringLiteral("json")});
-
+    const QJsonObject snapshot = dockerSnapshot();
     StackProbe probe;
-    probe.images = nonEmptyLines(images);
-    probe.compose = composeCount(compose);
-    probe.dockerReadable = !containers.isEmpty() || !images.isEmpty() || !compose.isEmpty();
-
-    for (const QString &line : containers.split(QLatin1Char('\n'))) {
-        const QString trimmed = line.trimmed();
-        if (trimmed.isEmpty())
-            continue;
-        ++probe.containers;
-        if (trimmed.contains(QStringLiteral("|Up "), Qt::CaseInsensitive)
-            || trimmed.contains(QStringLiteral("|running"), Qt::CaseInsensitive))
-            ++probe.running;
-        if (trimmed.contains(QStringLiteral("unhealthy"), Qt::CaseInsensitive)
-            || trimmed.contains(QStringLiteral("Restarting"), Qt::CaseInsensitive)
-            || trimmed.contains(QStringLiteral("Exited"), Qt::CaseInsensitive)
-            || trimmed.contains(QStringLiteral("Dead"), Qt::CaseInsensitive))
-            ++probe.unhealthy;
-    }
+    probe.images = snapshot.value(QStringLiteral("images")).toInt();
+    probe.compose = snapshot.value(QStringLiteral("compose")).toInt();
+    probe.containers = snapshot.value(QStringLiteral("containers")).toInt();
+    probe.running = snapshot.value(QStringLiteral("running")).toInt();
+    probe.unhealthy = snapshot.value(QStringLiteral("unhealthy")).toInt();
+    probe.dockerReadable = !snapshot.isEmpty();
     return probe;
 }
 
@@ -318,7 +285,7 @@ QJsonObject stackObject(const QList<NetSample> &netSamples)
     o.insert(QStringLiteral("unhealthy"), cachedProbe.unhealthy);
     o.insert(QStringLiteral("docker_networks"), dockerNetworks);
     if (!cachedProbe.dockerReadable && dockerNetworks > 0)
-        o.insert(QStringLiteral("error"), QStringLiteral("docker not readable by krellixd"));
+        o.insert(QStringLiteral("error"), QStringLiteral("Docker snapshot unavailable; enable krellixd-docker-snapshot.timer"));
     return o;
 }
 
@@ -330,7 +297,7 @@ QList<TopProcess> topN(QList<TopProcess> rows, bool byMemory, int limit)
                 return a.rssKiB > b.rssKiB;
             return a.mem > b.mem;
         }
-        if (qAbs(a.cpu - b.cpu) > 0.05)
+        if (a.cpu != b.cpu)
             return a.cpu > b.cpu;
         return a.rssKiB > b.rssKiB;
     });
@@ -388,7 +355,8 @@ QJsonArray topProcessArray()
         p.insert(QStringLiteral("mem"), row.mem);
         p.insert(QStringLiteral("rss"), qint64(row.rssKiB));
         p.insert(QStringLiteral("name"), row.name.left(64));
-        p.insert(QStringLiteral("cmd"), row.command.left(240));
+        // Process arguments may contain passwords or tokens. Never export them.
+        p.insert(QStringLiteral("cmd"), row.name.left(64));
         arr.append(p);
     }
     cachedTop = arr;
@@ -406,21 +374,6 @@ bool usableDomainName(const QString &domain)
     return QHostAddress(domain).isNull();
 }
 
-QString resolveCanonicalHostname(const QString &host)
-{
-    struct addrinfo hints{};
-    hints.ai_flags = AI_CANONNAME;
-    hints.ai_family = AF_UNSPEC;
-    struct addrinfo *result = nullptr;
-    QString out;
-    if (getaddrinfo(host.toUtf8().constData(), nullptr, &hints, &result) == 0
-        && result && result->ai_canonname) {
-        out = QString::fromUtf8(result->ai_canonname);
-    }
-    if (result) freeaddrinfo(result);
-    return out;
-}
-
 QString daemonHostname()
 {
     const QString host = QSysInfo::machineHostName();
@@ -431,10 +384,6 @@ QString daemonHostname()
     if (usableDomainName(domain)) {
         return host + QLatin1Char('.') + domain;
     }
-
-    const QString canonical = resolveCanonicalHostname(host);
-    if (canonical.contains(QLatin1Char('.')))
-        return canonical;
 
     return host;
 }
@@ -585,14 +534,6 @@ QJsonObject sampleObject()
     return o;
 }
 
-void writeJsonLine(QTcpSocket *s, const QJsonObject &obj)
-{
-    if (!s) return;
-    const QByteArray bytes =
-        QJsonDocument(obj).toJson(QJsonDocument::Compact) + '\n';
-    s->write(bytes);
-}
-
 } // namespace
 
 ClientSession::ClientSession(QTcpSocket *socket,
@@ -608,6 +549,9 @@ ClientSession::ClientSession(QTcpSocket *socket,
 {
     Q_ASSERT(m_socket);
     m_socket->setParent(this);
+    // This is an output-only protocol: one unexpected byte is enough to reject.
+    m_socket->setReadBufferSize(1);
+    m_socket->setSocketOption(QAbstractSocket::SendBufferSizeSocketOption, 64 * 1024);
     m_socket->setSocketOption(QAbstractSocket::KeepAliveOption, 1);
 
     connect(m_socket, &QTcpSocket::readyRead,
@@ -623,7 +567,10 @@ ClientSession::ClientSession(QTcpSocket *socket,
     // still be kicked: their kernel buffer fills, no bytesWritten fires,
     // idle timer expires.
     connect(m_socket, &QTcpSocket::bytesWritten, this, [this](qint64) {
-        if (m_idleTimer) m_idleTimer->start();
+        if (m_socket->bytesToWrite() == 0) m_idleTimer->stop();
+    });
+    connect(m_socket, &QTcpSocket::errorOccurred, this, [this] {
+        closeWithError("socket error");
     });
 
     m_sendTimer->setTimerType(Qt::CoarseTimer);
@@ -634,12 +581,18 @@ ClientSession::ClientSession(QTcpSocket *socket,
     m_idleTimer->setInterval(m_idleTimeoutMs);
     connect(m_idleTimer, &QTimer::timeout,
             this, &ClientSession::onIdleTimeout);
-    m_idleTimer->start();
+}
 
+void ClientSession::start()
+{
+    if (m_closed) return;
+    if (m_socket->bytesAvailable() != 0) {
+        closeWithError("unexpected client input");
+        return;
+    }
     qCInfo(lcSession) << "client connected from" << peerAddressString();
     sendHello();
-    sendSample();      // immediate first sample so client doesn't wait a tick
-    m_sendTimer->start();
+    if (!m_closed) m_sendTimer->start();
 }
 
 ClientSession::~ClientSession() = default;
@@ -654,27 +607,23 @@ QString ClientSession::peerAddressString() const
 
 void ClientSession::onTick()
 {
-    if (!m_socket || m_socket->state() != QAbstractSocket::ConnectedState) return;
+    if (m_closed || !m_socket || m_socket->state() != QAbstractSocket::ConnectedState) return;
+    // Never generate/queue another sample behind a slow reader.
+    if (m_socket->bytesToWrite() != 0) return;
     sendSample();
 }
 
 void ClientSession::onReadyRead()
 {
-    if (!m_socket) return;
-    // We don't expect the client to send anything substantive; silently
-    // discard but enforce a hard cap so a malicious peer can't pile bytes
-    // into our buffers.
-    if (m_socket->bytesAvailable() > kMaxClientSendBytes) {
-        closeWithError("client exceeded receive cap");
-        return;
-    }
-    (void) m_socket->readAll();
-    m_idleTimer->start();   // any I/O resets the idle clock
+    closeWithError("unexpected client input");
 }
 
 void ClientSession::onDisconnected()
 {
     qCInfo(lcSession) << "client disconnected" << peerAddressString();
+    m_closed = true;
+    m_sendTimer->stop();
+    m_idleTimer->stop();
     deleteLater();
 }
 
@@ -685,18 +634,37 @@ void ClientSession::onIdleTimeout()
 
 void ClientSession::sendHello()
 {
-    writeJsonLine(m_socket, helloObject(m_intervalMs));
+    sendObject(helloObject(m_intervalMs));
 }
 
 void ClientSession::sendSample()
 {
-    writeJsonLine(m_socket, sampleObject());
+    sendObject(sampleObject());
+}
+
+void ClientSession::sendObject(const QJsonObject &object)
+{
+    if (m_closed) return;
+    const QByteArray bytes = QJsonDocument(object).toJson(QJsonDocument::Compact) + '\n';
+    if (bytes.size() > kMaxSampleBytes || m_socket->bytesToWrite() != 0) {
+        closeWithError("output limit exceeded");
+        return;
+    }
+    if (m_socket->write(bytes) != bytes.size()) {
+        closeWithError("write failed");
+        return;
+    }
+    // Absolute deadline for this queued sample; partial reads cannot extend it.
+    if (m_socket->bytesToWrite() > 0) m_idleTimer->start();
 }
 
 void ClientSession::closeWithError(const char *reason)
 {
-    qCWarning(lcSession) << "closing" << peerAddressString() << ":" << reason;
-    if (m_socket) {
-        m_socket->disconnectFromHost();
-    }
+    if (m_closed) return;
+    m_closed = true;
+    m_sendTimer->stop();
+    m_idleTimer->stop();
+    qCDebug(lcSession) << "closing" << peerAddressString() << ":" << reason;
+    if (m_socket) m_socket->abort();
+    deleteLater();
 }

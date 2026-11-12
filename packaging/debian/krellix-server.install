@@ -1,1 +1,5 @@
 usr/bin/krellixd
+usr/lib/krellix/docker-snapshot.py
+usr/lib/systemd/system/krellixd-docker-snapshot.service
+usr/lib/systemd/system/krellixd-docker-snapshot.timer
+usr/lib/systemd/system/krellixd.service.d/zz-security.conf

@@ -206,6 +206,7 @@ set_target_properties(krellixd PROPERTIES
 # krellix` aborted with "/usr/sbin exists in filesystem". Living in
 # /usr/bin avoids the conflict and is consistent with current FHS.
 install(TARGETS krellixd RUNTIME DESTINATION bin)
+include(packaging/daemon-security.cmake)
 
 # ---- Optional installable plugins ---------------------------------------
 add_library(krellkam MODULE

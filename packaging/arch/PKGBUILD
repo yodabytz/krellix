@@ -3,11 +3,11 @@
 pkgbase=krellix
 pkgname=('krellix' 'krellix-server' 'krellix-krellbluetooth')
 pkgver=0.1.2
-pkgrel=28
+pkgrel=29
 arch=('x86_64' 'aarch64')
 url='https://github.com/yodabytz/krellix'
 license=('GPL-3.0-or-later')
-makedepends=('cmake' 'ninja' 'qt6-tools' 'qt6-base')
+makedepends=('cmake' 'ninja' 'qt6-tools' 'qt6-base' 'python')
 # Generate from this checkout with git archive --prefix=krellix-0.1.2/.
 source=("$pkgbase-$pkgver.tar.gz")
 sha256sums=('SKIP')
@@ -29,6 +29,8 @@ package_krellix() {
     cd "$pkgbase-$pkgver"
     DESTDIR="$pkgdir" cmake --install build
     rm -f "$pkgdir/usr/bin/krellixd"
+    rm -rf "$pkgdir/usr/lib/systemd/system"
+    rm -f "$pkgdir/usr/lib/krellix/docker-snapshot.py"
     rm -rf "$pkgdir/usr/lib/krellix/plugins" "$pkgdir/usr/share/krellix/plugins"
 
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
@@ -50,13 +52,19 @@ check() {
 
 package_krellix-server() {
     pkgdesc='krellixd — remote monitoring daemon for krellix'
-    depends=('qt6-base')
+    depends=('qt6-base' 'python')
     optdepends=('docker: friendly Docker bridge name resolution')
     backup=('etc/krellixd/krellixd.conf')
 
     cd "$pkgbase-$pkgver"
 
     install -Dm755 build/bin/krellixd "$pkgdir/usr/bin/krellixd"
+    install -Dm755 packaging/docker-snapshot.py "$pkgdir/usr/lib/krellix/docker-snapshot.py"
+    for unit in krellixd-docker-snapshot.service krellixd-docker-snapshot.timer; do
+        install -Dm644 "packaging/systemd/$unit" "$pkgdir/usr/lib/systemd/system/$unit"
+    done
+    install -Dm644 packaging/systemd/krellixd.service.d/zz-security.conf \
+        "$pkgdir/usr/lib/systemd/system/krellixd.service.d/zz-security.conf"
 
     install -Dm644 packaging/systemd/krellixd.service \
         "$pkgdir/usr/lib/systemd/system/krellixd.service"

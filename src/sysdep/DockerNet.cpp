@@ -1,4 +1,7 @@
 #include "DockerNet.h"
+#ifdef KRELLIX_DAEMON
+#include "krellixd/DockerSnapshot.h"
+#endif
 
 #include <QByteArray>
 #include <QDateTime>
@@ -34,6 +37,9 @@ QHash<QString, QString> fetchFromDocker()
 {
     QHash<QString, QString> map;
 
+#ifdef KRELLIX_DAEMON
+    const QJsonDocument doc(dockerSnapshot().value(QStringLiteral("networks")).toArray());
+#else
     QLocalSocket sock;
     sock.connectToServer(QString::fromLatin1(kSocketPath));
     if (!sock.waitForConnected(kConnectTimeoutMs)) {
@@ -70,6 +76,7 @@ QHash<QString, QString> fetchFromDocker()
         qCWarning(lcDockerNet) << "JSON parse error:" << err.errorString();
         return map;
     }
+#endif
 
     for (const QJsonValue &v : doc.array()) {
         const QJsonObject net = v.toObject();

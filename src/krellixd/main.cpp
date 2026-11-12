@@ -30,6 +30,7 @@
 #include <QStringList>
 
 #include <unistd.h>
+#include <cmath>
 
 #ifndef KRELLIX_VERSION
 #  define KRELLIX_VERSION "0.0.0"
@@ -73,15 +74,19 @@ bool parseListen(const QString &spec, QHostAddress &outAddr, quint16 &outPort)
 
 QSet<QHostAddress> parseAllowList(const QStringList &raw)
 {
+    if (raw.size() > 128) qFatal("krellixd: allow-list exceeds 128 entries");
     QSet<QHostAddress> out;
     for (const QString &s : raw) {
         const QString trimmed = s.trimmed();
         if (trimmed.isEmpty() || trimmed.startsWith(QLatin1Char('#'))) continue;
         QHostAddress h(trimmed);
-        if (h.isNull()) {
-            qCWarning(lcMain) << "ignoring invalid allow entry:" << trimmed;
-            continue;
-        }
+        if (h.isNull() || h.isMulticast() || h == QHostAddress(QHostAddress::AnyIPv4)
+            || h == QHostAddress(QHostAddress::AnyIPv6)
+            || h == QHostAddress(QHostAddress::Broadcast))
+            qFatal("krellixd: invalid allow-list address");
+        bool v4 = false;
+        const quint32 ipv4 = h.toIPv4Address(&v4);
+        if (v4) h = QHostAddress(ipv4);
         out.insert(h);
     }
     return out;
@@ -167,7 +172,7 @@ int main(int argc, char *argv[])
     // drop perfectly-healthy long-lived clients on every interval. TCP
     // KeepAlive (set on the socket) detects dead connections within a
     // minute or two anyway.
-    int idleTimeoutMs = 300 * 1000;
+    qint64 idleTimeoutSeconds = 300;
     double updateHz  = 1.0;
 
     const QString cfgPath = parser.value(configOpt);
@@ -183,7 +188,7 @@ int main(int argc, char *argv[])
         if (cfg.contains(QStringLiteral("update_hz")))
             updateHz = cfg.value(QStringLiteral("update_hz")).toDouble();
         if (cfg.contains(QStringLiteral("io_timeout")))
-            idleTimeoutMs = cfg.value(QStringLiteral("io_timeout")).toInt() * 1000;
+            idleTimeoutSeconds = cfg.value(QStringLiteral("io_timeout")).toLongLong();
         cfg.endGroup();
 
         cfg.beginGroup(QStringLiteral("security"));
@@ -201,7 +206,7 @@ int main(int argc, char *argv[])
     if (parser.isSet(portOpt))      port = parser.value(portOpt).toUShort();
     if (parser.isSet(maxClientsOpt))maxClients = parser.value(maxClientsOpt).toInt();
     if (parser.isSet(updateHzOpt))  updateHz = parser.value(updateHzOpt).toDouble();
-    if (parser.isSet(ioTimeoutOpt)) idleTimeoutMs = parser.value(ioTimeoutOpt).toInt() * 1000;
+    if (parser.isSet(ioTimeoutOpt)) idleTimeoutSeconds = parser.value(ioTimeoutOpt).toLongLong();
     for (const QString &s : parser.values(allowOpt)) allowEntries.append(s);
 
     QHostAddress addr;
@@ -211,10 +216,14 @@ int main(int argc, char *argv[])
     }
     if (!parser.isSet(portOpt) && parsedPort != kDefaultPort) port = parsedPort;
 
+    if (maxClients < 1 || maxClients > 16 || !std::isfinite(updateHz)
+        || updateHz < 0.1 || updateHz > 10.0
+        || idleTimeoutSeconds < 5 || idleTimeoutSeconds > 300 || port == 0)
+        qFatal("krellixd: invalid limits: clients 1..16, Hz 0.1..10, timeout 5..300, port 1..65535");
     const int intervalMs = qBound(100,
                                   static_cast<int>(1000.0 / qMax(0.1, updateHz)),
                                   10000);
-    idleTimeoutMs = qMax(5 * 1000, idleTimeoutMs);
+    const int idleTimeoutMs = static_cast<int>(idleTimeoutSeconds * 1000);
 
     const QSet<QHostAddress> allowed = parseAllowList(allowEntries);
     if (allowed.isEmpty()) {

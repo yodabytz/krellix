@@ -1,0 +1,23 @@
+[Unit]
+Description=Collect bounded read-only Docker metadata for Krellix
+After=docker.service
+ConditionPathIsSocket=/run/docker.sock
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/lib/krellix/docker-snapshot.py
+User=root
+RuntimeDirectory=krellixd-docker
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+TimeoutStartSec=15
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=
+MemoryMax=64M
+TasksMax=4

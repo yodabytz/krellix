@@ -14,6 +14,8 @@
 class PackageProbe : public QObject {
 public:
     explicit PackageProbe(QObject *parent) : QObject(parent) {
+        connect(&m_process, &QProcess::readyReadStandardOutput, this, [this] { drain(false); });
+        connect(&m_process, &QProcess::readyReadStandardError, this, [this] { drain(true); });
         m_timeout.setSingleShot(true);
         connect(&m_timeout, &QTimer::timeout, this, [this] { m_timedOut = true; m_process.kill(); });
         connect(&m_process, &QProcess::finished, this, [this](int code, QProcess::ExitStatus status) {
@@ -32,6 +34,8 @@ public:
             } else {
                 m_running = true;
                 m_timedOut = false;
+                m_output.clear();
+                m_outputBytes = 0;
                 if (m_result.value(QStringLiteral("status")) != QStringLiteral("ok"))
                     m_result = {{QStringLiteral("status"), QStringLiteral("checking")}, {QStringLiteral("system"), QStringLiteral("apt")}};
                 auto env = QProcessEnvironment::systemEnvironment();
@@ -45,13 +49,27 @@ public:
         return m_result;
     }
 private:
+    void drain(bool error) {
+        m_process.setReadChannel(error ? QProcess::StandardError : QProcess::StandardOutput);
+        const QByteArray bytes = m_process.read(qMax<qint64>(1, 1024 * 1024 - m_outputBytes + 1));
+        m_outputBytes += bytes.size();
+        if (m_outputBytes > 1024 * 1024) {
+            m_timedOut = true;
+            m_process.kill();
+        } else if (!error) {
+            m_output.append(bytes);
+        }
+    }
     void finish(bool success) {
         if (!m_running) return;
+        drain(false);
+        drain(true);
+        success = success && !m_timedOut;
         m_running = false;
         m_timeout.stop();
         m_nextCheck = QDateTime::currentMSecsSinceEpoch() + 300000;
-        const QString output = QString::fromUtf8(m_process.readAllStandardOutput());
-        m_process.readAllStandardError();
+        const QString output = QString::fromUtf8(m_output);
+        m_output.clear();
         m_result = {{QStringLiteral("system"), QStringLiteral("apt")},
                     {QStringLiteral("checked_at"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate)},
                     {QStringLiteral("status"), success ? QStringLiteral("ok") : QStringLiteral("error")}};
@@ -83,6 +101,8 @@ private:
     qint64 m_nextCheck = 0;
     bool m_running = false;
     bool m_timedOut = false;
+    QByteArray m_output;
+    qint64 m_outputBytes = 0;
 };
 inline QJsonObject packageUpdateObject() {
     static PackageProbe *probe = new PackageProbe(QCoreApplication::instance());

@@ -3,6 +3,8 @@
 #include <QHostAddress>
 #include <QSet>
 #include <QTcpServer>
+#include <QElapsedTimer>
+#include <QHash>
 
 class ClientSession;
 
@@ -35,5 +37,7 @@ private:
     int                  m_idleTimeoutMs;
     int                  m_maxClients;
     QSet<QHostAddress>   m_allowed;
-    QSet<ClientSession *> m_sessions;
+    QSet<QObject *>       m_sessions;
+    QHash<QHostAddress, qint64> m_nextAdmission;
+    QElapsedTimer m_clock;
 };
