@@ -160,10 +160,10 @@ void WindowsHealthMonitor::display(const HealthData &data)
     if (!data.error.isEmpty()) { unavailable(data.error); return; }
     const QString summary = data.critical ? QStringLiteral("%1 CRIT").arg(data.critical)
         : data.warnings ? QStringLiteral("%1 WARN").arg(data.warnings)
-        : !data.findings.isEmpty() ? QStringLiteral("%1 INFO").arg(data.findings.size()) : QStringLiteral("OK");
+        : !data.findings.isEmpty() ? QStringLiteral("%1 INFO").arg(data.findings.size()) : QStringLiteral("\u2665 OK");
     if (m_summary) {
         m_summary->setText(summary);
-        m_summary->setColorKey(data.critical ? QStringLiteral("accent_critical") : data.warnings ? QStringLiteral("accent_warning") : QStringLiteral("text_primary"));
+        m_summary->setColorKey(data.critical || data.findings.isEmpty() ? QStringLiteral("accent_critical") : data.warnings ? QStringLiteral("accent_warning") : QStringLiteral("text_primary"));
     }
     if (m_detail) m_detail->setText(data.findings.isEmpty() ? QStringLiteral("tracked checks clear") : data.findings.first().toObject().value("title").toString());
     QStringList text{QStringLiteral("KrellHealth checks:")};

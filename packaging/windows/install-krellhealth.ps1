@@ -9,10 +9,28 @@ foreach ($entry in @(@{Name='krellhealth.dll';Hash=$manifest.plugin_sha256},@{Na
 if (Get-Process krellix -ErrorAction SilentlyContinue) { throw 'Close Krellix before installing.' }
 $plugins = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'krellix\plugins'
 $probe = Join-Path $KrellixDirectory 'health'
+$installed = $null
+$savedManifest = Join-Path $plugins 'krellhealth-manifest.json'
+if (Test-Path $savedManifest) { $installed = Get-Content $savedManifest -Raw | ConvertFrom-Json }
+if ($installed) {
+    $format = '^\d+\.\d+\.\d+-windows\.\d+$'
+    if ($installed.plugin_version -notmatch $format -or $manifest.plugin_version -notmatch $format) { throw 'Unknown installed version; refusing replacement.' }
+    $oldVersion = [version]($installed.plugin_version -replace '-windows\.', '.')
+    $newVersion = [version]($manifest.plugin_version -replace '-windows\.', '.')
+    if ($newVersion -lt $oldVersion) { throw 'Downgrade refused.' }
+}
 foreach ($entry in @(@{Path="$plugins\krellhealth.dll";Hash=$manifest.plugin_sha256},@{Path="$probe\krellhealth-probe.exe";Hash=$manifest.probe_sha256})) {
     if ((Test-Path $entry.Path) -and (Get-FileHash $entry.Path).Hash -ne $entry.Hash) {
-        throw 'A different KrellHealth build is installed. Inspect its version before replacing; automatic downgrades are refused.'
+        if (-not $installed) { throw 'Unknown installed version; refusing replacement.' }
+        if ($newVersion -le $oldVersion) { throw 'Downgrade or same-version replacement refused.' }
+        $expected = if ($entry.Path.EndsWith('.dll')) { $installed.plugin_sha256 } else { $installed.probe_sha256 }
+        if ((Get-FileHash $entry.Path).Hash -ne $expected) { throw 'Installed file does not match its manifest; inspect before replacing.' }
     }
+}
+if ($installed -and $installed.plugin_version -ne $manifest.plugin_version) {
+    $backup = Join-Path $plugins "backups\krellhealth-$($installed.plugin_version)"
+    New-Item -ItemType Directory $backup -Force | Out-Null
+    Copy-Item "$plugins\krellhealth.dll",$savedManifest,"$probe\krellhealth-probe.exe" $backup
 }
 New-Item -ItemType Directory $plugins,$probe -Force | Out-Null
 Copy-Item "$PSScriptRoot\krellhealth-probe.exe" "$probe\krellhealth-probe.exe" -Force

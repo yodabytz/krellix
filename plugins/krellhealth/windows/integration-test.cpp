@@ -2,6 +2,7 @@
 #include "monitors/MonitorBase.h"
 #include "remote/RemoteSource.h"
 #include "theme/Theme.h"
+#include "widgets/Decal.h"
 #include <QApplication>
 #include <QElapsedTimer>
 #include <QPluginLoader>
@@ -59,8 +60,12 @@ int main(int argc, char **argv)
     check(widget->toolTip().contains("&lt;b&gt;"),"Remote text injected HTML");
     sockets.last()->write("{\"type\":\"sample\"}\n");
     check(until([&]{return widget->toolTip().contains("no health data");}),"Absent health reported healthy");
+    for(auto *decal:widget->findChildren<Decal *>()) check(!decal->text().contains(QChar(0x2665)),"Missing data showed healthy heart");
     sockets.last()->write("{\"type\":\"sample\",\"health\":{\"critical\":0,\"warnings\":0,\"findings\":[]}}\n");
     check(until([&]{return widget->toolTip().contains("No active findings");}),"Explicit healthy report missing");
+    bool heart=false;
+    for(auto *decal:widget->findChildren<Decal *>()) if(decal->text()==QStringLiteral("\u2665 OK")) heart=true;
+    check(heart,"Healthy status did not display heart");
     sockets.last()->write("garbage\n");
     check(until([&]{return widget->toolTip().contains("invalid remote health message");}),"Malformed message accepted");
     check(until([&]{monitor->tick();return widget->toolTip().contains("REMOTE_ONLY");}),"Reconnect failed");

@@ -35,6 +35,9 @@ counts and text sizes are bounded; tooltip text is HTML-escaped.
 
 Linux and macOS plugin implementations are unchanged.
 
+Clear health is displayed as a heart followed by OK, matching the original
+plugin. Missing data, unavailable checks and warnings never show a healthy heart.
+
 ## API References
 
 - https://learn.microsoft.com/en-us/windows/win32/fileio/obtaining-volume-information
