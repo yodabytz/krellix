@@ -120,6 +120,9 @@ void SensorsMonitor::tick()
     }
 
     if (!m_panel) return;
+#ifdef Q_OS_WIN
+    if (m_empty && order.isEmpty()) m_empty->setText(SensorStat::windowsStatus());
+#endif
     if (m_empty) m_empty->setVisible(order.isEmpty());
     for (auto it = m_rows.begin(); it != m_rows.end(); ++it)
         if (it.value()) it.value()->setVisible(order.contains(it.key()));

@@ -1,0 +1,27 @@
+Sensor library components are unmodified upstream binaries.
+
+Libre Hardware Monitor 0.9.6 (MPL-2.0):
+https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/tree/v0.9.6
+Its full source archive, MPL license and third-party notices accompany this build.
+
+DiskInfoToolkit 1.1.2 and RAMSPDToolkit-NDD 1.4.2 (MPL-2.0):
+https://github.com/Blacktempel/DiskInfoToolkit
+https://github.com/Blacktempel/RAMSPDToolkit
+https://www.nuget.org/packages/DiskInfoToolkit/1.1.2
+https://www.nuget.org/packages/RAMSPDToolkit-NDD/1.4.2
+The MPL license is in LICENSE in this directory.
+
+BlackSharp.Core (MPL-2.0): https://github.com/Blacktempel/BlackSharp
+License: BlackSharp-LICENSE.
+
+HidSharp 2.6.4 (Apache-2.0), copyright James F. Bellinger and contributors:
+https://github.com/IntergatedCircuits/HidSharp
+License: HidSharp-LICENSE.
+
+System.Buffers, System.Memory, System.Numerics.Vectors and
+System.Runtime.CompilerServices.Unsafe (MIT), .NET Foundation and contributors:
+https://github.com/dotnet/runtime
+License: DotNet-LICENSE.
+
+Krellix's sensor helper is built from packaging/windows/SensorHelper.cs in
+the Krellix source repository. No sensor driver is installed by this package.

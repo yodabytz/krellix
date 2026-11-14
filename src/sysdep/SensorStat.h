@@ -21,6 +21,9 @@ public:
     // macOS uses native/installed command probes when direct hwmon data is
     // unavailable. Empty list on failure.
     static QList<SensorReading> read();
+#ifdef Q_OS_WIN
+    static QString windowsStatus();
+#endif
 
     using ReadFn = QList<SensorReading> (*)();
     static void setReadOverride(ReadFn fn);

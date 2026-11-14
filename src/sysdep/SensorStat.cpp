@@ -1,4 +1,7 @@
 #include "SensorStat.h"
+#ifdef Q_OS_WIN
+#include "WindowsSensors.h"
+#endif
 
 #include <QDir>
 #include <QFile>
@@ -390,6 +393,10 @@ QList<SensorReading> SensorStat::read()
 {
     if (g_readOverride) return g_readOverride();
 
+#ifdef Q_OS_WIN
+    return WindowsSensors::read();
+#endif
+
     QList<SensorReading> out = readLinuxHwmon();
 #if defined(Q_OS_MACOS) || defined(Q_OS_DARWIN)
     if (out.isEmpty())
@@ -397,3 +404,12 @@ QList<SensorReading> SensorStat::read()
 #endif
     return out;
 }
+
+#ifdef Q_OS_WIN
+QString SensorStat::windowsStatus()
+{
+    // An empty remote stream must never initialize or fall back to local probes.
+    if (g_readOverride) return QStringLiteral("No remote sensors");
+    return WindowsSensors::status();
+}
+#endif

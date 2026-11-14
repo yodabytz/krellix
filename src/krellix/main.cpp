@@ -112,6 +112,9 @@ int main(int argc, char *argv[])
 {
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QApplication app(argc, argv);
+#ifdef Q_OS_WIN
+    QFont::insertSubstitution(QStringLiteral("Monospace"), QStringLiteral("Consolas"));
+#endif
 #ifdef Q_OS_MACOS
     if (!configureMacAccessoryApplication())
         qWarning("Unable to hide the Krellix Dock icon");

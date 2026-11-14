@@ -1,4 +1,7 @@
 #include "UptimeStat.h"
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#endif
 
 #include <QByteArray>
 #include <QDateTime>
@@ -15,7 +18,9 @@ void UptimeStat::setReadOverride(UptimeStat::ReadFn fn) { g_readOverride = fn; }
 qint64 UptimeStat::secondsSinceBoot()
 {
     if (g_readOverride) return g_readOverride();
-#if defined(Q_OS_MACOS)
+#if defined(Q_OS_WIN)
+    return static_cast<qint64>(GetTickCount64() / 1000ULL);
+#elif defined(Q_OS_MACOS)
     timeval boottime{};
     size_t size = sizeof(boottime);
     const int mib[2] = {CTL_KERN, KERN_BOOTTIME};

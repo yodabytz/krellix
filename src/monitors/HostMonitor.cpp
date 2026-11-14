@@ -9,10 +9,14 @@
 #include <QSysInfo>
 #include <QHostAddress>
 
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#else
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#endif
 
 namespace {
 
@@ -24,6 +28,13 @@ namespace {
 // at the host monitor's 5-second tick rate.
 QString resolveFqdn()
 {
+#ifdef Q_OS_WIN
+    wchar_t name[256]{};
+    DWORD size = 256;
+    if (GetComputerNameExW(ComputerNameDnsFullyQualified, name, &size))
+        return QString::fromWCharArray(name, static_cast<int>(size));
+    return QSysInfo::machineHostName();
+#else
     char buf[256];
     if (gethostname(buf, sizeof(buf)) != 0) return QString();
     buf[sizeof(buf) - 1] = '\0';
@@ -41,6 +52,7 @@ QString resolveFqdn()
     }
     if (result) freeaddrinfo(result);
     return out;
+#endif
 }
 
 bool usableDomainName(const QString &domain)

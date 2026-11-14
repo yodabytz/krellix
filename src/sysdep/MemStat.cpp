@@ -7,6 +7,7 @@
 
 #if defined(Q_OS_WIN)
 #include <qt_windows.h>
+#include <psapi.h>
 #elif defined(Q_OS_MACOS)
 #include <mach/mach.h>
 #include <mach/mach_host.h>
@@ -76,8 +77,17 @@ MemInfo MemStat::read()
     out.totalKb = static_cast<quint64>(mem.ullTotalPhys / 1024ULL);
     out.availableKb = static_cast<quint64>(mem.ullAvailPhys / 1024ULL);
     out.freeKb = out.availableKb;
-    out.swapTotalKb = static_cast<quint64>(mem.ullTotalPageFile / 1024ULL);
-    out.swapFreeKb = static_cast<quint64>(mem.ullAvailPageFile / 1024ULL);
+    SYSTEM_INFO info{};
+    GetSystemInfo(&info);
+    struct PageFiles { quint64 total = 0; quint64 used = 0; } files;
+    EnumPageFilesW([](LPVOID context, PENUM_PAGE_FILE_INFORMATION page, LPCWSTR) -> BOOL {
+        auto *value = static_cast<PageFiles *>(context);
+        value->total += page->TotalSize;
+        value->used += page->TotalInUse;
+        return TRUE;
+    }, &files);
+    out.swapTotalKb = files.total * info.dwPageSize / 1024ULL;
+    out.swapFreeKb = (files.total - qMin(files.total, files.used)) * info.dwPageSize / 1024ULL;
     return out;
 #elif defined(Q_OS_MACOS)
     const quint64 totalBytes = sysctlUint64("hw.memsize");

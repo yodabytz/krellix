@@ -32,6 +32,23 @@ bool diskEnabled(const QString &name)
                              !name.startsWith(QStringLiteral("loop"))).toBool();
 }
 
+#ifdef Q_OS_WIN
+QList<DiskSample> displayDiskSamples(const QList<DiskSample> &raw)
+{
+    if (QSettings().value(QStringLiteral("monitors/disk/mode")).toString() != QStringLiteral("composite")) return raw;
+    DiskSample total;
+    total.name = QStringLiteral("All disks");
+    bool any = false;
+    for (const auto &s : raw) {
+        if (!diskEnabled(s.name)) continue;
+        total.sectorsRead += s.sectorsRead;
+        total.sectorsWritten += s.sectorsWritten;
+        any = true;
+    }
+    return any ? QList<DiskSample>{total} : QList<DiskSample>{};
+}
+#endif
+
 } // namespace
 
 DiskMonitor::DiskMonitor(Theme *theme, QObject *parent)
@@ -50,7 +67,11 @@ QWidget *DiskMonitor::createWidget(QWidget *parent)
     vbox->setSpacing(0);
 
     m_container = container;
+#ifdef Q_OS_WIN
+    rebuildDisks(displayDiskSamples(DiskStat::read()));
+#else
     rebuildDisks(DiskStat::read());
+#endif
     return container;
 }
 
@@ -122,7 +143,18 @@ void DiskMonitor::rebuildDisks(const QList<DiskSample> &samples)
 
 void DiskMonitor::tick()
 {
+#ifdef Q_OS_WIN
+    const auto raw = DiskStat::read();
+    const QList<DiskSample> samples = displayDiskSamples(raw);
+    QString signature = QSettings().value(QStringLiteral("monitors/disk/mode")).toString();
+    for (const auto &s : raw) if (diskEnabled(s.name)) signature += QLatin1Char('|') + s.name;
+    if (signature != m_layoutSettings) {
+        rebuildDisks(samples);
+        m_layoutSettings = signature;
+    }
+#else
     const QList<DiskSample> samples = DiskStat::read();
+#endif
     QStringList visible;
     for (const auto &sample : samples)
         if (diskEnabled(sample.name)) visible.append(sample.name);

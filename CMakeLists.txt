@@ -38,7 +38,10 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     )
 endif()
 
-find_package(Qt6 6.2 REQUIRED COMPONENTS Core Gui Widgets Network DBus)
+find_package(Qt6 6.2 REQUIRED COMPONENTS Core Gui Widgets Network)
+if(NOT WIN32)
+    find_package(Qt6 REQUIRED COMPONENTS DBus)
+endif()
 
 qt_standard_project_setup()
 
@@ -152,6 +155,11 @@ set_target_properties(krellix PROPERTIES
 
 install(TARGETS krellix RUNTIME DESTINATION bin)
 install(DIRECTORY themes/ DESTINATION share/krellix/themes)
+
+if(WIN32)
+    include(packaging/windows/core.cmake)
+    return()
+endif()
 
 # ---- krellixd: remote monitoring daemon ---------------------------------
 # QtCore + QtNetwork only (no Widgets, no display). Designed to run as a

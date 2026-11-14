@@ -60,6 +60,7 @@ QList<CpuSample> readWindowsCpuStat()
 
     if (query) {
         const DWORD cpuCount = qMax<DWORD>(1, GetActiveProcessorCount(ALL_PROCESSOR_GROUPS));
+        if (cpuCount > 4096) return {};
         QList<SystemProcessorPerformanceInformation> raw;
         raw.resize(static_cast<int>(cpuCount));
         ULONG returned = 0;
@@ -68,7 +69,10 @@ QList<CpuSample> readWindowsCpuStat()
                                   raw.data(),
                                   static_cast<ULONG>(raw.size() * sizeof(raw.first())),
                                   &returned);
-        if (status >= 0) {
+        if (status >= 0 && returned > 0
+            && returned <= raw.size() * sizeof(raw.first())
+            && returned % sizeof(raw.first()) == 0) {
+            raw.resize(static_cast<int>(returned / sizeof(raw.first())));
             QList<CpuSample> samples;
             samples.reserve(raw.size() + 1);
             CpuSample aggregate;
@@ -83,7 +87,8 @@ QList<CpuSample> readWindowsCpuStat()
                 s.user = static_cast<quint64>(qMax<LONGLONG>(0, p.UserTime.QuadPart));
                 s.idle = static_cast<quint64>(qMax<LONGLONG>(0, p.IdleTime.QuadPart));
                 const LONGLONG kernelBusy = p.KernelTime.QuadPart - p.IdleTime.QuadPart;
-                s.sys = static_cast<quint64>(qMax<LONGLONG>(0, kernelBusy));
+                s.sys = static_cast<quint64>(qMax<LONGLONG>(0,
+                    kernelBusy - p.InterruptTime.QuadPart - p.DpcTime.QuadPart));
                 s.irq = static_cast<quint64>(qMax<LONGLONG>(0, p.InterruptTime.QuadPart));
                 s.softirq = static_cast<quint64>(qMax<LONGLONG>(0, p.DpcTime.QuadPart));
 

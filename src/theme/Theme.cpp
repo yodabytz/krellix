@@ -114,6 +114,11 @@ QStringList Theme::searchPaths()
     paths << appDir.filePath(QStringLiteral("../Resources/themes"));
 #endif
 
+#ifdef Q_OS_WIN
+    const QDir windowsAppDir(QCoreApplication::applicationDirPath());
+    paths << windowsAppDir.filePath(QStringLiteral("themes"));
+    paths << windowsAppDir.filePath(QStringLiteral("../share/krellix/themes"));
+#endif
     paths << QString::fromUtf8(KRELLIX_THEMES_SYSTEM_DIR);
 
     // Convenience: allow running from the build/source tree without installing.

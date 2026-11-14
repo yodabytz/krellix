@@ -32,6 +32,9 @@ private:
     void rebuildDisks(const QList<DiskSample> &samples);
     QPointer<QWidget> m_container;
     QStringList m_visibleDisks;
+#ifdef Q_OS_WIN
+    QString m_layoutSettings;
+#endif
 
     struct DiskUI {
         QPointer<Decal> textDecal;

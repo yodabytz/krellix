@@ -31,6 +31,9 @@ public:
     void     tick() override;
 
     struct IfaceUI {
+#ifdef Q_OS_WIN
+        QPointer<QWidget> panel;
+#endif
         QPointer<Krell> rxKrell;
         QPointer<Krell> txKrell;
         QPointer<Chart> chart;

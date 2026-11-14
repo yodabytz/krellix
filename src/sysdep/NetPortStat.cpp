@@ -1,4 +1,7 @@
 #include "NetPortStat.h"
+#ifdef Q_OS_WIN
+#include "WindowsStats.h"
+#endif
 
 #include <QByteArray>
 #include <QByteArrayList>
@@ -190,7 +193,9 @@ QList<NetPortSample> NetPortStat::read()
     if (g_readOverride) return g_readOverride();
 
     QList<NetPortSample> out;
-#if defined(Q_OS_MACOS)
+#if defined(Q_OS_WIN)
+    return WindowsStats::ports();
+#elif defined(Q_OS_MACOS)
     readMacSocketTable(QStringLiteral("tcp"), out);
     readMacSocketTable(QStringLiteral("udp"), out);
 #else

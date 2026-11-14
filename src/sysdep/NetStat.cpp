@@ -1,6 +1,9 @@
 #include "NetStat.h"
 
 #include "DockerNet.h"
+#ifdef Q_OS_WIN
+#include "WindowsStats.h"
+#endif
 
 #include <QByteArray>
 #include <QByteArrayList>
@@ -104,7 +107,9 @@ bool NetStat::isMainInterface(const QString &name)
 QList<NetSample> NetStat::read()
 {
     if (g_readOverride) return g_readOverride();
-#if defined(Q_OS_MACOS)
+#if defined(Q_OS_WIN)
+    return WindowsStats::network();
+#elif defined(Q_OS_MACOS)
     return readMacNetStat();
 #else
     QFile f(QStringLiteral("/proc/net/dev"));

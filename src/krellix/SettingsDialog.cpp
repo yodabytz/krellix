@@ -228,6 +228,10 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
 
         m_stickyWindow = new QCheckBox(QStringLiteral("Show on all workspaces"), page);
         m_stickyWindow->setToolTip(QStringLiteral("Uses the window manager's sticky hint when wmctrl is available."));
+#ifdef Q_OS_WIN
+        m_stickyWindow->setEnabled(false);
+        m_stickyWindow->setToolTip(QStringLiteral("Use Windows Task View to show this window on all desktops."));
+#endif
         form->addRow(QString(), m_stickyWindow);
 
         m_clockAtTop = new QCheckBox(QStringLiteral("Clock right under hostname (vs. at bottom)"), page);
@@ -292,6 +296,12 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         m_netPortsEnabled = new QCheckBox(QStringLiteral("Net Ports (connection counts)"),  page);
         m_diskEnabled    = new QCheckBox(QStringLiteral("Disk I/O (per-disk read/write)"), page);
         m_sensorsEnabled = new QCheckBox(QStringLiteral("Sensors (temps via /sys/class/hwmon)"), page);
+#ifdef Q_OS_WIN
+        m_sensorsEnabled->setText(QStringLiteral("Sensors (temperatures, fans, voltages)"));
+        m_sensorsEnabled->setToolTip(QStringLiteral("Local Windows sensors use the bundled Libre Hardware Monitor library. "
+            "Some physical sensors require administrator access and the PawnIO driver. "
+            "Virtual machines may expose no sensors. Remote instances use only remote readings."));
+#endif
         m_batteryEnabled = new QCheckBox(QStringLiteral("Battery (laptops)"),              page);
         layout->addWidget(m_hostEnabled);
         layout->addWidget(m_clockEnabled);

@@ -9,6 +9,7 @@
 #include <QString>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <algorithm>
 
 namespace {
 
@@ -65,6 +66,9 @@ static NetMonitor::IfaceUI buildIfacePanel(Theme *theme, QWidget *parent,
     p->setSurfaceKey(QStringLiteral("panel_bg_net"));
     p->setTitle(alias.isEmpty() ? name : alias);
     NetMonitor::IfaceUI ui;
+#ifdef Q_OS_WIN
+    ui.panel = p;
+#endif
     ui.rxKrell = p->addKrell();
     ui.txKrell = p->addKrell();
     ui.chart   = p->addChart(QStringLiteral("chart_line_net_rx"));
@@ -134,6 +138,21 @@ QWidget *NetMonitor::createWidget(QWidget *parent)
 void NetMonitor::tick()
 {
     const QList<NetSample> samples = NetStat::read();
+#ifdef Q_OS_WIN
+    QSettings liveSettings;
+    for (auto it = m_ifaces.begin(); it != m_ifaces.end();) {
+        const bool present = std::any_of(samples.cbegin(), samples.cend(), [&](const NetSample &s) { return s.name == it.key(); });
+        if (!present || !netEnabled(liveSettings, it.key())) {
+            if (it->panel) {
+                m_containerLayout->removeWidget(it->panel);
+                it->panel->hide();
+                it->panel->deleteLater();
+            }
+            m_prevSamples.remove(it.key());
+            it = m_ifaces.erase(it);
+        } else ++it;
+    }
+#endif
     if (samples.isEmpty()) return;
 
     const qint64 elapsedMs = m_lastReadTimer.isValid() ? m_lastReadTimer.elapsed() : 1000;

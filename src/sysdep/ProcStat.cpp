@@ -8,7 +8,11 @@
 #include <QString>
 
 #include <cstring>
+#ifdef Q_OS_WIN
+#include "WindowsStats.h"
+#else
 #include <utmpx.h>
+#endif
 
 namespace {
 ProcStat::ReadFn g_readOverride = nullptr;
@@ -32,7 +36,9 @@ void ProcStat::setReadOverride(ProcStat::ReadFn fn)
 ProcInfo ProcStat::read()
 {
     if (g_readOverride) return g_readOverride();
-
+#ifdef Q_OS_WIN
+    return WindowsStats::processes();
+#else
     ProcInfo out;
 
 #if defined(Q_OS_MACOS)
@@ -71,4 +77,5 @@ ProcInfo ProcStat::read()
     out.users = users.size();
 
     return out;
+#endif
 }

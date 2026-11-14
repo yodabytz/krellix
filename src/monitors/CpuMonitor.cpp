@@ -13,6 +13,20 @@
 #include <algorithm>
 
 namespace {
+#ifdef Q_OS_WIN
+QString cpuLayoutSettings(const QList<CpuSample> &samples)
+{
+    QSettings settings;
+    QString signature = settings.value(QStringLiteral("monitors/cpu/mode"), QStringLiteral("per-core")).toString()
+        + QLatin1Char('|') + settings.value(QStringLiteral("monitors/cpu/label_format"), QStringLiteral("{name}")).toString();
+    for (const auto &sample : samples) {
+        if (sample.index < 0) continue;
+        signature += QStringLiteral("|%1:%2").arg(sample.index).arg(settings.value(
+            QStringLiteral("monitors/cpu/%1").arg(sample.index), true).toBool());
+    }
+    return signature;
+}
+#endif
 
 QList<CpuSample> sortedCoreSamples(const QList<CpuSample> &samples)
 {
@@ -201,12 +215,35 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
     m_prevSamples = samples;
     m_havePrev    = true;
     m_panelsBuilt = true;
+#ifdef Q_OS_WIN
+    m_layoutSettings = cpuLayoutSettings(samples);
+#endif
 }
 
 void CpuMonitor::tick()
 {
     const QList<CpuSample> samples = CpuStat::read();
     if (samples.isEmpty()) return;
+#ifdef Q_OS_WIN
+    if (m_panelsBuilt && m_containerLayout && m_layoutSettings != cpuLayoutSettings(samples)) {
+        while (auto *item = m_containerLayout->takeAt(0)) {
+            if (auto *widget = item->widget()) {
+                widget->hide();
+                widget->deleteLater();
+            }
+            delete item;
+        }
+        m_cores.clear();
+        m_visibleCoreIndices.clear();
+        m_visibleCoreLabels.clear();
+        m_combinedCoreIndices.clear();
+        m_combinedChart = nullptr;
+        m_aggregateUI = {};
+        m_panelsBuilt = false;
+        m_havePrev = false;
+        m_prevSamples.clear();
+    }
+#endif
 
     // First sample arrived after createWidget — build the real panels
     // now (typical in --host mode where the remote sample lands a tick

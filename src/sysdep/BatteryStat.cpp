@@ -1,4 +1,7 @@
 #include "BatteryStat.h"
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#endif
 
 #include <QDir>
 #include <QFile>
@@ -130,7 +133,20 @@ BatteryInfo BatteryStat::read()
     if (g_readOverride) return g_readOverride();
 
     BatteryInfo out;
-#if defined(Q_OS_MACOS)
+#if defined(Q_OS_WIN)
+    SYSTEM_POWER_STATUS power{};
+    if (!GetSystemPowerStatus(&power)) return out;
+    out.acOnline = power.ACLineStatus == 1;
+    out.present = power.BatteryFlag != 255 && !(power.BatteryFlag & 128);
+    if (!out.present) return out;
+    out.batteryName = QStringLiteral("Battery");
+    out.percent = power.BatteryLifePercent <= 100 ? power.BatteryLifePercent : 0;
+    out.status = power.BatteryFlag & 8 ? QStringLiteral("Charging")
+        : !out.acOnline ? QStringLiteral("Discharging")
+        : out.percent == 100 ? QStringLiteral("Full") : QStringLiteral("Unknown");
+    if (power.BatteryLifeTime != DWORD(-1)) out.timeRemainSec = power.BatteryLifeTime;
+    return out;
+#elif defined(Q_OS_MACOS)
     return readMacBattery();
 #else
     QDir ps(QStringLiteral("/sys/class/power_supply"));

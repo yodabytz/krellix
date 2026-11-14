@@ -12,7 +12,14 @@ static void require(bool ok, const char *message) { if (!ok) qFatal("%s", messag
 static void waitFor(const std::function<bool()> &done) {
     QElapsedTimer elapsed;
     elapsed.start();
-    while (!done() && elapsed.elapsed() < 3000) {
+#ifdef Q_OS_WIN
+    // Windows may silently filter refused loopback connections until the
+    // application's 15-second connection deadline rather than returning RST.
+    constexpr int waitMs = 20000;
+#else
+    constexpr int waitMs = 3000;
+#endif
+    while (!done() && elapsed.elapsed() < waitMs) {
         QCoreApplication::processEvents();
         QThread::msleep(1);
     }
