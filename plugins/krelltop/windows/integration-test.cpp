@@ -52,7 +52,7 @@ int main(int argc, char **argv)
     QTcpServer server;
     check(server.listen(QHostAddress::LocalHost, 0), "Fixture listen failed");
     QList<QTcpSocket *> sockets;
-    const QByteArray sample = "{\"type\":\"sample\",\"top\":[{\"pid\":4242,\"name\":\"REMOTE_ONLY\",\"cmd\":\"remote command\",\"cpu\":12.5,\"mem\":2.5,\"rss\":8192}]}\n";
+    const QByteArray sample = "{\"type\":\"sample\",\"top\":[{\"pid\":4242,\"name\":\"REMOTE_ONLY.etn\",\"cmd\":\"remote command\",\"cpu\":12.5,\"mem\":2.5,\"rss\":8192}]}\n";
     QObject::connect(&server, &QTcpServer::newConnection, &parent, [&] {
         while (server.hasPendingConnections()) {
             auto *socket = server.nextPendingConnection(); sockets.append(socket); socket->write(sample);
@@ -66,6 +66,7 @@ int main(int argc, char **argv)
     check(until([&] { remote->tick(); return widget->toolTip().contains("REMOTE_ONLY"); }), "Remote process data missing");
     check(remote->findChildren<QThread *>().isEmpty(), "Remote created local process sampler");
     check(widget->toolTip().contains("pid 4242") && widget->toolTip().contains("8 MiB"), "Remote fields corrupted");
+    check(!widget->toolTip().contains("REMOTE_ONLY.etn"), "Remote display retained filename extension");
     for (auto *socket : sockets) socket->write("{\"type\":\"sample\",\"top\":[]}\n");
     check(until([&] { return widget->toolTip().contains("server provides no process data"); }), "Empty remote data retained stale rows");
     for (auto *socket : sockets) socket->write(sample);

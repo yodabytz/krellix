@@ -43,7 +43,7 @@ Copy-Item "$Build\plugins\krelltop.dll" $plugin
 Copy-Item "$PSScriptRoot\install-krelltop.ps1" $plugin
 @{
     host_version = '0.1.2-windows-preview.2'
-    plugin_version = '0.1.4-windows.1'
+    plugin_version = '0.1.4-windows.2'
     host_sha256 = (Get-FileHash "$Destination\krellix.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
     plugin_sha256 = (Get-FileHash "$plugin\krelltop.dll" -Algorithm SHA256).Hash.ToLowerInvariant()
 } | ConvertTo-Json | Set-Content "$plugin\manifest.json" -Encoding ASCII

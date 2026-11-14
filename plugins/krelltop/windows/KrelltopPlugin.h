@@ -69,6 +69,6 @@ class KrelltopPlugin : public QObject, public IKrellixPlugin
 public:
     QString pluginId() const override { return QStringLiteral("io.krellix.krelltop"); }
     QString pluginName() const override { return QStringLiteral("KrellTop"); }
-    QString pluginVersion() const override { return QStringLiteral("0.1.4-windows.1"); }
+    QString pluginVersion() const override { return QStringLiteral("0.1.4-windows.2"); }
     QList<MonitorBase *> createMonitors(Theme *theme, QObject *parent) override;
 };

@@ -1,4 +1,5 @@
 #include "KrelltopPlugin.h"
+#include "ProcessName.h"
 
 #include "remote/RemoteSource.h"
 #include "widgets/Decal.h"
@@ -266,7 +267,7 @@ QString KrelltopMonitor::formatRss(qint64 rssKiB)
 
 QString KrelltopMonitor::displayNameFor(const ProcessRow &row)
 {
-    QString name = row.name;
+    QString name = processBaseName(row.name);
     if (name.startsWith(QLatin1Char('[')) && name.endsWith(QLatin1Char(']')))
         return name;
     if (name.size() > 22)

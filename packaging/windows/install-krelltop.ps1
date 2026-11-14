@@ -17,8 +17,18 @@ if (Test-Path $target) {
         Write-Output 'The matching KrellTop is already installed.'
         exit 0
     }
-    throw 'A different KrellTop DLL is installed. Preserve it and verify its version before replacing it; automatic downgrades are not allowed.'
+    $installed = Get-Content (Join-Path $destination 'krelltop-manifest.json') -Raw | ConvertFrom-Json
+    if ((Get-FileHash $target -Algorithm SHA256).Hash -ne $installed.plugin_sha256) { throw 'Existing plugin does not match its manifest; inspect before replacing.' }
+    $format = '^(\d+)\.(\d+)\.(\d+)-windows\.(\d+)$'
+    if ($installed.plugin_version -notmatch $format -or $manifest.plugin_version -notmatch $format) { throw 'Unknown plugin version; automatic replacement refused.' }
+    $oldVersion = [version]($installed.plugin_version -replace '-windows\.', '.')
+    $newVersion = [version]($manifest.plugin_version -replace '-windows\.', '.')
+    if ($newVersion -le $oldVersion) { throw 'Downgrade or same-version replacement refused.' }
+    $backup = Join-Path $destination "backups\$($installed.plugin_version)"
+    New-Item -ItemType Directory $backup -Force | Out-Null
+    Copy-Item $target $backup
+    Copy-Item (Join-Path $destination 'krelltop-manifest.json') $backup
 }
-Copy-Item $dll $target
-Copy-Item "$PSScriptRoot\manifest.json" (Join-Path $destination 'krelltop-manifest.json')
+Copy-Item $dll $target -Force
+Copy-Item "$PSScriptRoot\manifest.json" (Join-Path $destination 'krelltop-manifest.json') -Force
 Write-Output "Installed KrellTop $($manifest.plugin_version). Enable it in Settings / Plugins for each instance."

@@ -1,4 +1,5 @@
 #include "WindowsProcesses.h"
+#include "ProcessName.h"
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <cmath>
@@ -6,6 +7,11 @@ static void check(bool value, const char *message) { if (!value) qFatal("%s", me
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
+    check(processBaseName(QStringLiteral("krellix.exe")) == QStringLiteral("krellix"), "Executable extension visible");
+    check(processBaseName(QStringLiteral("helper.etn")) == QStringLiteral("helper"), "ETN extension visible");
+    check(processBaseName(QStringLiteral("worker.service.exe")) == QStringLiteral("worker"), "Multiple extensions visible");
+    check(processBaseName(QStringLiteral(".hidden.bin")) == QStringLiteral(".hidden"), "Hidden process name damaged");
+    check(processBaseName(QStringLiteral("[kworker/0:1]")) == QStringLiteral("[kworker/0:1]"), "Kernel thread name damaged");
     check(WindowsProcesses::cpuPercent(0, 10000000, 1000, 1, 1, 2) == 100, "CPU interval units incorrect");
     check(WindowsProcesses::cpuPercent(0, 10000000, 1000, 1, 2, 2) == 0, "PID reuse caused CPU spike");
     check(WindowsProcesses::cpuPercent(100, 50, 1000, 1, 1, 2) == 0, "Counter reversal caused CPU spike");
