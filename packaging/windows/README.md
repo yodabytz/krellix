@@ -1,7 +1,30 @@
-# Windows core preview
+# Windows preview with KrellTop
 
-Build with MSYS2 UCRT64 Qt 6, GCC, CMake and Ninja. Plugins and the daemon
-are not part of this Windows preview. Linux/macOS builds are unchanged.
+Build with MSYS2 UCRT64 Qt 6, GCC, CMake and Ninja. This preview includes
+KrellTop for Windows, but no Windows daemon. Linux/macOS builds are unchanged.
+
+## KrellTop
+
+Close Krellix, then run `extras/krelltop/install-krelltop.ps1` in PowerShell
+(no administrator rights required). For a standalone plugin download, pass
+`-KrellixDirectory C:/path/to/Krellix`. The installer verifies the matching
+host and DLL before installing into your per-user plugin directory. Reopen
+Krellix and enable KrellTop in Settings / Plugins for each desired instance.
+Your existing settings are not changed by the installer.
+
+The Windows DLL requires the matching Windows preview. It must not be used
+with the older preview that did not export the plugin API. Keep the bundled
+host and DLL together when upgrading; do not mix Linux/macOS plugin binaries.
+
+Local Windows processes are sampled asynchronously once a second; the panel
+refreshes every five seconds. CPU usage follows the Unix convention: 100%
+means one busy logical core. Memory is the process working set. Protected or
+inaccessible processes are omitted without requesting elevated privileges.
+Tooltips show executable paths, not full Windows command-line arguments.
+
+Remote instances read only the selected daemon's process stream, with bounded
+messages and timeouts. Disconnection or missing data clears the display;
+there is never a fallback to local Windows processes.
 
 ## Sensors
 
@@ -54,7 +77,9 @@ from the selected daemon. Missing remote readings are not replaced locally.
 ## Verification
 
 Run CTest for settings lifecycle, native core settings, remote reconnect,
-Windows sensor parsing and remote source isolation. `krellix-sensors.exe
+Windows sensor parsing, remote source isolation, native process counters,
+and loading the actual KrellTop DLL with local/remote lifecycle tests.
+`krellix-sensors.exe
 --once` provides a diagnostic JSON sample without starting Krellix. Physical
 temperature accuracy still requires comparison on supported physical hardware;
 VM and synthetic tests cannot establish that.

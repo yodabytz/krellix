@@ -1,7 +1,10 @@
-# The first Windows release is the core GUI, not the Unix daemon or plugins.
+# Windows GUI and Windows-specific plugins; the Unix daemon is not built here.
 target_sources(krellix PRIVATE src/sysdep/WindowsStats.cpp src/sysdep/WindowsSensors.cpp)
 target_link_libraries(krellix PRIVATE iphlpapi ws2_32 wtsapi32 psapi)
 target_compile_definitions(krellix PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+if(MINGW)
+    target_link_options(krellix PRIVATE "-Wl,--export-all-symbols")
+endif()
 set_target_properties(krellix PROPERTIES WIN32_EXECUTABLE ON
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/sensors-candidate")
 file(COPY "${CMAKE_SOURCE_DIR}/themes" DESTINATION "${CMAKE_BINARY_DIR}/bin")
@@ -46,3 +49,4 @@ if(BUILD_TESTING)
     add_test(NAME remote-reconnect COMMAND remote-reconnect)
     set_tests_properties(remote-reconnect PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 180)
 endif()
+add_subdirectory("${CMAKE_SOURCE_DIR}/plugins/krelltop/windows" "${CMAKE_BINARY_DIR}/krelltop-windows")

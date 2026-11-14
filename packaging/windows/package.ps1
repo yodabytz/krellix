@@ -37,3 +37,13 @@ Copy-Item "$UpstreamSourceDirectory\THIRD-PARTY-NOTICES.txt" "$Destination\licen
 Copy-Item "$PSScriptRoot\licenses\*" "$Destination\licenses\LibreHardwareMonitor"
 Copy-Item $UpstreamSourceArchive "$Destination\licenses\LibreHardwareMonitor\upstream-source-0.9.6.tar.gz"
 Copy-Item "$PSScriptRoot\README.md" "$Destination\README-Windows.md"
+$plugin = "$Destination\extras\krelltop"
+New-Item -ItemType Directory $plugin -Force | Out-Null
+Copy-Item "$Build\plugins\krelltop.dll" $plugin
+Copy-Item "$PSScriptRoot\install-krelltop.ps1" $plugin
+@{
+    host_version = '0.1.2-windows-preview.2'
+    plugin_version = '0.1.4-windows.1'
+    host_sha256 = (Get-FileHash "$Destination\krellix.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+    plugin_sha256 = (Get-FileHash "$plugin\krelltop.dll" -Algorithm SHA256).Hash.ToLowerInvariant()
+} | ConvertTo-Json | Set-Content "$plugin\manifest.json" -Encoding ASCII
