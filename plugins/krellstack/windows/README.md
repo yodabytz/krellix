@@ -1,4 +1,4 @@
-# KrellStack for Windows 0.1.1-windows.2
+# KrellStack for Windows 0.1.1-windows.3
 
 Requires the exact matching Krellix 0.1.2 Windows preview.2 x86_64 host. Existing
 Linux/macOS implementations and host binaries are unchanged.

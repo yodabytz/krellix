@@ -44,8 +44,9 @@ int main(int argc,char **argv){
         check(until([&]{return !label->text().startsWith("Checking");},75000),"Query stuck");
         if(QByteArray(mode)=="ok"){
             check(label->text()=="Running: 1 of 2","Wrong local count");check(label->toolTip().contains("&lt;b&gt;"),"HTML injection");
-            check(widget->findChild<Decal *>("stackDetail")->text()=="Images: 1 | Projects: 1","Unclear image/project labels");
-            check(widget->findChild<Decal *>("stackAttention")->text()=="Stopped or unhealthy: 1","Unclear attention label");
+            check(widget->findChild<Decal *>("stackDetail")->text()=="Images: 1","Unclear image label");
+            check(widget->findChild<Decal *>("stackProjects")->text()=="Projects: 1","Unclear project label");
+            check(widget->findChild<Decal *>("stackAttention")->text()=="Stopped/alerts: 1","Unclear attention label");
             widget->grab();check(widget->width()==120,"Narrow layout expanded");
             qputenv("KRELLSTACK_TEST_CASE","error");QSettings().setValue("plugins/krellstack/hosts","test@server");monitor->tick();
             check(until([&]{return label->text()=="Container check failed";}),"Changed config retained stale data");
@@ -69,7 +70,7 @@ int main(int argc,char **argv){
         auto send=[&](const QByteArray &stack){peer->write("{\"type\":\"sample\",\"stack\":"+stack+"}\n");peer->flush();};
         const QByteArray valid="{\"source\":\"krellixd\",\"containers\":7,\"running\":6,\"images\":8,\"compose\":2,\"unhealthy\":1,\"docker_networks\":3}";
         send(valid);check(until([&]{return label->text()=="Running: 6 of 7";}),"Daemon counts wrong");
-        check(widget->findChild<Decal *>("stackAttention")->text()=="Stopped or unhealthy: 1","Remote attention unclear");
+        check(widget->findChild<Decal *>("stackAttention")->text()=="Stopped/alerts: 1","Remote attention unclear");
         check(monitor->findChildren<QProcess *>().isEmpty(),"Remote launched local/SSH helper");
         send("{\"source\":\"krellixd\",\"containers\":0,\"running\":0,\"images\":0,\"compose\":0,\"unhealthy\":0,\"docker_networks\":0}");
         check(until([&]{return label->text()=="Running: 0 of 0";}),"Server without Docker was not handled safely");

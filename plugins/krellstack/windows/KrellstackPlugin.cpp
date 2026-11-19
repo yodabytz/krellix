@@ -31,11 +31,12 @@ QWidget *WindowsStackMonitor::createWidget(QWidget *parent) {
     auto *panel=new Panel(theme(),parent);panel->setTitle("Stack");panel->setSurfaceKey("panel_bg_krellstack");
     m_summary=panel->addDecal("label","text_primary");m_summary->setObjectName("stackSummary");m_summary->setAlignment(Qt::AlignHCenter);
     m_detail=panel->addDecal("label","text_secondary");m_detail->setObjectName("stackDetail");m_detail->setAlignment(Qt::AlignHCenter);
+    m_projects=panel->addDecal("label","text_secondary");m_projects->setObjectName("stackProjects");m_projects->setAlignment(Qt::AlignHCenter);
     m_attention=panel->addDecal("label","text_secondary");m_attention->setObjectName("stackAttention");m_attention->setAlignment(Qt::AlignHCenter);
     display("Checking stack...",{});QTimer::singleShot(0,this,&WindowsStackMonitor::tick);return panel;
 }
-void WindowsStackMonitor::display(const QString &summary,const QString &detail,const QString &tooltip,const QString &attention) {
-    for(const auto &pair:{qMakePair(m_summary.data(),summary),qMakePair(m_detail.data(),detail),qMakePair(m_attention.data(),attention)}) {
+void WindowsStackMonitor::display(const QString &summary,const QString &detail,const QString &tooltip,const QString &attention,const QString &projects) {
+    for(const auto &pair:{qMakePair(m_summary.data(),summary),qMakePair(m_detail.data(),detail),qMakePair(m_attention.data(),attention),qMakePair(m_projects.data(),projects)}) {
         if(!pair.first)continue;
         if(pair.first->text()!=pair.second)pair.first->setText(pair.second);
         pair.first->setToolTip("<qt>"+tooltip.toHtmlEscaped().replace('\n',"<br>")+"</qt>");
@@ -69,10 +70,10 @@ void WindowsStackMonitor::render(const WindowsStack::Snapshot &snapshot) {
         display(title,"Hover for error details",details.join('\n'));return;
     }
     QString summary=QStringLiteral("Running: %1 of %2").arg(total.running).arg(total.containers);
-    QString detail=QStringLiteral("Images: %1 | Projects: %2").arg(total.images).arg(total.compose);
+    QString detail=QStringLiteral("Images: %1").arg(total.images);
     if(total.pods)detail+=QStringLiteral(" | Pods: %1").arg(total.pods);
     if(failures)summary+=" !";
-    display(summary,detail,details.join('\n'),QStringLiteral("Stopped or unhealthy: %1").arg(total.unhealthy));
+    display(summary,detail,details.join('\n'),QStringLiteral("Stopped/alerts: %1").arg(total.unhealthy),QStringLiteral("Projects: %1").arg(total.compose));
 }
 void WindowsStackMonitor::updateRemote() {
     auto *remote=RemoteSource::instance();if(!remote||m_stopped)return;
@@ -87,9 +88,9 @@ void WindowsStackMonitor::updateRemote() {
     const QString tooltip=QStringLiteral("Server: %1\nSource: %2\n%3/%4 containers; %5 images; %6 Compose projects; %7 network interfaces; %8 attention.\nOnly this daemon's data is used. Network-interface counts are not Docker network-object counts.")
         .arg(remote->remoteHostname().left(256),stack.source.left(128)).arg(stack.running).arg(stack.containers).arg(stack.images).arg(stack.compose).arg(stack.dockerNetworks).arg(stack.unhealthy);
     display(QStringLiteral("Running: %1 of %2").arg(stack.running).arg(stack.containers),
-        QStringLiteral("Images: %1 | Projects: %2").arg(stack.images).arg(stack.compose),
+        QStringLiteral("Images: %1").arg(stack.images),
         tooltip+"\nStopped or unhealthy includes stopped, exited, restarting, dead and unhealthy containers. Intentionally stopped containers are not necessarily broken. Projects means Docker Compose projects.",
-        QStringLiteral("Stopped or unhealthy: %1").arg(stack.unhealthy));
+        QStringLiteral("Stopped/alerts: %1").arg(stack.unhealthy),QStringLiteral("Projects: %1").arg(stack.compose));
 }
 void WindowsStackMonitor::tick() {
     if(m_stopped)return;

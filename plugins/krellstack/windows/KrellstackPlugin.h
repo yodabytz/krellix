@@ -22,10 +22,10 @@ private slots:
     void updateRemote();
 private:
     void finish();
-    void display(const QString &summary,const QString &detail,const QString &tooltip={},const QString &attention={});
+    void display(const QString &summary,const QString &detail,const QString &tooltip={},const QString &attention={},const QString &projects={});
     void failed(const QString &detail);
     void render(const WindowsStack::Snapshot &snapshot);
-    QPointer<Decal> m_summary,m_detail,m_attention;
+    QPointer<Decal> m_summary,m_detail,m_attention,m_projects;
     QProcess *m_probe=nullptr;
     QTimer m_timeout;
     QElapsedTimer m_finished;
@@ -40,6 +40,6 @@ class KrellstackPlugin final:public QObject,public IKrellixPlugin {
 public:
     QString pluginId()const override{return QStringLiteral("io.krellix.krellstack");}
     QString pluginName()const override{return QStringLiteral("KrellStack");}
-    QString pluginVersion()const override{return QStringLiteral("0.1.1-windows.2");}
+    QString pluginVersion()const override{return QStringLiteral("0.1.1-windows.3");}
     QList<MonitorBase *> createMonitors(Theme *theme,QObject *parent)override;
 };
