@@ -2,6 +2,9 @@
 
 #include "theme/Theme.h"
 #include "widgets/Panel.h"
+#ifdef Q_OS_WIN
+#include "remote/RemoteSource.h"
+#endif
 
 #include <QDesktopServices>
 #include <QEvent>
@@ -744,11 +747,18 @@ QString KrellmailPlugin::pluginName() const
 
 QString KrellmailPlugin::pluginVersion() const
 {
+#ifdef Q_OS_WIN
+    return QStringLiteral("0.1.0-windows.1");
+#else
     return QStringLiteral("0.1.0");
+#endif
 }
 
 QList<MonitorBase *> KrellmailPlugin::createMonitors(Theme *theme, QObject *parent)
 {
+#ifdef Q_OS_WIN
+    if (RemoteSource::instance()) return {};
+#endif
     if (!QSettings().value(QStringLiteral("plugins/krellmail/enabled"), false).toBool())
         return {};
     return {new KrellmailMonitor(theme, parent)};
