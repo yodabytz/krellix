@@ -181,6 +181,11 @@ int main(int argc, char *argv[])
         if (!slug.isEmpty()) appName = QStringLiteral("krellix-") + slug;
     }
     QApplication::setApplicationName(appName);
+#ifdef Q_OS_WIN
+    // Keep the selected profile's backing files referenced for the process
+    // lifetime instead of repeatedly moving them through Qt's unused cache.
+    QSettings profileSettings;
+#endif
     migrateLegacySettings(QApplication::organizationName(), appName,
                           QStringLiteral("krellix"));
 

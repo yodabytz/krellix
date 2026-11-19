@@ -66,6 +66,26 @@ static void exercise()
     if (!dialog) qFatal("Settings missing");
     if (dialog->isModal() || dialog->windowModality() != Qt::NonModal)
         qFatal("Settings must not attach as a modal sheet");
+#ifdef Q_OS_WIN
+    if (completed == 0) {
+        auto *monitor = window->findChild<MonitorBase *>();
+        if (!monitor) qFatal("No monitor for scroll test theme");
+        Decal label(monitor->theme(), QStringLiteral("label"), QStringLiteral("text_primary"));
+        label.resize(32, 24);
+        label.show();
+        auto *timer = label.findChild<QTimer *>();
+        label.setText(QStringLiteral("i"));
+        if (!timer || timer->isActive()) qFatal("Text that fits should not scroll");
+        label.setText(QStringLiteral("A long label that cannot fit in thirty-two pixels"));
+        if (!timer->isActive()) qFatal("Overflowing text did not start scrolling");
+        QSettings().setValue(QStringLiteral("appearance/scroll_fps"), 20);
+        QMetaObject::invokeMethod(dialog, "settingsApplied", Qt::DirectConnection);
+        QMetaObject::invokeMethod(&label, "onScrollTick", Qt::DirectConnection);
+        if (timer->interval() != 50) qFatal("Live scroll settings were not applied");
+        label.hide();
+        if (timer->isActive()) qFatal("Hidden text should not keep scrolling");
+    }
+#endif
     const QPoint original = window->pos();
     dialog->move(dialog->pos() + QPoint(30, 40));
     if (window->pos() != original) qFatal("Moving settings moved the monitor");

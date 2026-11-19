@@ -19,6 +19,10 @@ constexpr int kDefaultScrollPps   = 30;     // pixels/sec
 constexpr int kDefaultScrollFps   = 12;
 constexpr int kMinIntervalMs      = 33;
 constexpr int kMaxIntervalMs      = 250;
+#ifdef Q_OS_WIN
+int scrollPps = kDefaultScrollPps;
+int scrollFps = kDefaultScrollFps;
+#endif
 }
 
 Decal::Decal(Theme *theme,
@@ -85,8 +89,21 @@ void Decal::onThemeChanged()
     update();
 }
 
+#ifdef Q_OS_WIN
+void Decal::setScrollSettings(int pixelsPerSecond, int framesPerSecond)
+{
+    scrollPps = qBound(1, pixelsPerSecond, 1000);
+    scrollFps = qBound(4, framesPerSecond, 30);
+}
+#endif
+
 void Decal::onScrollTick()
 {
+#ifdef Q_OS_WIN
+    // Keep settings-file access out of the Windows animation timer.
+    const int pps = scrollPps;
+    const int fps = scrollFps;
+#else
     // Re-read scroll speed each tick so SettingsDialog changes apply live.
     // QSettings caches its file, so this is a hash lookup, not disk I/O.
     const int pps = qBound(1,
@@ -97,6 +114,7 @@ void Decal::onScrollTick()
         QSettings().value(QStringLiteral("appearance/scroll_fps"),
                           kDefaultScrollFps).toInt(),
         30);
+#endif
     const int interval = qBound(kMinIntervalMs, 1000 / fps, kMaxIntervalMs);
     if (m_scrollTimer->interval() != interval)
         m_scrollTimer->setInterval(interval);

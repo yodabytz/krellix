@@ -29,6 +29,9 @@ public:
     Qt::Alignment alignment() const { return m_alignment; }
     void setAlwaysScroll(bool alwaysScroll);
     void setColorKey(const QString &colorKey);
+#ifdef Q_OS_WIN
+    static void setScrollSettings(int pixelsPerSecond, int framesPerSecond);
+#endif
 
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;

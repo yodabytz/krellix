@@ -19,6 +19,7 @@
 #include "monitors/UptimeMonitor.h"
 #include "theme/Theme.h"
 #include "widgets/AlertBanner.h"
+#include "widgets/Decal.h"
 #include "widgets/Panel.h"
 
 #include <QAction>
@@ -716,6 +717,10 @@ void MainWindow::scheduleFitToPanelStack()
 void MainWindow::applySettingsOverridesToTheme()
 {
     QSettings s;
+#ifdef Q_OS_WIN
+    Decal::setScrollSettings(s.value(QStringLiteral("appearance/scroll_pps"), 30).toInt(),
+                             s.value(QStringLiteral("appearance/scroll_fps"), 12).toInt());
+#endif
     // Note: panel_width is NOT pushed into the theme — window width is
     // controlled by applyFixedWidth() reading the setting directly.
     // Krell/chart height overrides do go into the theme so widgets can
