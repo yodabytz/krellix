@@ -56,3 +56,4 @@ add_subdirectory("${CMAKE_SOURCE_DIR}/plugins/krellbluetooth/windows" "${CMAKE_B
 add_subdirectory("${CMAKE_SOURCE_DIR}/plugins/krellpkg/windows" "${CMAKE_BINARY_DIR}/krellpkg-windows")
 add_subdirectory("${CMAKE_SOURCE_DIR}/plugins/krellstack/windows" "${CMAKE_BINARY_DIR}/krellstack-windows")
 add_subdirectory("${CMAKE_SOURCE_DIR}/plugins/krellmail/windows" "${CMAKE_BINARY_DIR}/krellmail-windows")
+add_subdirectory("${CMAKE_SOURCE_DIR}/plugins/krelldacious/windows" "${CMAKE_BINARY_DIR}/krelldacious-windows")

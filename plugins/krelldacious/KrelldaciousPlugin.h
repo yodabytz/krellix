@@ -10,6 +10,9 @@ class QPoint;
 class QPushButton;
 class QSlider;
 class Decal;
+#ifdef Q_OS_WIN
+class AudaciousWindows;
+#endif
 
 class KrelldaciousMonitor : public MonitorBase
 {
@@ -24,9 +27,17 @@ public:
     int tickIntervalMs() const override;
     QWidget *createWidget(QWidget *parent) override;
     void tick() override;
+#ifdef Q_OS_WIN
+    void shutdown() override;
+#endif
 
 public:
     bool handleNativeClickAtScreen(const QPoint &screenPos);
+
+#ifdef Q_OS_WIN
+private slots:
+    void refreshWindowsTheme();
+#endif
 
 private:
     void applyThemeColors();
@@ -34,6 +45,10 @@ private:
     void openAudacious();
     void setAudaciousVolume(int percent);
     QVariant playerProperty(const QString &name, bool *ok = nullptr) const;
+#ifdef Q_OS_WIN
+    void refreshWindowsPlayer();
+    AudaciousWindows *m_windows = nullptr;
+#endif
 
     QPointer<Decal> m_track;
     QPointer<QLabel> m_openAudacious;

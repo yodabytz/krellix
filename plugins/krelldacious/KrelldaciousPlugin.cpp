@@ -4,11 +4,16 @@
 #include "widgets/Decal.h"
 #include "widgets/Panel.h"
 
+#ifdef Q_OS_WIN
+#include "remote/RemoteSource.h"
+#include "windows/AudaciousWindows.h"
+#else
 #include <QDBusArgument>
 #include <QDBusConnection>
 #include <QDBusInterface>
 #include <QDBusReply>
 #include <QDBusVariant>
+#endif
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLinearGradient>
@@ -24,10 +29,12 @@
 
 namespace {
 
+#ifndef Q_OS_WIN
 constexpr const char *kService = "org.mpris.MediaPlayer2.audacious";
 constexpr const char *kPath = "/org/mpris/MediaPlayer2";
 constexpr const char *kPlayerIface = "org.mpris.MediaPlayer2.Player";
 constexpr const char *kPropsIface = "org.freedesktop.DBus.Properties";
+#endif
 
 class TransportButton : public QPushButton
 {
@@ -148,6 +155,7 @@ private:
     Theme *m_theme = nullptr;
 };
 
+#ifndef Q_OS_WIN
 QVariant unwrapDbusVariant(QVariant v)
 {
     if (v.canConvert<QDBusVariant>())
@@ -199,6 +207,7 @@ QString trackTextFromMetadata(const QVariantMap &metadata)
     const QString url = metadataString(metadata, QStringLiteral("xesam:url"));
     return url.isEmpty() ? QStringLiteral("(no track)") : url;
 }
+#endif
 
 void styleTransportButton(QPushButton *button, const QString &tip)
 {
@@ -281,6 +290,11 @@ void styleVolume(QSlider *slider, Theme *theme)
 KrelldaciousMonitor::KrelldaciousMonitor(Theme *theme, QObject *parent)
     : MonitorBase(theme, parent)
 {
+#ifdef Q_OS_WIN
+    const int instance = QSettings().value(QStringLiteral("plugins/krelldacious/windows_instance"), 1).toInt();
+    m_windows = new AudaciousWindows(instance, this);
+    connect(m_windows, &AudaciousWindows::changed, this, &KrelldaciousMonitor::refreshWindowsPlayer);
+#endif
 }
 
 KrelldaciousMonitor::~KrelldaciousMonitor() = default;
@@ -321,9 +335,13 @@ QWidget *KrelldaciousMonitor::createWidget(QWidget *parent)
     m_openAudacious->setTextInteractionFlags(Qt::LinksAccessibleByMouse);
     m_openAudacious->setOpenExternalLinks(false);
     m_openAudacious->setText(QStringLiteral("<a href=\"open\">Open Audacious</a>"));
+#ifdef Q_OS_WIN
+    connect(m_openAudacious, &QLabel::linkActivated, this, [this] { openAudacious(); });
+#else
     connect(m_openAudacious, &QLabel::linkActivated, this, [](const QString &) {
         QProcess::startDetached(QStringLiteral("audacious"));
     });
+#endif
 
     auto *buttons = new QHBoxLayout;
     buttons->setContentsMargins(0, 0, 0, 0);
@@ -363,12 +381,16 @@ QWidget *KrelldaciousMonitor::createWidget(QWidget *parent)
         if (!m_updatingVolume)
             setAudaciousVolume(value);
     });
+#ifdef Q_OS_WIN
+    connect(theme(), SIGNAL(themeChanged()), this, SLOT(refreshWindowsTheme()));
+#else
     connect(theme(), &Theme::themeChanged, this, [this]() {
         applyThemeColors();
         if (m_prev) m_prev->update();
         if (m_playPause) m_playPause->update();
         if (m_next) m_next->update();
     });
+#endif
 
     applyThemeColors();
     tick();
@@ -392,6 +414,9 @@ void KrelldaciousMonitor::applyThemeColors()
 
 void KrelldaciousMonitor::tick()
 {
+#ifdef Q_OS_WIN
+    m_windows->tick();
+#else
     bool ok = false;
     const QString playback =
         playerProperty(QStringLiteral("PlaybackStatus"), &ok).toString();
@@ -427,8 +452,50 @@ void KrelldaciousMonitor::tick()
         m_volume->setValue(percent);
         m_updatingVolume = false;
     }
+#endif
 }
 
+#ifdef Q_OS_WIN
+void KrelldaciousMonitor::shutdown() { m_windows->stop(); }
+void KrelldaciousMonitor::openAudacious() { m_windows->open(); }
+void KrelldaciousMonitor::sendPlayerCommand(const QString &method) { m_windows->control(method); }
+void KrelldaciousMonitor::setAudaciousVolume(int percent) { m_windows->setVolume(percent); }
+
+void KrelldaciousMonitor::refreshWindowsTheme()
+{
+    applyThemeColors();
+    if (m_prev) m_prev->update();
+    if (m_playPause) m_playPause->update();
+    if (m_next) m_next->update();
+}
+
+void KrelldaciousMonitor::refreshWindowsPlayer()
+{
+    const auto &status = m_windows->status();
+    if (m_track) {
+        if (!status.installed) m_track->setText(QStringLiteral("Audacious not installed"));
+        else if (!status.running) m_track->setText(QStringLiteral("Audacious is not running"));
+        else if (!status.connected) m_track->setText(QStringLiteral("Audacious controls unavailable"));
+        else m_track->setText(status.title.isEmpty() ? QStringLiteral("(no track)") : status.title);
+    }
+    if (auto *link = m_openAudacious.data()) link->setVisible(status.installed && !status.connected);
+    if (m_prev) m_prev->setEnabled(status.connected);
+    if (m_next) m_next->setEnabled(status.connected);
+    if (m_playPause) {
+        m_playPause->setEnabled(status.connected || (status.installed && !status.running));
+        m_playPause->setProperty("playing", status.playing);
+        m_playPause->update();
+    }
+    if (m_volume) {
+        m_volume->setEnabled(status.connected && status.volume >= 0);
+        if (status.volume >= 0 && !m_volume->isSliderDown()) {
+            m_updatingVolume = true;
+            m_volume->setValue(status.volume);
+            m_updatingVolume = false;
+        }
+    }
+}
+#else
 void KrelldaciousMonitor::sendPlayerCommand(const QString &method)
 {
     QDBusInterface player(QString::fromLatin1(kService),
@@ -469,6 +536,7 @@ QVariant KrelldaciousMonitor::playerProperty(const QString &name, bool *ok) cons
     if (ok) *ok = true;
     return unwrapDbusVariant(reply.value());
 }
+#endif
 
 QString KrelldaciousPlugin::pluginId() const
 {
@@ -482,11 +550,18 @@ QString KrelldaciousPlugin::pluginName() const
 
 QString KrelldaciousPlugin::pluginVersion() const
 {
+#ifdef Q_OS_WIN
+    return QStringLiteral("0.1.0-windows.1");
+#else
     return QStringLiteral("0.1.0");
+#endif
 }
 
 QList<MonitorBase *> KrelldaciousPlugin::createMonitors(Theme *theme, QObject *parent)
 {
+#ifdef Q_OS_WIN
+    if (RemoteSource::instance()) return {};
+#endif
     if (!QSettings().value(QStringLiteral("plugins/krelldacious/enabled"), false).toBool())
         return {};
     return {new KrelldaciousMonitor(theme, parent)};
