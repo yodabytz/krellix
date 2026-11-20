@@ -33,6 +33,18 @@ Allow Bluetooth access if macOS asks, so it can read connected BLE accessories.
 An em dash means the device/OS did not provide a battery level. Classic headset
 batteries are not available on every Mac/device combination.
 
+KrellSpectrum preserves the Linux visualizer and reads playback from a
+virtual Core Audio device (TapRecord or BlackHole 2ch). Enable it in
+Settings > Plugins > KrellSpectrum and leave Backend on Auto. Allow
+Microphone access for Krellix if macOS asks; the helper only selects
+the virtual device, never your physical microphone.
+
+Route playback to the virtual device. To hear playback while visualizing
+it, use Audio MIDI Setup to create a Multi-Output Device with the virtual
+device and your headphones/speakers. This package does not install
+drivers or change your audio routing. Choose your usual device in Sound
+to restore normal output. Audio is not recorded or sent over the network.
+
 The build is ad-hoc signed, not Apple Developer ID signed or notarized.
 macOS may require approving it in System Settings > Privacy & Security after
 you try opening it. Do not disable Gatekeeper globally.
