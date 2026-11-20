@@ -1,12 +1,13 @@
 param([Parameter(Mandatory = $true)][string]$PreviousZip,
       [Parameter(Mandatory = $true)][string]$CandidateExe,
       [Parameter(Mandatory = $true)][string]$Destination,
-      [ValidateSet(4, 5)][int]$Preview = 4,
+      [ValidateSet(4, 5, 6)][int]$Preview = 4,
       [string]$Objcopy = 'C:\msys64\ucrt64\bin\objcopy.exe')
 $ErrorActionPreference = 'Stop'
 $baselineHashes = @{
     4 = 'fb940ec5e19bf5eb3afc8380e44c15f2d4219bbd76209e40feb37c7b92b9bf7c'
     5 = '12109dfb978265e05f6f18795cd6426767f9ed4d153de3249cb1fce0c62827be'
+    6 = 'c0c4f29f1ec39180ab9c35d740c3a7270b8418df28c0ead0db5d62f5b5a40f98'
 }
 if (-not $baselineHashes.ContainsKey($Preview)) { throw 'Unknown Windows preview.' }
 $previousHash = $baselineHashes[$Preview]
