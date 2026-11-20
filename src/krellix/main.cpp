@@ -12,6 +12,9 @@
 #include "theme/Theme.h"
 
 #include <QApplication>
+#ifdef Q_OS_WIN
+#include <QByteArray>
+#endif
 #include <QCommandLineOption>
 #include <QCommandLineParser>
 #include <QHostAddress>
@@ -111,8 +114,23 @@ void migrateLegacySettings(const QString &orgName, const QString &appName,
 int main(int argc, char *argv[])
 {
     QSettings::setDefaultFormat(QSettings::IniFormat);
+#ifdef Q_OS_WIN
+    // The Quantumbytz crash stack went through DirectWrite glyph metrics.
+    // Select Qt's FreeType backend before creating the Windows integration.
+    // Keep explicit platform options and do not pass our default to children.
+    const QByteArray priorPlatform = qgetenv("QT_QPA_PLATFORM");
+    const bool setFontBackend = priorPlatform.isEmpty() || priorPlatform == "windows";
+    if (setFontBackend)
+        qputenv("QT_QPA_PLATFORM", QByteArrayLiteral("windows:fontengine=freetype"));
+#endif
     QApplication app(argc, argv);
 #ifdef Q_OS_WIN
+    if (setFontBackend) {
+        if (priorPlatform.isNull())
+            qunsetenv("QT_QPA_PLATFORM");
+        else
+            qputenv("QT_QPA_PLATFORM", priorPlatform);
+    }
     QFont::insertSubstitution(QStringLiteral("Monospace"), QStringLiteral("Consolas"));
 #endif
 #ifdef Q_OS_MACOS

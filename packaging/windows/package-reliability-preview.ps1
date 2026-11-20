@@ -1,14 +1,20 @@
 param([Parameter(Mandatory = $true)][string]$PreviousZip,
       [Parameter(Mandatory = $true)][string]$CandidateExe,
       [Parameter(Mandatory = $true)][string]$Destination,
+      [ValidateSet(4, 5)][int]$Preview = 4,
       [string]$Objcopy = 'C:\msys64\ucrt64\bin\objcopy.exe')
 $ErrorActionPreference = 'Stop'
-$previousHash = 'fb940ec5e19bf5eb3afc8380e44c15f2d4219bbd76209e40feb37c7b92b9bf7c'
+$baselineHashes = @{
+    4 = 'fb940ec5e19bf5eb3afc8380e44c15f2d4219bbd76209e40feb37c7b92b9bf7c'
+    5 = '12109dfb978265e05f6f18795cd6426767f9ed4d153de3249cb1fce0c62827be'
+}
+if (-not $baselineHashes.ContainsKey($Preview)) { throw 'Unknown Windows preview.' }
+$previousHash = $baselineHashes[$Preview]
 if ((Get-FileHash $PreviousZip -Algorithm SHA256).Hash -ne $previousHash) {
-    throw 'Use the published preview.3 archive as the runtime baseline.'
+    throw "Use the published preview.$($Preview - 1) archive as the runtime baseline."
 }
 if (Test-Path $Destination) { throw 'Use a fresh output directory.' }
-$version = '0.1.2-windows-preview.4'
+$version = "0.1.2-windows-preview.$Preview"
 $stage = Join-Path $Destination 'stage'
 Expand-Archive -LiteralPath $PreviousZip -DestinationPath $stage
 $hostDirectory = Join-Path $stage 'Krellix'

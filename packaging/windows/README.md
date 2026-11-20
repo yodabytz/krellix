@@ -86,6 +86,12 @@ VM and synthetic tests cannot establish that.
 
 ## Windows Crash Reports
 
+On Windows, Krellix normally uses Qt's FreeType font engine to avoid the
+DirectWrite glyph-measurement path seen in a crash dump. This does not change
+your theme's font settings or fonts used by other apps. Explicit Qt platform
+arguments still override the default. Fonts that rely on DirectWrite-only
+features may render differently or select a fallback.
+
 From a PowerShell window in the portable Krellix folder, run
 `./crash-report.ps1` for a local JSON summary of recent Krellix application
 errors. The summary includes event timestamps, process IDs, executable and
