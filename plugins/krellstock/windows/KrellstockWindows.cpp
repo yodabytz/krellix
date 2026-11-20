@@ -2,16 +2,8 @@
 #include "remote/RemoteSource.h"
 #include "widgets/Panel.h"
 
-#include <QDialog>
-#include <QDialogButtonBox>
-#include <QGridLayout>
-#include <QLabel>
-#include <QLineEdit>
-#include <QMessageBox>
-#include <QPushButton>
 #include <QRegularExpression>
 #include <QSettings>
-#include <QVBoxLayout>
 #include <utility>
 
 namespace {
@@ -26,70 +18,6 @@ QStringList symbols(const QSettings &s)
     for (int i = 0; i < 10; ++i)
         out.append(s.value(symbolKey(i)).toString().split(split, Qt::SkipEmptyParts));
     return out;
-}
-
-void configureDialog(QWidget *parent, const QWeakPointer<WindowsStockFetcher> &fetcher)
-{
-    QWidget *window = parent->window();
-    if (auto *existing = window->findChild<QDialog *>(QStringLiteral("krellstockWindowsSettings"))) {
-        existing->raise();
-        existing->activateWindow();
-        return;
-    }
-    auto *dialog = new QDialog(window);
-    dialog->setObjectName(QStringLiteral("krellstockWindowsSettings"));
-    dialog->setWindowTitle(QStringLiteral("KrellStock Settings"));
-    dialog->setAttribute(Qt::WA_DeleteOnClose);
-    auto *layout = new QVBoxLayout(dialog);
-    auto *instructions = new QLabel(QStringLiteral(
-        "Yahoo Finance quotes do not require an API key. Enter up to ten symbols. "
-        "Only the symbols you enter will be requested."), dialog);
-    instructions->setWordWrap(true);
-    layout->addWidget(instructions);
-    QSettings s;
-    auto *grid = new QGridLayout;
-    layout->addLayout(grid);
-    QList<QLineEdit *> edits;
-    for (int i = 0; i < 10; ++i) {
-        auto *label = new QLabel(QStringLiteral("Symbol %1").arg(i + 1), dialog);
-        auto *edit = new QLineEdit(s.value(symbolKey(i)).toString(), dialog);
-        edit->setAccessibleName(label->text());
-        edit->setMaxLength(20);
-        if (i == 0) edit->setPlaceholderText(QStringLiteral("AAPL"));
-        if (i == 1) edit->setPlaceholderText(QStringLiteral("BTC-USD"));
-        label->setBuddy(edit);
-        grid->addWidget(label, i / 2, (i % 2) * 2);
-        grid->addWidget(edit, i / 2, (i % 2) * 2 + 1);
-        edits.append(edit);
-    }
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel, dialog);
-    layout->addWidget(buttons);
-    QObject::connect(buttons, &QDialogButtonBox::rejected, dialog, &QDialog::reject);
-    QObject::connect(buttons, &QDialogButtonBox::accepted, dialog, [=] {
-        QStringList sanitized;
-        for (const auto *edit : edits) {
-            const auto clean = WindowsStockFetcher::cleanSymbol(edit->text());
-            if (clean.isEmpty() && !edit->text().trimmed().isEmpty()) {
-                QMessageBox::warning(dialog, dialog->windowTitle(),
-                                     QStringLiteral("Enter one valid symbol or pair per field."));
-                return;
-            }
-            sanitized.append(clean);
-        }
-        QSettings updated;
-        for (int i = 0; i < sanitized.size(); ++i)
-            updated.setValue(symbolKey(i), sanitized.at(i));
-        updated.sync();
-        if (updated.status() != QSettings::NoError) {
-            QMessageBox::warning(dialog, dialog->windowTitle(), QStringLiteral("KrellStock settings could not be saved."));
-            return;
-        }
-        if (const auto active = fetcher.toStrongRef())
-            active->configure(sanitized, updated.value(kPrefix + QStringLiteral("interval_ms"), 900000).toInt());
-        dialog->accept();
-    });
-    dialog->resize(490, dialog->sizeHint().height());
-    dialog->show();
 }
 
 class WindowsStockMonitor final : public MonitorBase
@@ -125,12 +53,6 @@ public:
             m_quotes->setAccessibleName(QStringLiteral("KrellStock quotes"));
             panel->addWidget(m_quotes);
         }
-        auto *settings = new QPushButton(QStringLiteral("KrellStock settings"), panel);
-        settings->setObjectName(QStringLiteral("krellstockOpenSettings"));
-        panel->addWidget(settings);
-        connect(settings, &QPushButton::clicked, this, [this, panel] {
-            if (m_fetcher) configureDialog(panel, m_fetcher.toWeakRef());
-        });
         render();
         QTimer::singleShot(0, this, &WindowsStockMonitor::tick);
         return panel;
@@ -179,7 +101,7 @@ class KrellstockWindowsPlugin final : public QObject, public IKrellixPlugin
 public:
     QString pluginId() const override { return QStringLiteral("io.krellix.krellstock"); }
     QString pluginName() const override { return QStringLiteral("KrellStock"); }
-    QString pluginVersion() const override { return QStringLiteral("0.1.2-windows.2"); }
+    QString pluginVersion() const override { return QStringLiteral("0.1.2-windows.3"); }
     QList<MonitorBase *> createMonitors(Theme *theme, QObject *parent) override
     {
         if (RemoteSource::instance()) return {};

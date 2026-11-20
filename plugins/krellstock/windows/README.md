@@ -1,15 +1,16 @@
 # KrellStock for Windows
 
 This optional Windows x86-64 plugin uses the published Krellix Windows
-preview.5 host. It does not replace the host, your profile or other plugins.
+preview.6 host for verification. It does not replace the host, your profile
+or other plugins.
 It is active only in a local Windows Krellix window.
 
 1. Extract the plugin ZIP and run
    `./install-krellstock.ps1 -KrellixDirectory C:/path/to/Krellix` in PowerShell.
-2. Reopen local Krellix. In the Stocks panel, click **KrellStock settings**.
+2. Reopen local Krellix. Right-click Krellix and open **Settings > Plugins >
+   KrellStock**.
 3. Enter the Yahoo Finance symbols you want, then save. No API key is needed.
-   The older host's built-in stock page can still toggle the ticker and quote
-   panels; use the panel's settings button to edit the watchlist.
+   The same page controls the ticker and quote panels.
 
 No watchlist is bundled. Quotes are requested from Yahoo Finance over HTTPS
 without credentials, and requests do not follow redirects.
