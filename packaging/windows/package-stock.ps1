@@ -7,7 +7,7 @@ if (Test-Path -LiteralPath $Destination) { throw 'Use a fresh output directory.'
 $hostHash = (Get-FileHash -LiteralPath "$HostDirectory\krellix.exe" -Algorithm SHA256).Hash
 $preview5 = 'cc71488cd5dbc951236f778cf2de71de732dffb86ffc1e548b70ed67f52ae860'
 if ($hostHash -ne $preview5) { throw 'Use the published Windows preview.5 host.' }
-$version = '0.1.2-windows.1'
+$version = '0.1.2-windows.2'
 $folder = Join-Path $Destination 'krellstock'
 New-Item -ItemType Directory -Path $folder -Force | Out-Null
 Copy-Item -LiteralPath "$Build\plugins\krellstock.dll", "$source\LICENSE",

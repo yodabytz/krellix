@@ -12,11 +12,26 @@ if ((Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash -ne $manifest.plugin
 $plugins = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'krellix\plugins'
 $target = Join-Path $plugins 'krellstock.dll'
 if (Test-Path -LiteralPath $target) {
-    if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne $manifest.plugin_sha256) {
-        throw 'A different KrellStock build exists. Refusing to overwrite or downgrade it.'
+    $installedHash = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash
+    if ($installedHash -eq $manifest.plugin_sha256) {
+        'This KrellStock build is already installed.'
+        return
     }
-    'This KrellStock build is already installed.'
-    return
+    $installedManifestPath = Join-Path $plugins 'krellstock-manifest.json'
+    $installed = Get-Content -LiteralPath $installedManifestPath -Raw | ConvertFrom-Json
+    $format = '^\d+\.\d+\.\d+-windows\.\d+$'
+    if ($installedHash -ne $installed.plugin_sha256 -or
+        $installed.plugin_version -notmatch $format -or $manifest.plugin_version -notmatch $format) {
+        throw 'An unrecognized KrellStock build exists. Refusing to overwrite it.'
+    }
+    $old = [version]($installed.plugin_version -replace '-windows\.', '.')
+    $new = [version]($manifest.plugin_version -replace '-windows\.', '.')
+    if ($new -le $old) { throw 'Refusing to overwrite an equal or newer KrellStock build.' }
+    $backup = Join-Path $plugins "backups\krellstock-$($installed.plugin_version)"
+    if (-not (Test-Path -LiteralPath $backup)) {
+        New-Item -ItemType Directory -Path $backup -Force | Out-Null
+        Copy-Item -LiteralPath $target,$installedManifestPath -Destination $backup
+    }
 }
 New-Item -ItemType Directory -Path $plugins -Force | Out-Null
 Copy-Item -LiteralPath $dll -Destination $target

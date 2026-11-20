@@ -1,11 +1,14 @@
 #include "WindowsStockFetcher.h"
 
+#include <QDateTime>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLoggingCategory>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QRegularExpression>
+#include <QTimeZone>
 #include <QUrlQuery>
 #include <cmath>
 #include <optional>
@@ -19,32 +22,15 @@ constexpr int kClosedMs = 60 * 60 * 1000;
 constexpr int kResponseBytes = 64 * 1024;
 constexpr int kTimeoutMs = 10000;
 
-struct Instrument {
-    QString symbol;
-    QString mic;
-    bool continuous = false;
-};
-
-Instrument instrument(QString symbol)
+QString yahooSymbol(QString symbol)
 {
     if (symbol.startsWith(QLatin1Char('$')))
         symbol.remove(0, 1);
-    static const QRegularExpression pair(QStringLiteral("^([A-Z0-9]{1,6})-([A-Z]{3})$"));
+    static const QRegularExpression pair(QStringLiteral("^([A-Z0-9]{1,8})/([A-Z]{3})$"));
     const auto match = pair.match(symbol);
     if (match.hasMatch())
-        symbol = match.captured(1) + QLatin1Char('/') + match.captured(2);
-    if (symbol.contains(QLatin1Char('/')))
-        return {symbol, {}, true};
-    static const QHash<QString, QString> markets{
-        {QStringLiteral(".L"), QStringLiteral("XLON")},
-        {QStringLiteral(".DE"), QStringLiteral("XETR")},
-        {QStringLiteral(".T"), QStringLiteral("XTKS")},
-        {QStringLiteral(".HK"), QStringLiteral("XHKG")}
-    };
-    const auto suffix = markets.constFind(symbol.mid(symbol.lastIndexOf(QLatin1Char('.'))));
-    if (suffix != markets.constEnd())
-        return {symbol.left(symbol.size() - suffix.key().size()), suffix.value(), false};
-    return {symbol, {}, false};
+        symbol = match.captured(1) + QLatin1Char('-') + match.captured(2);
+    return symbol;
 }
 
 std::optional<double> number(const QJsonValue &v)
@@ -53,6 +39,32 @@ std::optional<double> number(const QJsonValue &v)
     const double result = ok ? v.toDouble() : v.toString().toDouble(&ok);
     if (!ok || !std::isfinite(result)) return std::nullopt;
     return result;
+}
+
+std::optional<double> previousClose(const QJsonObject &chart, const QJsonObject &meta)
+{
+    if (auto prior = number(meta.value(QStringLiteral("previousClose"))); prior && *prior > 0)
+        return prior;
+    const auto timestamps = chart.value(QStringLiteral("timestamp")).toArray();
+    const auto groups = chart.value(QStringLiteral("indicators")).toObject()
+        .value(QStringLiteral("quote")).toArray();
+    if (groups.isEmpty()) return std::nullopt;
+    const auto closes = groups.first().toObject().value(QStringLiteral("close")).toArray();
+    const auto quoteTime = meta.value(QStringLiteral("regularMarketTime")).toInteger();
+    const QTimeZone zone(meta.value(QStringLiteral("exchangeTimezoneName")).toString().toUtf8());
+    if (quoteTime > 0 && zone.isValid()) {
+        const auto quoteDate = QDateTime::fromSecsSinceEpoch(quoteTime, zone).date();
+        for (qsizetype i = qMin(closes.size(), timestamps.size()); i > 0; --i) {
+            const auto t = timestamps.at(i - 1).toInteger();
+            const auto close = number(closes.at(i - 1));
+            if (t > 0 && close && *close > 0 && QDateTime::fromSecsSinceEpoch(t, zone).date() < quoteDate)
+                return close;
+        }
+    } else {
+        for (qsizetype i = closes.size() - 2; i >= 0; --i)
+            if (auto close = number(closes.at(i)); close && *close > 0) return close;
+    }
+    return std::nullopt;
 }
 }
 
@@ -66,23 +78,15 @@ WindowsStockFetcher::WindowsStockFetcher(QUrl endpoint) : m_endpoint(std::move(e
 
 WindowsStockFetcher::~WindowsStockFetcher() { stopRequest(); }
 
-bool WindowsStockFetcher::validKey(const QByteArray &key)
-{
-    if (key.isEmpty() || key.size() > 128) return false;
-    for (char c : key)
-        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
-              || (c >= '0' && c <= '9') || c == '-' || c == '_')) return false;
-    return true;
-}
-
 QString WindowsStockFetcher::cleanSymbol(const QString &text)
 {
     static const QRegularExpression pattern(QStringLiteral("^\\$?[A-Z0-9^][A-Z0-9./=-]{0,18}$"));
     const auto symbol = text.trimmed().toUpper();
-    return pattern.match(symbol).hasMatch() ? symbol : QString();
+    return pattern.match(symbol).hasMatch() && !yahooSymbol(symbol).contains(QLatin1Char('/'))
+        ? symbol : QString();
 }
 
-void WindowsStockFetcher::configure(const QStringList &symbols, const QByteArray &key, int intervalMs)
+void WindowsStockFetcher::configure(const QStringList &symbols, int intervalMs)
 {
     QStringList wanted;
     for (const auto &raw : symbols) {
@@ -90,20 +94,9 @@ void WindowsStockFetcher::configure(const QStringList &symbols, const QByteArray
         if (!symbol.isEmpty() && !wanted.contains(symbol)) wanted.append(symbol);
         if (wanted.size() == 10) break;
     }
-    const auto normalizedKey = validKey(key) ? key : QByteArray();
     m_intervalMs = qBound(kRefreshMs, intervalMs, kClosedMs);
-    if (m_symbols == wanted && m_key == normalizedKey) { poll(); return; }
-    if (m_key != normalizedKey) {
-        stopRequest();
-        m_key = normalizedKey;
-        m_entries.clear();
-        m_recent.clear();
-        m_backoffMs = 0;
-        m_backoffUntil = 0;
-        m_globalStatus.clear();
-    } else if (!wanted.contains(m_active)) {
-        stopRequest();
-    }
+    if (m_symbols == wanted) { poll(); return; }
+    if (!wanted.contains(m_active)) stopRequest();
     for (auto it = m_entries.begin(); it != m_entries.end(); ) {
         if (!wanted.contains(it.key())) it = m_entries.erase(it);
         else ++it;
@@ -123,8 +116,6 @@ QList<StockQuote> WindowsStockFetcher::quotes() const
         if (quote.valid) {
             if (!entry.status.isEmpty())
                 quote.shortName += QStringLiteral(" (cached)");
-        } else if (m_key.isEmpty()) {
-            quote.shortName = QStringLiteral("Add API key");
         } else if (!entry.status.isEmpty()) {
             quote.shortName = entry.status;
         } else if (m_clock.elapsed() < m_backoffUntil) {
@@ -139,11 +130,11 @@ QList<StockQuote> WindowsStockFetcher::quotes() const
 
 QUrl WindowsStockFetcher::requestUrl(const QString &symbol) const
 {
-    const auto item = instrument(symbol);
     QUrl url = m_endpoint;
+    url.setPath(url.path() + QLatin1Char('/') + yahooSymbol(symbol));
     QUrlQuery query;
-    query.addQueryItem(QStringLiteral("symbol"), item.symbol);
-    if (!item.mic.isEmpty()) query.addQueryItem(QStringLiteral("mic_code"), item.mic);
+    query.addQueryItem(QStringLiteral("range"), QStringLiteral("5d"));
+    query.addQueryItem(QStringLiteral("interval"), QStringLiteral("1d"));
     url.setQuery(query);
     return url;
 }
@@ -151,15 +142,15 @@ QUrl WindowsStockFetcher::requestUrl(const QString &symbol) const
 void WindowsStockFetcher::poll()
 {
     const qint64 now = m_clock.elapsed();
-    if (m_reply || m_key.isEmpty() || now < m_backoffUntil) return;
+    if (m_reply || now < m_backoffUntil) return;
     while (!m_recent.isEmpty() && now - m_recent.first() >= 60000) m_recent.removeFirst();
-    // Leave extra symbols queued for the next credit window.
+    // Limit bursts even when the user enables both panels at once.
     if (m_recent.size() >= 8) return;
     for (const auto &symbol : m_symbols) {
         if (m_entries.value(symbol).next > now) continue;
         QNetworkRequest request(requestUrl(symbol));
-        request.setRawHeader("Authorization", "apikey " + m_key);
         request.setRawHeader("Accept", "application/json");
+        request.setRawHeader("User-Agent", "Krellix/0.1.2 (KrellStock)");
         request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
         m_buffer.clear();
         m_oversized = false;
@@ -213,37 +204,37 @@ void WindowsStockFetcher::finishReply(QNetworkReply *reply)
     reply->deleteLater();
     const auto obj = m_buffer.size() <= kResponseBytes && !m_oversized
         ? QJsonDocument::fromJson(m_buffer).object() : QJsonObject();
-    const int code = obj.value(QStringLiteral("code")).toVariant().toInt();
-    const auto item = instrument(symbol);
-    const auto price = number(obj.value(QStringLiteral("close")));
+    const auto results = obj.value(QStringLiteral("chart")).toObject().value(QStringLiteral("result")).toArray();
+    const auto chart = results.isEmpty() ? QJsonObject() : results.first().toObject();
+    const auto meta = chart.value(QStringLiteral("meta")).toObject();
+    const auto price = number(meta.value(QStringLiteral("regularMarketPrice")));
     const qint64 now = m_clock.elapsed();
     auto &entry = m_entries[symbol];
     entry.next = now + m_intervalMs;
-    if (http == 429 || code == 429) {
+    if (http == 429) {
         m_backoffMs = m_backoffMs == 0 ? kRefreshMs : qMin(2 * m_backoffMs, kClosedMs);
         const int headerMs = retryAfterOk ? qBound(0, retryAfter, 86400) * 1000 : 0;
         m_backoffUntil = now + qMax(m_backoffMs, headerMs);
         entry.status = m_globalStatus = QStringLiteral("Rate limited");
-    } else if (http == 401 || code == 401) {
-        m_backoffUntil = now + kRefreshMs;
-        entry.status = m_globalStatus = QStringLiteral("Key rejected");
     } else if (transportOk && price && *price > 0
-               && obj.value(QStringLiteral("symbol")).toString().compare(item.symbol, Qt::CaseInsensitive) == 0
-               && (item.mic.isEmpty() || obj.value(QStringLiteral("mic_code")).toString() == item.mic)) {
+               && meta.value(QStringLiteral("symbol")).toString().compare(yahooSymbol(symbol), Qt::CaseInsensitive) == 0) {
         StockQuote quote;
         quote.symbol = symbol;
-        quote.shortName = obj.value(QStringLiteral("name")).toString().simplified().left(64);
+        quote.shortName = meta.value(QStringLiteral("shortName")).toString().simplified().left(64);
         quote.price = *price;
-        const double previous = number(obj.value(QStringLiteral("previous_close"))).value_or(*price);
-        quote.change = number(obj.value(QStringLiteral("change"))).value_or(*price - previous);
-        quote.changePct = number(obj.value(QStringLiteral("percent_change")))
-            .value_or(previous > 0 ? quote.change / previous * 100 : 0);
+        const double previous = previousClose(chart, meta).value_or(*price);
+        quote.change = *price - previous;
+        quote.changePct = quote.change / previous * 100;
         if (!std::isfinite(quote.changePct)) quote.changePct = 0;
-        quote.currency = obj.value(QStringLiteral("currency")).toString().left(6);
-        if (quote.currency.isEmpty() && item.continuous)
-            quote.currency = item.symbol.section(QLatin1Char('/'), -1).left(6);
-        const QJsonValue open = obj.value(QStringLiteral("is_market_open"));
-        const bool closed = !item.continuous && open.isBool() && !open.toBool();
+        quote.currency = meta.value(QStringLiteral("currency")).toString().left(6);
+        const auto type = meta.value(QStringLiteral("instrumentType")).toString();
+        const auto session = meta.value(QStringLiteral("currentTradingPeriod")).toObject()
+            .value(QStringLiteral("regular")).toObject();
+        const auto open = session.value(QStringLiteral("start")).toInteger();
+        const auto close = session.value(QStringLiteral("end")).toInteger();
+        const auto epoch = QDateTime::currentSecsSinceEpoch();
+        const bool equity = type == QLatin1String("EQUITY") || type == QLatin1String("ETF");
+        const bool closed = equity && open > 0 && close > open && (epoch < open || epoch >= close);
         quote.marketState = closed ? QStringLiteral("CLOSED") : QStringLiteral("REGULAR");
         quote.valid = true;
         entry.quote = quote;
@@ -258,7 +249,7 @@ void WindowsStockFetcher::finishReply(QNetworkReply *reply)
         else if (!http) entry.status = QStringLiteral("Network unavailable");
         else entry.status = QStringLiteral("Unavailable");
     }
-    // Never log response bodies, headers, or the key.
+    // Do not log response bodies or headers.
     if (entry.status.isEmpty())
         qCDebug(lcStock).noquote() << "Quote accepted:" << symbol;
     else

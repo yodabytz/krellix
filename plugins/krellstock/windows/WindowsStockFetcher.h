@@ -7,13 +7,12 @@ class WindowsStockFetcher final : public QObject
 {
     Q_OBJECT
 public:
-    explicit WindowsStockFetcher(QUrl endpoint = QUrl(QStringLiteral("https://api.twelvedata.com/quote")));
+    explicit WindowsStockFetcher(QUrl endpoint = QUrl(QStringLiteral("https://query1.finance.yahoo.com/v8/finance/chart")));
     ~WindowsStockFetcher() override;
 
-    void configure(const QStringList &symbols, const QByteArray &key, int intervalMs = 900000);
+    void configure(const QStringList &symbols, int intervalMs = 900000);
     void poll();
     QList<StockQuote> quotes() const;
-    static bool validKey(const QByteArray &key);
     static QString cleanSymbol(const QString &text);
 
 signals:
@@ -37,7 +36,6 @@ private:
     QElapsedTimer m_clock;
     QNetworkReply *m_reply = nullptr;
     QByteArray m_buffer;
-    QByteArray m_key;
     QStringList m_symbols;
     QString m_active;
     QString m_globalStatus;

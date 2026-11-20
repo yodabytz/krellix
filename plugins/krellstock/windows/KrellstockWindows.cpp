@@ -13,39 +13,11 @@
 #include <QSettings>
 #include <QVBoxLayout>
 #include <utility>
-#include <windows.h>
-#include <wincrypt.h>
 
 namespace {
 const QString kPrefix = QStringLiteral("plugins/krellstock/");
-const QString kKey = kPrefix + QStringLiteral("twelvedata_key_dpapi");
-const QString kLegacyKey = kPrefix + QStringLiteral("twelvedata_api_key");
 
 QString symbolKey(int i) { return kPrefix + QStringLiteral("symbol%1").arg(i + 1); }
-
-QByteArray transformKey(const QByteArray &input, bool protect)
-{
-    if (input.isEmpty() || input.size() > 8192) return {};
-    DATA_BLOB data{DWORD(input.size()),
-        reinterpret_cast<BYTE *>(const_cast<char *>(input.constData()))};
-    DATA_BLOB output{};
-    const BOOL ok = protect
-        ? CryptProtectData(&data, L"KrellStock", nullptr, nullptr, nullptr,
-                           CRYPTPROTECT_UI_FORBIDDEN, &output)
-        : CryptUnprotectData(&data, nullptr, nullptr, nullptr, nullptr,
-                             CRYPTPROTECT_UI_FORBIDDEN, &output);
-    if (!ok) return {};
-    QByteArray result(reinterpret_cast<const char *>(output.pbData), output.cbData);
-    SecureZeroMemory(output.pbData, output.cbData);
-    LocalFree(output.pbData);
-    return result;
-}
-
-QByteArray storedKey(const QSettings &s)
-{
-    return s.contains(kKey) ? transformKey(s.value(kKey).toByteArray(), false)
-                           : s.value(kLegacyKey).toByteArray().trimmed();
-}
 
 QStringList symbols(const QSettings &s)
 {
@@ -70,21 +42,11 @@ void configureDialog(QWidget *parent, const QWeakPointer<WindowsStockFetcher> &f
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     auto *layout = new QVBoxLayout(dialog);
     auto *instructions = new QLabel(QStringLiteral(
-        "Paste your Twelve Data API key and enter up to ten symbols. "
-        "Only the symbols you enter will be requested. The key is protected by Windows for this account."), dialog);
+        "Yahoo Finance quotes do not require an API key. Enter up to ten symbols. "
+        "Only the symbols you enter will be requested."), dialog);
     instructions->setWordWrap(true);
     layout->addWidget(instructions);
-    auto *keyLabel = new QLabel(QStringLiteral("Twelve Data API key"), dialog);
-    auto *key = new QLineEdit(dialog);
-    key->setObjectName(QStringLiteral("krellstockApiKey"));
-    key->setAccessibleName(keyLabel->text());
-    key->setEchoMode(QLineEdit::Password);
-    key->setMaxLength(128);
-    keyLabel->setBuddy(key);
     QSettings s;
-    key->setText(QString::fromLatin1(storedKey(s)));
-    layout->addWidget(keyLabel);
-    layout->addWidget(key);
     auto *grid = new QGridLayout;
     layout->addLayout(grid);
     QList<QLineEdit *> edits;
@@ -94,7 +56,7 @@ void configureDialog(QWidget *parent, const QWeakPointer<WindowsStockFetcher> &f
         edit->setAccessibleName(label->text());
         edit->setMaxLength(20);
         if (i == 0) edit->setPlaceholderText(QStringLiteral("AAPL"));
-        if (i == 1) edit->setPlaceholderText(QStringLiteral("BTC/USD"));
+        if (i == 1) edit->setPlaceholderText(QStringLiteral("BTC-USD"));
         label->setBuddy(edit);
         grid->addWidget(label, i / 2, (i % 2) * 2);
         grid->addWidget(edit, i / 2, (i % 2) * 2 + 1);
@@ -104,11 +66,6 @@ void configureDialog(QWidget *parent, const QWeakPointer<WindowsStockFetcher> &f
     layout->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::rejected, dialog, &QDialog::reject);
     QObject::connect(buttons, &QDialogButtonBox::accepted, dialog, [=] {
-        const QByteArray entered = key->text().trimmed().toLatin1();
-        if (!entered.isEmpty() && !WindowsStockFetcher::validKey(entered)) {
-            QMessageBox::warning(dialog, dialog->windowTitle(), QStringLiteral("Enter a valid Twelve Data API key."));
-            return;
-        }
         QStringList sanitized;
         for (const auto *edit : edits) {
             const auto clean = WindowsStockFetcher::cleanSymbol(edit->text());
@@ -119,14 +76,7 @@ void configureDialog(QWidget *parent, const QWeakPointer<WindowsStockFetcher> &f
             }
             sanitized.append(clean);
         }
-        const auto protectedKey = transformKey(entered, true);
-        if (!entered.isEmpty() && protectedKey.isEmpty()) {
-            QMessageBox::warning(dialog, dialog->windowTitle(), QStringLiteral("Windows could not protect the API key."));
-            return;
-        }
         QSettings updated;
-        updated.setValue(kKey, protectedKey);
-        updated.remove(kLegacyKey);
         for (int i = 0; i < sanitized.size(); ++i)
             updated.setValue(symbolKey(i), sanitized.at(i));
         updated.sync();
@@ -135,7 +85,7 @@ void configureDialog(QWidget *parent, const QWeakPointer<WindowsStockFetcher> &f
             return;
         }
         if (const auto active = fetcher.toStrongRef())
-            active->configure(sanitized, entered, updated.value(kPrefix + QStringLiteral("interval_ms"), 900000).toInt());
+            active->configure(sanitized, updated.value(kPrefix + QStringLiteral("interval_ms"), 900000).toInt());
         dialog->accept();
     });
     dialog->resize(490, dialog->sizeHint().height());
@@ -190,14 +140,7 @@ public:
     {
         if (!m_fetcher) return;
         QSettings s;
-        const QByteArray stored = s.value(kKey, s.value(kLegacyKey)).toByteArray();
-        const bool protectedKey = s.contains(kKey);
-        if (stored != m_lastKey || protectedKey != m_lastProtected) {
-            m_lastKey = stored;
-            m_lastProtected = protectedKey;
-            m_clearKey = storedKey(s);
-        }
-        m_fetcher->configure(symbols(s), m_clearKey, s.value(kPrefix + QStringLiteral("interval_ms"), 900000).toInt());
+        m_fetcher->configure(symbols(s), s.value(kPrefix + QStringLiteral("interval_ms"), 900000).toInt());
     }
 
     void shutdown() override
@@ -224,9 +167,6 @@ private:
     QSharedPointer<WindowsStockFetcher> m_fetcher;
     QPointer<KrellstockTicker> m_ticker;
     QPointer<KrellstockQuoteWidget> m_quotes;
-    QByteArray m_lastKey;
-    QByteArray m_clearKey;
-    bool m_lastProtected = false;
     bool m_isTicker;
 };
 }
@@ -239,7 +179,7 @@ class KrellstockWindowsPlugin final : public QObject, public IKrellixPlugin
 public:
     QString pluginId() const override { return QStringLiteral("io.krellix.krellstock"); }
     QString pluginName() const override { return QStringLiteral("KrellStock"); }
-    QString pluginVersion() const override { return QStringLiteral("0.1.2-windows.1"); }
+    QString pluginVersion() const override { return QStringLiteral("0.1.2-windows.2"); }
     QList<MonitorBase *> createMonitors(Theme *theme, QObject *parent) override
     {
         if (RemoteSource::instance()) return {};
