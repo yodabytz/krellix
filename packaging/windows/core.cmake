@@ -60,3 +60,4 @@ add_subdirectory("${CMAKE_SOURCE_DIR}/plugins/krelldacious/windows" "${CMAKE_BIN
 add_subdirectory("${CMAKE_SOURCE_DIR}/plugins/krellstock/windows" "${CMAKE_BINARY_DIR}/krellstock-windows")
 add_subdirectory("${CMAKE_SOURCE_DIR}/plugins/krellweather/windows" "${CMAKE_BINARY_DIR}/krellweather-windows")
 add_subdirectory("${CMAKE_SOURCE_DIR}/plugins/krellwire/windows" "${CMAKE_BINARY_DIR}/krellwire-windows")
+add_subdirectory("${CMAKE_SOURCE_DIR}/plugins/krellspectrum/windows" "${CMAKE_BINARY_DIR}/krellspectrum-windows")

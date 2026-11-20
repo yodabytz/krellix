@@ -68,6 +68,9 @@ public:
 public slots:
     void start(KrellSpectrumConfig config);
     void stop();
+#ifdef Q_OS_WIN
+    void setCaptureFps(int fps);
+#endif
 
 signals:
     void samplesReady(const QVector<float> &samples);
@@ -96,6 +99,9 @@ private:
     QElapsedTimer m_emitTimer;
     int m_minEmitMs = 16;
     bool m_stopping = false;
+#ifdef Q_OS_WIN
+    bool m_reportedPlayback = false;
+#endif
 };
 
 class KrellSpectrumWidget : public QWidget
@@ -168,6 +174,9 @@ private:
     QThread *m_thread = nullptr;
     KrellSpectrumAudioCapture *m_capture = nullptr;
     KrellSpectrumConfig m_config;
+#ifdef Q_OS_WIN
+    quint64 m_captureGeneration = 0;
+#endif
 };
 
 class KrellSpectrumPlugin : public QObject, public IKrellixPlugin

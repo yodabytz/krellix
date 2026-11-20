@@ -3,6 +3,14 @@
 #include "theme/Theme.h"
 #include "widgets/Panel.h"
 
+#ifdef Q_OS_WIN
+#include "remote/RemoteSource.h"
+#include <QDir>
+#include <QLoggingCategory>
+#include <QtEndian>
+#include <windows.h>
+#endif
+
 #include <QCoreApplication>
 #include <QFileInfo>
 #include <QLabel>
@@ -25,6 +33,25 @@ namespace {
 constexpr int kSampleRate = 48000;
 constexpr int kFrameSamples = 256;
 constexpr double kPi = 3.14159265358979323846;
+
+#ifdef Q_OS_WIN
+Q_LOGGING_CATEGORY(lcSpectrumWindows, "krellix.spectrum.windows", QtInfoMsg)
+
+QString playbackHelper()
+{
+    static const int moduleAnchor = 0;
+    HMODULE module = nullptr;
+    if (!GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
+            | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            reinterpret_cast<LPCWSTR>(&moduleAnchor), &module)) return {};
+    wchar_t path[32768];
+    const auto length = GetModuleFileNameW(module, path, static_cast<DWORD>(std::size(path)));
+    if (!length || length >= std::size(path)) return {};
+    const auto dir = QFileInfo(QString::fromWCharArray(path, static_cast<qsizetype>(length))).absoluteDir();
+    const auto helper = dir.filePath(QStringLiteral("krellspectrum-wasapi.exe"));
+    return QFileInfo(helper).isFile() ? helper : QString();
+}
+#endif
 
 KrellSpectrumConfig configuredSpectrum()
 {
@@ -58,6 +85,7 @@ bool configNeedsRestart(const KrellSpectrumConfig &a, const KrellSpectrumConfig 
     return a.backend != b.backend || a.device != b.device;
 }
 
+#ifndef Q_OS_WIN
 bool executableExists(const QString &program)
 {
     return !QStandardPaths::findExecutable(program).isEmpty();
@@ -111,6 +139,7 @@ QString defaultPulseMonitorSource()
     }
     return QString();
 }
+#endif
 
 QColor withAlpha(QColor color, int alpha)
 {
@@ -284,6 +313,10 @@ void KrellSpectrumAudioCapture::start(KrellSpectrumConfig config)
     m_stopping = false;
     m_backendIndex = 0;
     m_backends.clear();
+#ifdef Q_OS_WIN
+    m_reportedPlayback = false;
+    m_backends << QStringLiteral("wasapi");
+#else
     const QString backend = config.backend.trimmed().toLower();
     if (backend == QStringLiteral("pipewire")) {
         m_backends << QStringLiteral("pw-record");
@@ -295,6 +328,7 @@ void KrellSpectrumAudioCapture::start(KrellSpectrumConfig config)
         else
             m_backends << QStringLiteral("pw-record") << QStringLiteral("parec");
     }
+#endif
     startNextBackend();
 }
 
@@ -305,9 +339,15 @@ void KrellSpectrumAudioCapture::stop()
     QProcess *p = m_process;
     m_process = nullptr;
     p->disconnect(this);
+#ifdef Q_OS_WIN
+    p->kill();
+    if (p->state() != QProcess::NotRunning)
+        p->waitForFinished(150);
+#else
     p->terminate();
     if (p->state() != QProcess::NotRunning && !p->waitForFinished(300))
         p->kill();
+#endif
     p->deleteLater();
     m_pendingBytes.clear();
     m_frame.clear();
@@ -315,7 +355,11 @@ void KrellSpectrumAudioCapture::stop()
 
 QString KrellSpectrumAudioCapture::programForBackend(const QString &backend) const
 {
+#ifdef Q_OS_WIN
+    return backend == QStringLiteral("wasapi") ? playbackHelper() : QString();
+#else
     return backend;
+#endif
 }
 
 QStringList KrellSpectrumAudioCapture::argsForBackend(const QString &program,
@@ -323,6 +367,10 @@ QStringList KrellSpectrumAudioCapture::argsForBackend(const QString &program,
 {
     QStringList args;
     const QString device = resolvedCaptureDevice(program, config);
+#ifdef Q_OS_WIN
+    args << QString::number(QCoreApplication::applicationPid());
+    if (!device.isEmpty()) args << device;
+#else
     if (program == QStringLiteral("pw-record")) {
         args << QStringLiteral("--raw")
              << QStringLiteral("--format=s16")
@@ -342,6 +390,7 @@ QStringList KrellSpectrumAudioCapture::argsForBackend(const QString &program,
         if (!device.isEmpty())
             args << QStringLiteral("--device=%1").arg(device);
     }
+#endif
     return args;
 }
 
@@ -349,6 +398,10 @@ QString KrellSpectrumAudioCapture::resolvedCaptureDevice(const QString &program,
                                                          const KrellSpectrumConfig &config) const
 {
     const QString configured = config.device.trimmed();
+#ifdef Q_OS_WIN
+    Q_UNUSED(program);
+    return configured;
+#else
     if (!configured.isEmpty()) return configured;
 
     const QString monitor = defaultPulseMonitorSource();
@@ -358,19 +411,37 @@ QString KrellSpectrumAudioCapture::resolvedCaptureDevice(const QString &program,
     if (program == QStringLiteral("parec"))
         return QStringLiteral("@DEFAULT_MONITOR@");
     return QString();
+#endif
 }
 
 void KrellSpectrumAudioCapture::startNextBackend()
 {
     while (m_backendIndex < m_backends.size()) {
         const QString program = programForBackend(m_backends.at(m_backendIndex++));
+#ifdef Q_OS_WIN
+        if (program.isEmpty())
+#else
         if (!executableExists(program))
+#endif
             continue;
 
         m_process = new QProcess(this);
         m_process->setProgram(program);
         m_process->setArguments(argsForBackend(program, m_config));
         m_process->setProcessChannelMode(QProcess::SeparateChannels);
+#ifdef Q_OS_WIN
+        m_process->setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments *args) {
+            args->flags |= CREATE_NO_WINDOW;
+        });
+        connect(m_process, &QProcess::readyReadStandardError, this, [this] {
+            if (!m_process || sender() != m_process) return;
+            const auto status = QString::fromUtf8(m_process->readAllStandardError().left(256)).trimmed();
+            if (!status.isEmpty()) {
+                qCDebug(lcSpectrumWindows).noquote() << status;
+                emit statusChanged(status);
+            }
+        });
+#endif
         connect(m_process, &QProcess::readyReadStandardOutput,
                 this, &KrellSpectrumAudioCapture::readAudio);
         connect(m_process, &QProcess::errorOccurred,
@@ -379,16 +450,25 @@ void KrellSpectrumAudioCapture::startNextBackend()
                 QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, &KrellSpectrumAudioCapture::processFinished);
         const QString device = resolvedCaptureDevice(program, m_config);
+#ifdef Q_OS_WIN
+        emit statusChanged(device.isEmpty() ? QStringLiteral("Windows playback capture")
+                                            : QStringLiteral("Windows playback: ") + device);
+#else
         emit statusChanged((program == QStringLiteral("pw-record")
             ? QStringLiteral("PipeWire")
             : QStringLiteral("PulseAudio"))
             + (device.isEmpty() ? QStringLiteral(" capture")
                                 : QStringLiteral(" monitor: ") + device));
+#endif
         m_process->start();
         return;
     }
 
+#ifdef Q_OS_WIN
+    emit statusChanged(QStringLiteral("Windows playback helper unavailable"));
+#else
     emit statusChanged(QStringLiteral("no PipeWire/PulseAudio capture tool available"));
+#endif
 }
 
 void KrellSpectrumAudioCapture::readAudio()
@@ -400,6 +480,9 @@ void KrellSpectrumAudioCapture::readAudio()
 void KrellSpectrumAudioCapture::processFinished(int, QProcess::ExitStatus)
 {
     if (m_stopping) return;
+#ifdef Q_OS_WIN
+    if (sender() != m_process) return;
+#endif
     if (m_process) {
         m_process->deleteLater();
         m_process = nullptr;
@@ -410,6 +493,9 @@ void KrellSpectrumAudioCapture::processFinished(int, QProcess::ExitStatus)
 void KrellSpectrumAudioCapture::processError(QProcess::ProcessError)
 {
     if (m_stopping) return;
+#ifdef Q_OS_WIN
+    if (sender() != m_process) return;
+#endif
     if (m_process) {
         m_process->deleteLater();
         m_process = nullptr;
@@ -423,9 +509,17 @@ void KrellSpectrumAudioCapture::consumeBytes(const QByteArray &bytes)
     const int usable = (m_pendingBytes.size() / 2) * 2;
     const char *data = m_pendingBytes.constData();
     for (int i = 0; i < usable; i += 2) {
+#ifdef Q_OS_WIN
+        const qint16 sample = qFromLittleEndian<qint16>(data + i);
+        if (!m_reportedPlayback && std::abs(static_cast<int>(sample)) >= 32) {
+            m_reportedPlayback = true;
+            qCDebug(lcSpectrumWindows) << "Captured playback audio";
+        }
+#else
         const auto lo = static_cast<unsigned char>(data[i]);
         const auto hi = static_cast<signed char>(data[i + 1]);
         const qint16 sample = static_cast<qint16>((static_cast<qint16>(hi) << 8) | lo);
+#endif
         m_frame.append(static_cast<float>(sample) / 32768.0f);
         if (m_frame.size() >= kFrameSamples) {
             if (!m_emitTimer.isValid() || m_emitTimer.elapsed() >= m_minEmitMs) {
@@ -438,6 +532,13 @@ void KrellSpectrumAudioCapture::consumeBytes(const QByteArray &bytes)
     m_pendingBytes.remove(0, usable);
 }
 
+#ifdef Q_OS_WIN
+void KrellSpectrumAudioCapture::setCaptureFps(int fps)
+{
+    m_minEmitMs = qMax(1, 1000 / qBound(8, fps, 60));
+}
+#endif
+
 KrellSpectrumWidget::KrellSpectrumWidget(Theme *theme, QWidget *parent)
     : QWidget(parent)
     , m_theme(theme)
@@ -445,7 +546,13 @@ KrellSpectrumWidget::KrellSpectrumWidget(Theme *theme, QWidget *parent)
     Q_ASSERT(m_theme);
     setAttribute(Qt::WA_OpaquePaintEvent, true);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+#ifdef Q_OS_WIN
+    setAccessibleName(QStringLiteral("KrellSpectrum visualizer"));
+    // Look up the host's signal by name across the DLL boundary.
+    connect(m_theme, SIGNAL(themeChanged()), this, SLOT(onThemeChanged()));
+#else
     connect(m_theme, &Theme::themeChanged, this, &KrellSpectrumWidget::onThemeChanged);
+#endif
     m_lastPaint.start();
     setConfig(configuredSpectrum());
 }
@@ -816,6 +923,11 @@ void KrellSpectrumMonitor::tick()
         stopCapture();
         startCapture(next);
     }
+#ifdef Q_OS_WIN
+    else if (m_capture && next.fps != m_config.fps) {
+        QMetaObject::invokeMethod(m_capture, "setCaptureFps", Qt::QueuedConnection, Q_ARG(int, next.fps));
+    }
+#endif
     m_config = next;
 }
 
@@ -832,10 +944,30 @@ KrellSpectrumConfig KrellSpectrumMonitor::readConfig() const
 void KrellSpectrumMonitor::startCapture(const KrellSpectrumConfig &config)
 {
     if (m_thread || m_capture) return;
+#ifdef Q_OS_WIN
+    m_thread = new QThread;
+#else
     m_thread = new QThread(this);
+#endif
     m_capture = new KrellSpectrumAudioCapture;
     m_capture->moveToThread(m_thread);
     connect(m_thread, &QThread::finished, m_capture, &QObject::deleteLater);
+#ifdef Q_OS_WIN
+    auto *capture = m_capture;
+    const auto generation = ++m_captureGeneration;
+    connect(m_thread, &QThread::finished, m_thread, &QObject::deleteLater);
+    connect(m_thread, &QThread::started, capture, [capture, config] { capture->start(config); });
+    connect(capture, &KrellSpectrumAudioCapture::samplesReady, this,
+            [this, generation](const QVector<float> &samples) {
+                if (generation != m_captureGeneration) return;
+                if (auto *view = m_view.data()) view->setSamples(samples);
+            }, Qt::QueuedConnection);
+    connect(capture, &KrellSpectrumAudioCapture::statusChanged, this,
+            [this, generation](const QString &status) {
+                if (generation != m_captureGeneration) return;
+                if (auto *view = m_view.data()) view->setStatus(status);
+            }, Qt::QueuedConnection);
+#else
     connect(m_thread, &QThread::started, m_capture, [this, config]() {
         if (m_capture) m_capture->start(config);
     });
@@ -843,12 +975,21 @@ void KrellSpectrumMonitor::startCapture(const KrellSpectrumConfig &config)
             m_view, &KrellSpectrumWidget::setSamples, Qt::QueuedConnection);
     connect(m_capture, &KrellSpectrumAudioCapture::statusChanged,
             m_view, &KrellSpectrumWidget::setStatus, Qt::QueuedConnection);
+#endif
     m_thread->start();
 }
 
 void KrellSpectrumMonitor::stopCapture()
 {
     if (!m_thread) return;
+#ifdef Q_OS_WIN
+    // The worker tears down the bounded helper without blocking the GUI thread.
+    ++m_captureGeneration;
+    m_capture = nullptr;
+    auto *thread = m_thread;
+    m_thread = nullptr;
+    thread->quit();
+#else
     if (m_capture) {
         QMetaObject::invokeMethod(m_capture, "stop", Qt::BlockingQueuedConnection);
         m_capture = nullptr;
@@ -859,6 +1000,7 @@ void KrellSpectrumMonitor::stopCapture()
     if (!thread->wait(1000))
         thread->terminate();
     thread->deleteLater();
+#endif
 }
 
 QString KrellSpectrumPlugin::pluginId() const
@@ -873,11 +1015,18 @@ QString KrellSpectrumPlugin::pluginName() const
 
 QString KrellSpectrumPlugin::pluginVersion() const
 {
+#ifdef Q_OS_WIN
+    return QStringLiteral("0.1.0-windows.1");
+#else
     return QStringLiteral("0.1.0");
+#endif
 }
 
 QList<MonitorBase *> KrellSpectrumPlugin::createMonitors(Theme *theme, QObject *parent)
 {
+#ifdef Q_OS_WIN
+    if (RemoteSource::instance()) return {};
+#endif
     if (!QSettings().value(QStringLiteral("plugins/krellspectrum/enabled"), false).toBool())
         return {};
     return {new KrellSpectrumMonitor(theme, parent)};

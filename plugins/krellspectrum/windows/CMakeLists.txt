@@ -1,0 +1,21 @@
+add_library(krellspectrum MODULE ../KrellSpectrumPlugin.cpp ../KrellSpectrumPlugin.h)
+target_include_directories(krellspectrum PRIVATE "${CMAKE_SOURCE_DIR}/src")
+target_link_libraries(krellspectrum PRIVATE krellix Qt6::Widgets Qt6::Network)
+target_compile_definitions(krellspectrum PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN
+    QT_NO_CAST_FROM_ASCII QT_NO_CAST_TO_ASCII)
+set_target_properties(krellspectrum PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins")
+
+add_executable(krellspectrum-wasapi WasapiPlayback.cpp PlaybackPcm.h)
+target_compile_definitions(krellspectrum-wasapi PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+target_link_libraries(krellspectrum-wasapi PRIVATE ole32 uuid)
+if(MINGW)
+    target_link_options(krellspectrum-wasapi PRIVATE -municode -static)
+endif()
+set_target_properties(krellspectrum-wasapi PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins")
+add_dependencies(krellspectrum krellspectrum-wasapi)
+
+if(BUILD_TESTING)
+    add_executable(krellspectrum-pcm-test pcm-test.cpp PlaybackPcm.h)
+    add_test(NAME krellspectrum-pcm-test COMMAND krellspectrum-pcm-test)
+    set_tests_properties(krellspectrum-pcm-test PROPERTIES TIMEOUT 15)
+endif()
