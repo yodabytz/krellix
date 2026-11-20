@@ -3,6 +3,12 @@
 #include "theme/Theme.h"
 #include "widgets/Panel.h"
 
+#ifdef Q_OS_WIN
+#include "remote/RemoteSource.h"
+#include "windows/Metar.h"
+#include <QTimer>
+#endif
+
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -187,6 +193,9 @@ QString weatherText(const QJsonObject &obj)
 QString windText(const QJsonObject &obj)
 {
     const int wspd = obj.value(QStringLiteral("wspd")).toInt(-1);
+#ifdef Q_OS_WIN
+    if (wspd < 0) return QStringLiteral("Wind n/a");
+#endif
     if (wspd <= 0) return QStringLiteral("Calm");
     const int wdir = obj.value(QStringLiteral("wdir")).toInt(-1);
     if (wdir < 0) return QStringLiteral("%1 kt").arg(wspd);
@@ -195,14 +204,22 @@ QString windText(const QJsonObject &obj)
 
 bool isStationDark(const QJsonObject &obj)
 {
+#ifdef Q_OS_WIN
+    QDateTime utc = KrellweatherWindows::observationTime(obj);
+#else
     QDateTime utc = QDateTime::fromString(
         obj.value(QStringLiteral("obsTime")).toString(), Qt::ISODate);
+#endif
     if (!utc.isValid())
         utc = QDateTime::currentDateTimeUtc();
     utc = utc.toUTC();
 
     const double lon = obj.value(QStringLiteral("lon")).toDouble(qQNaN());
+#ifdef Q_OS_WIN
+    const int offsetSecs = qIsFinite(lon) && qAbs(lon) <= 180 ? qRound(lon * 240.0) : 0;
+#else
     const int offsetSecs = qIsNaN(lon) ? 0 : qRound(lon / 15.0 * 3600.0);
+#endif
     const QTime local = utc.addSecs(offsetSecs).time();
     return local.hour() < 6 || local.hour() >= 19;
 }
@@ -273,14 +290,22 @@ QString KrellweatherMonitor::displayName() const
 
 int KrellweatherMonitor::tickIntervalMs() const
 {
+#ifdef Q_OS_WIN
+    // Check for due refreshes even when the host and request timers drift.
+    return 1000;
+#else
     return QSettings().value(QStringLiteral("plugins/krellweather/interval_ms"),
                              600000).toInt();
+#endif
 }
 
 QWidget *KrellweatherMonitor::createWidget(QWidget *parent)
 {
     auto *panel = new Panel(theme(), parent);
     panel->setSurfaceKey(QStringLiteral("panel_bg_krellweather"));
+#ifdef Q_OS_WIN
+    panel->setAccessibleName(QStringLiteral("KrellWeather"));
+#endif
 
     auto *body = new QWidget(panel);
     auto *layout = new QVBoxLayout(body);
@@ -306,11 +331,20 @@ QWidget *KrellweatherMonitor::createWidget(QWidget *parent)
     m_detail->setAlignment(Qt::AlignCenter);
     m_detail->setWordWrap(false);
 
+#ifdef Q_OS_WIN
+    for (auto *label : {m_location.data(), m_primary.data(), m_detail.data()})
+        label->setTextFormat(Qt::PlainText);
+    m_detail->setWordWrap(true);
+    updateTheme();
+    // Resolve the signal through the host object's metaobject across the DLL boundary.
+    connect(theme(), SIGNAL(themeChanged()), this, SLOT(updateTheme()));
+#else
     applyThemeColors();
     connect(theme(), &Theme::themeChanged, this, [this]() {
         applyThemeColors();
         if (m_icon) m_icon->update();
     });
+#endif
 
     layout->addWidget(m_location);
     layout->addLayout(tempRow);
@@ -341,10 +375,31 @@ void KrellweatherMonitor::fetch()
     if (m_tearingDown) return;
 
     const QString code = stationCode();
+#ifdef Q_OS_WIN
+    if (m_requestedStation != code) {
+        cancelPendingReply();
+        m_observation = {};
+        m_requestedAt.invalidate();
+        m_requestedStation = code;
+    }
+    if (!KrellweatherWindows::isStationId(code)) {
+        setMessage(QStringLiteral("Weather"), code.isEmpty()
+            ? QStringLiteral("No station") : QStringLiteral("Enter an ICAO station"));
+        return;
+    }
+    if (!m_observation.isEmpty() && m_lastUnitsCelsius != useCelsius())
+        renderWeather(m_observation);
+    const int interval = qBound(KrellweatherWindows::kMinIntervalMs,
+        QSettings().value(QStringLiteral("plugins/krellweather/interval_ms"), 600000).toInt(),
+        KrellweatherWindows::kMaxIntervalMs);
+    if (m_requestedAt.isValid() && m_requestedAt.elapsed() < interval) return;
+    if (!m_requestedAt.isValid()) setMessage(code, QStringLiteral("Fetching weather"));
+#else
     if (code.isEmpty()) {
         setMessage(QStringLiteral("Weather"), QStringLiteral("No station"));
         return;
     }
+#endif
     if (m_fetching) return;
     m_fetching = true;
 
@@ -357,15 +412,64 @@ void KrellweatherMonitor::fetch()
     QNetworkRequest req(url);
     req.setRawHeader("User-Agent", "krellix-krellweather/0.1");
     req.setTransferTimeout(kFetchTimeoutMs);
+#ifdef Q_OS_WIN
+    req.setRawHeader("Accept", "application/json");
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
+    m_requestedAt.start();
+#endif
     QNetworkReply *reply = m_net.get(req);
     m_reply = reply;
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         handleReply(reply);
     });
+#ifdef Q_OS_WIN
+    reply->setReadBufferSize(KrellweatherWindows::kMaxBytes + 1);
+    connect(reply, &QIODevice::readyRead, this, [reply] {
+        if (reply->bytesAvailable() > KrellweatherWindows::kMaxBytes) {
+            reply->setProperty("responseTooLarge", true);
+            reply->abort();
+        }
+    });
+    QTimer::singleShot(kFetchTimeoutMs, reply, [reply] {
+        if (reply->isRunning()) reply->abort();
+    });
+#endif
 }
 
 void KrellweatherMonitor::handleReply(QNetworkReply *reply)
 {
+#ifdef Q_OS_WIN
+    if (!reply) return;
+    reply->deleteLater();
+    if (m_tearingDown || m_reply != reply) return;
+    m_reply = nullptr;
+    m_fetching = false;
+    if (m_requestedStation != stationCode()) {
+        fetch();
+        return;
+    }
+    m_observation = {};
+    if (reply->bytesAvailable() > KrellweatherWindows::kMaxBytes
+        || reply->property("responseTooLarge").toBool()) {
+        setMessage(m_requestedStation, QStringLiteral("Weather response too large"));
+        return;
+    }
+    const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    if (status == 204) {
+        setMessage(m_requestedStation, QStringLiteral("No recent METAR"));
+        return;
+    }
+    if (status != 200 || reply->error() != QNetworkReply::NoError) {
+        setMessage(m_requestedStation, QStringLiteral("Weather unavailable"));
+        return;
+    }
+    m_observation = KrellweatherWindows::selectObservation(reply->readAll(), m_requestedStation);
+    if (m_observation.isEmpty()) {
+        setMessage(m_requestedStation, QStringLiteral("No valid METAR"));
+        return;
+    }
+    renderWeather(m_observation);
+#else
     if (m_tearingDown) {
         if (reply) reply->deleteLater();
         return;
@@ -413,6 +517,7 @@ void KrellweatherMonitor::handleReply(QNetworkReply *reply)
         return;
     }
     renderWeather(obj);
+#endif
 }
 
 void KrellweatherMonitor::cancelPendingReply()
@@ -427,6 +532,14 @@ void KrellweatherMonitor::cancelPendingReply()
         reply->abort();
     reply->deleteLater();
 }
+
+#ifdef Q_OS_WIN
+void KrellweatherMonitor::updateTheme()
+{
+    applyThemeColors();
+    if (m_icon) m_icon->update();
+}
+#endif
 
 void KrellweatherMonitor::applyThemeColors()
 {
@@ -458,6 +571,9 @@ void KrellweatherMonitor::applyThemeColors()
 
 void KrellweatherMonitor::renderWeather(const QJsonObject &obj)
 {
+#ifdef Q_OS_WIN
+    m_lastUnitsCelsius = useCelsius();
+#endif
     const QString code = obj.value(QStringLiteral("icaoId")).toString(stationCode());
     const double tempC = obj.value(QStringLiteral("temp")).toDouble(qQNaN());
     const QString temp = qIsNaN(tempC) ? QStringLiteral("--") : tempText(tempC);
@@ -492,11 +608,18 @@ QString KrellweatherPlugin::pluginName() const
 
 QString KrellweatherPlugin::pluginVersion() const
 {
+#ifdef Q_OS_WIN
+    return QStringLiteral("0.1.0-windows.1");
+#else
     return QStringLiteral("0.1.0");
+#endif
 }
 
 QList<MonitorBase *> KrellweatherPlugin::createMonitors(Theme *theme, QObject *parent)
 {
+#ifdef Q_OS_WIN
+    if (RemoteSource::instance()) return {};
+#endif
     if (!QSettings().value(QStringLiteral("plugins/krellweather/enabled"), false).toBool())
         return {};
     return {new KrellweatherMonitor(theme, parent)};

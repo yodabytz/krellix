@@ -6,6 +6,11 @@
 #include <QNetworkAccessManager>
 #include <QPointer>
 
+#ifdef Q_OS_WIN
+#include <QElapsedTimer>
+#include <QJsonObject>
+#endif
+
 class QLabel;
 class QNetworkReply;
 class QJsonObject;
@@ -26,6 +31,11 @@ public:
     void tick() override;
     void shutdown() override;
 
+#ifdef Q_OS_WIN
+private slots:
+    void updateTheme();
+#endif
+
 private:
     void fetch();
     void handleReply(QNetworkReply *reply);
@@ -42,6 +52,12 @@ private:
     QNetworkAccessManager m_net;
     bool m_fetching = false;
     bool m_tearingDown = false;
+#ifdef Q_OS_WIN
+    QString m_requestedStation;
+    QElapsedTimer m_requestedAt;
+    QJsonObject m_observation;
+    bool m_lastUnitsCelsius = false;
+#endif
 };
 
 class KrellweatherPlugin : public QObject, public IKrellixPlugin
