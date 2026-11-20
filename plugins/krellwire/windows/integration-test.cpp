@@ -98,13 +98,14 @@ int main(int argc, char **argv)
     panel->resize(200, 40);
     window.resize(200, 40);
     QWidget *ticker = nullptr;
+    const auto tickerPrefix = QStringLiteral("KrellWire headlines: ");
     for (auto *widget : panel->findChildren<QWidget *>()) {
-        if (widget->accessibleName() == QStringLiteral("KrellWire headlines")) ticker = widget;
+        if (widget->accessibleName().startsWith(tickerPrefix)) ticker = widget;
     }
     if (!ticker) qFatal("Ticker missing");
     window.show();
 
-    waitFor([&] { return ticker->accessibleDescription() == QStringLiteral("RSS fixture & headline"); },
+    waitFor([&] { return ticker->accessibleName() == tickerPrefix + QStringLiteral("RSS fixture & headline"); },
             "RSS parsing lost the valid item or accepted an unsafe link");
     UrlSink sink;
     QDesktopServices::setUrlHandler(QStringLiteral("https"), &sink, "capture");
@@ -131,7 +132,7 @@ int main(int argc, char **argv)
     if (requests != 1) qFatal("Live display preferences unnecessarily refetched a feed");
     s.setValue(QStringLiteral("plugins/krellwire/feed1"), root + QStringLiteral("/atom"));
     monitor.tick();
-    waitFor([&] { return ticker->accessibleDescription() == QStringLiteral("Atom fixture"); },
+    waitFor([&] { return ticker->accessibleName() == tickerPrefix + QStringLiteral("Atom fixture"); },
             "A live feed change did not replace the RSS headlines with Atom");
     if (requests != 2) qFatal("Unexpected requests for the new feed");
     monitor.shutdown();

@@ -201,8 +201,7 @@ public:
         setMouseTracking(true);
         syncTheme();
 #ifdef Q_OS_WIN
-        setAccessibleName(QStringLiteral("KrellWire headlines"));
-        setAccessibleDescription(m_text);
+        updateAccessibleName();
         m_pps = scrollPps();
 #else
         if (m_theme) {
@@ -344,6 +343,12 @@ protected:
 
 private:
 #ifdef Q_OS_WIN
+    void updateAccessibleName()
+    {
+        // Windows UI Automation exposes the widget name to screen readers.
+        setAccessibleName(QStringLiteral("KrellWire headlines: %1").arg(m_text));
+    }
+
     QUrl headlineAt(const QPointF &position) const
     {
         if (!QRectF(rect().adjusted(2, 0, -2, 0)).contains(position)) return {};
@@ -383,7 +388,7 @@ private:
         if (m_items.empty()) {
 #ifdef Q_OS_WIN
             m_text = m_emptyText;
-            setAccessibleDescription(m_text);
+            updateAccessibleName();
 #else
             m_text = QStringLiteral("No RSS items");
 #endif
@@ -404,7 +409,7 @@ private:
         }
         m_textWidth = fm.horizontalAdvance(m_text);
 #ifdef Q_OS_WIN
-        setAccessibleDescription(m_text);
+        updateAccessibleName();
 #endif
     }
 
