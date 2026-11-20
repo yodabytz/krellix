@@ -30,6 +30,7 @@ constexpr int kTickMs       = 50;      // scroll timer interval
 constexpr int kGapPx        = 80;      // gap between end and restart of ticker
 constexpr int kQuoteAdvanceMs = 4000;
 constexpr int kQuoteSlideMs   = 360;
+#ifndef Q_OS_WIN
 constexpr int kDefaultIntervalMs = 300000;  // 5 minutes
 constexpr int kFetchTimeoutMs = 3500;
 
@@ -54,15 +55,30 @@ QStringList configuredSymbols()
     }
     return out;
 }
+#endif
 
 // Display-ready symbol: strip "-USD"/"-EUR" suffix from crypto, cap length.
 QString displaySym(const QString &raw)
 {
+#ifdef Q_OS_WIN
+    return raw.left(12);
+#else
     QString s = raw;
     const int dash = s.indexOf(QLatin1Char('-'));
     if (dash > 0 && dash <= 5)
         s = s.left(dash);
     return s.left(7);
+#endif
+}
+
+QString quoteUnavailable(const StockQuote &quote)
+{
+#ifdef Q_OS_WIN
+    return quote.shortName.isEmpty() ? QStringLiteral("Unavailable") : quote.shortName;
+#else
+    Q_UNUSED(quote);
+    return QStringLiteral("No data");
+#endif
 }
 
 // Currency-prefixed, locale-formatted price.
@@ -130,7 +146,7 @@ QString quoteTooltipText(const QList<StockQuote> &quotes, const QString &placeho
     lines.reserve(quotes.size());
     for (const StockQuote &q : quotes) {
         if (!q.valid) {
-            lines << QStringLiteral("%1  No data").arg(displaySym(q.symbol));
+            lines << QStringLiteral("%1  %2").arg(displaySym(q.symbol), quoteUnavailable(q));
             continue;
         }
         const QString pct = QStringLiteral("%1%2%")
@@ -148,10 +164,24 @@ QString quoteTooltipText(const QList<StockQuote> &quotes, const QString &placeho
     return lines.join(QLatin1Char('\n'));
 }
 
+void applyQuoteTooltip(QWidget *widget, const QList<StockQuote> &quotes, const QString &placeholder)
+{
+    const QString text = quoteTooltipText(quotes, placeholder);
+#ifdef Q_OS_WIN
+    widget->setAccessibleDescription(text);
+    widget->setToolTip(QStringLiteral("<qt>") +
+        text.toHtmlEscaped().replace(QLatin1Char('\n'), QStringLiteral("<br>")) +
+        QStringLiteral("</qt>"));
+#else
+    widget->setToolTip(text);
+#endif
+}
+
 } // namespace
 
 // ── KrellstockFetcher ─────────────────────────────────────────────────────────
 
+#ifndef Q_OS_WIN
 KrellstockFetcher::KrellstockFetcher(QObject *parent) : QObject(parent)
 {
     connect(&m_net, &QNetworkAccessManager::finished,
@@ -395,6 +425,8 @@ void KrellstockFetcher::publishBuilding()
     emit quotesReady(m_lastQuotes);
 }
 
+#endif
+
 // ── KrellstockTicker ──────────────────────────────────────────────────────────
 
 KrellstockTicker::KrellstockTicker(Theme *theme, QWidget *parent)
@@ -411,13 +443,18 @@ KrellstockTicker::KrellstockTicker(Theme *theme, QWidget *parent)
     m_timer->setInterval(kTickMs);
     m_timer->setTimerType(Qt::CoarseTimer);
     connect(m_timer, &QTimer::timeout, this, &KrellstockTicker::onTick);
+#ifdef Q_OS_WIN
+    // Resolve the host's Qt signal by name across the Windows DLL boundary.
+    connect(m_theme, SIGNAL(themeChanged()), this, SLOT(onThemeChanged()));
+#else
     connect(m_theme, &Theme::themeChanged, this, &KrellstockTicker::onThemeChanged);
+#endif
 }
 
 void KrellstockTicker::setQuotes(const QList<StockQuote> &quotes)
 {
     m_quotes = quotes;
-    setToolTip(quoteTooltipText(m_quotes, m_placeholder));
+    applyQuoteTooltip(this, m_quotes, m_placeholder);
     rebuildSegs();
     update();
 }
@@ -425,7 +462,7 @@ void KrellstockTicker::setQuotes(const QList<StockQuote> &quotes)
 void KrellstockTicker::setPlaceholder(const QString &text)
 {
     m_placeholder = text;
-    setToolTip(quoteTooltipText(m_quotes, m_placeholder));
+    applyQuoteTooltip(this, m_quotes, m_placeholder);
     if (m_quotes.isEmpty()) { rebuildSegs(); update(); }
 }
 
@@ -505,7 +542,7 @@ void KrellstockTicker::rebuildSegs()
 
         if (!q.valid) {
             addSeg(displaySym(q.symbol), cPrimary, true);
-            addSeg(QStringLiteral("  No data"), cDim, false);
+            addSeg(QStringLiteral("  ") + quoteUnavailable(q), cDim, false);
             continue;
         }
 
@@ -579,7 +616,11 @@ KrellstockQuoteWidget::KrellstockQuoteWidget(Theme *theme, QWidget *parent)
     m_slideTimer->setTimerType(Qt::CoarseTimer);
     connect(m_advanceTimer, &QTimer::timeout, this, &KrellstockQuoteWidget::onAdvance);
     connect(m_slideTimer, &QTimer::timeout, this, &KrellstockQuoteWidget::onSlideTick);
+#ifdef Q_OS_WIN
+    connect(m_theme, SIGNAL(themeChanged()), this, SLOT(onThemeChanged()));
+#else
     connect(m_theme, &Theme::themeChanged, this, &KrellstockQuoteWidget::onThemeChanged);
+#endif
     onThemeChanged();
     updateQuoteTooltip();
 }
@@ -703,7 +744,7 @@ void KrellstockQuoteWidget::updateTimerState()
 
 void KrellstockQuoteWidget::updateQuoteTooltip()
 {
-    setToolTip(quoteTooltipText(m_quotes, m_placeholder));
+    applyQuoteTooltip(this, m_quotes, m_placeholder);
 }
 
 void KrellstockQuoteWidget::paintEvent(QPaintEvent *)
@@ -747,7 +788,7 @@ void KrellstockQuoteWidget::paintEvent(QPaintEvent *)
             p.setFont(base);
             p.setPen(cDim);
             const int symW = bfm.horizontalAdvance(symText);
-            p.drawText(QPoint(pad + symW + 8, yBase), QStringLiteral("No data"));
+            p.drawText(QPoint(pad + symW + 8, yBase), quoteUnavailable(q));
             p.restore();
             return;
         }
@@ -825,6 +866,7 @@ void KrellstockQuoteWidget::paintEvent(QPaintEvent *)
 
 // ── KrellstockTickerMonitor ───────────────────────────────────────────────────
 
+#ifndef Q_OS_WIN
 KrellstockTickerMonitor::KrellstockTickerMonitor(Theme *theme,
                                                   QSharedPointer<KrellstockFetcher> fetcher,
                                                   QObject *parent)
@@ -939,3 +981,4 @@ QList<MonitorBase *> KrellstockPlugin::createMonitors(Theme *theme, QObject *par
 }
 
 #include "KrellstockPlugin.moc"
+#endif

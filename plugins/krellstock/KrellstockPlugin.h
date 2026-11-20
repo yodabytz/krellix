@@ -35,6 +35,7 @@ struct StockQuote {
 // network request serves both panels.  Held via QSharedPointer; destroyed
 // when the last monitor referencing it is destroyed.
 
+#ifndef Q_OS_WIN
 class KrellstockFetcher : public QObject
 {
     Q_OBJECT
@@ -70,6 +71,7 @@ private:
 
     Q_DISABLE_COPY_MOVE(KrellstockFetcher)
 };
+#endif
 
 // ── Scrolling ticker widget ───────────────────────────────────────────────────
 
@@ -161,6 +163,7 @@ private:
 
 // ── Monitors ──────────────────────────────────────────────────────────────────
 
+#ifndef Q_OS_WIN
 class KrellstockTickerMonitor : public MonitorBase
 {
     Q_OBJECT
@@ -225,3 +228,4 @@ public:
     QString pluginVersion() const override { return QStringLiteral("0.1.2"); }
     QList<MonitorBase *> createMonitors(Theme *theme, QObject *parent) override;
 };
+#endif
