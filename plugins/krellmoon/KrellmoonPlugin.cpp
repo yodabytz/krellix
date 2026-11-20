@@ -1,5 +1,9 @@
 #include "KrellmoonPlugin.h"
 
+#ifdef Q_OS_WIN
+#include "remote/RemoteSource.h"
+#endif
+
 #include "theme/Theme.h"
 #include "widgets/Panel.h"
 
@@ -189,6 +193,12 @@ QPixmap loadMoonPixmap(double k)
             if (!pix.isNull()) return pix;
         }
     }
+#ifdef Q_OS_WIN
+    for (const QString &name : names) {
+        QPixmap pix(QStringLiteral(":/krellmoon/") + name);
+        if (!pix.isNull()) return pix;
+    }
+#endif
     return {};
 }
 
@@ -373,10 +383,15 @@ QWidget *KrellmoonMonitor::createWidget(QWidget *parent)
     panel->addWidget(body);
 
     applyThemeColors();
+#ifdef Q_OS_WIN
+    // Resolve the signal from the host's Qt metaobject across the DLL boundary.
+    connect(theme(), SIGNAL(themeChanged()), this, SLOT(updateTheme()));
+#else
     connect(theme(), &Theme::themeChanged, this, [this]() {
         applyThemeColors();
         if (m_moon) m_moon->update();
     });
+#endif
 
     refresh();
     return panel;
@@ -405,6 +420,14 @@ void KrellmoonMonitor::applyThemeColors()
         .arg(cssColor(accent)));
 }
 
+#ifdef Q_OS_WIN
+void KrellmoonMonitor::updateTheme()
+{
+    applyThemeColors();
+    if (m_moon) m_moon->update();
+}
+#endif
+
 void KrellmoonMonitor::refresh()
 {
     if (m_tearingDown) return;
@@ -420,7 +443,11 @@ void KrellmoonMonitor::refresh()
 
 QString KrellmoonPlugin::pluginId() const
 {
+#ifdef Q_OS_WIN
+    return QStringLiteral("io.krellix.krellmoon");
+#else
     return QStringLiteral("krellmoon");
+#endif
 }
 
 QString KrellmoonPlugin::pluginName() const
@@ -430,11 +457,18 @@ QString KrellmoonPlugin::pluginName() const
 
 QString KrellmoonPlugin::pluginVersion() const
 {
+#ifdef Q_OS_WIN
+    return QStringLiteral("0.1.0-windows.1");
+#else
     return QStringLiteral("0.1.0");
+#endif
 }
 
 QList<MonitorBase *> KrellmoonPlugin::createMonitors(Theme *theme, QObject *parent)
 {
+#ifdef Q_OS_WIN
+    if (RemoteSource::instance()) return {};
+#endif
     // Default OFF — plugins must be explicitly enabled in Settings before
     // they appear. Same convention as the rest of the plugin set.
     if (!QSettings().value(QStringLiteral("plugins/krellmoon/enabled"), false).toBool())

@@ -23,6 +23,11 @@ public:
     void tick() override;
     void shutdown() override;
 
+#ifdef Q_OS_WIN
+private slots:
+    void updateTheme();
+#endif
+
 private:
     void applyThemeColors();
     void refresh();

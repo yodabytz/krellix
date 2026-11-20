@@ -1,5 +1,12 @@
 #include "KrellkamPlugin.h"
 
+#ifdef Q_OS_WIN
+#include "remote/RemoteSource.h"
+#include <QBuffer>
+#include <QImageReader>
+#include <windows.h>
+#endif
+
 #include "theme/Theme.h"
 #include "widgets/Panel.h"
 
@@ -97,6 +104,15 @@ bool executableExists(const QString &program)
 {
     return !QStandardPaths::findExecutable(program).isEmpty();
 }
+
+#ifdef Q_OS_WIN
+void hideConsole(QProcess *process)
+{
+    process->setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments *args) {
+        args->flags |= CREATE_NO_WINDOW;
+    });
+}
+#endif
 
 int indexOfBytes(const QByteArray &bytes, const QByteArray &needle, int from = 0)
 {
@@ -293,7 +309,11 @@ KrellkamField::KrellkamField(Theme *theme, QWidget *parent)
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     setAttribute(Qt::WA_OpaquePaintEvent, true);
     setCursor(Qt::PointingHandCursor);
+#ifdef Q_OS_WIN
+    connect(m_theme, SIGNAL(themeChanged()), this, SLOT(onThemeChanged()));
+#else
     connect(m_theme, &Theme::themeChanged, this, &KrellkamField::onThemeChanged);
+#endif
 }
 
 KrellkamField::~KrellkamField()
@@ -303,17 +323,31 @@ KrellkamField::~KrellkamField()
 
 void KrellkamField::stopProcesses()
 {
+#ifdef Q_OS_WIN
+    for (auto *reply : m_net.findChildren<QNetworkReply *>()) {
+        QObject::disconnect(reply, SIGNAL(readyRead()), this, nullptr);
+        QObject::disconnect(reply, SIGNAL(finished()), this, nullptr);
+        reply->abort();
+        reply->deleteLater();
+    }
+#endif
     const QList<QProcess *> processes = findChildren<QProcess *>();
     for (QProcess *process : processes) {
         if (!process) continue;
         process->disconnect(this);
         if (process->state() == QProcess::NotRunning)
             continue;
+#ifdef Q_OS_WIN
+        process->kill();
+        process->waitForFinished(100);
+        process->deleteLater();
+#else
         process->terminate();
         if (!process->waitForFinished(500)) {
             process->kill();
             process->waitForFinished(500);
         }
+#endif
     }
 }
 
@@ -323,6 +357,17 @@ void KrellkamField::setSources(const QList<KrellkamSource> &sources)
         requestRelayout();
         return;
     }
+#ifdef Q_OS_WIN
+    stopProcesses();
+    const auto oldViewers = m_viewers;
+    m_viewers.clear();
+    for (const auto &viewers : oldViewers) {
+        for (const auto &viewer : viewers) {
+            if (viewer) viewer->window()->close();
+        }
+    }
+    m_youtubeStreams.clear();
+#endif
     m_sources = sources;
     m_slots.clear();
     for (const KrellkamSource &source : sources.mid(0, kMaxSources)) {
@@ -492,7 +537,16 @@ void KrellkamField::requestSource(int index)
 void KrellkamField::requestImageSource(int index, const QString &source)
 {
     if (!isRemote(source)) {
+#ifdef Q_OS_WIN
+        const QString path = expandUserPath(source);
+        if (!QFileInfo(path).isFile()) {
+            setSlotError(index, QStringLiteral("image file not found"));
+            return;
+        }
+        QFile f(path);
+#else
         QFile f(source);
+#endif
         if (!f.open(QIODevice::ReadOnly)) {
             setSlotError(index, QStringLiteral("cannot read image"));
             return;
@@ -501,7 +555,11 @@ void KrellkamField::requestImageSource(int index, const QString &source)
             setSlotError(index, QStringLiteral("image too large"));
             return;
         }
+#ifdef Q_OS_WIN
+        setSlotImage(index, f.read(kMaxImageBytes + 1));
+#else
         setSlotImage(index, f.readAll());
+#endif
         return;
     }
 
@@ -521,6 +579,10 @@ void KrellkamField::requestImageSource(int index, const QString &source)
     req.setMaximumRedirectsAllowed(3);
     req.setTransferTimeout(kFetchTimeoutMs);
     QNetworkReply *reply = m_net.get(req);
+#ifdef Q_OS_WIN
+    m_slots[index].fetching = true;
+    reply->setReadBufferSize(64 * 1024);
+#endif
     auto *payload = new QByteArray;
     connect(reply, &QObject::destroyed, this, [payload]() { delete payload; });
     connect(reply, &QNetworkReply::readyRead, this, [this, reply, payload, index]() {
@@ -532,6 +594,9 @@ void KrellkamField::requestImageSource(int index, const QString &source)
     });
     connect(reply, &QNetworkReply::finished, this, [this, reply, payload, index]() {
         reply->deleteLater();
+#ifdef Q_OS_WIN
+        m_slots[index].fetching = false;
+#endif
         if (reply->error() != QNetworkReply::NoError) {
             if (reply->error() == QNetworkReply::OperationCanceledError)
                 return;
@@ -549,6 +614,12 @@ void KrellkamField::requestImageSource(int index, const QString &source)
 
 void KrellkamField::requestMjpegSource(int index, const QString &source)
 {
+#ifdef Q_OS_WIN
+    if (!isRemote(source)) {
+        setSlotError(index, QStringLiteral("MJPEG requires an HTTP or HTTPS URL"));
+        return;
+    }
+#endif
     QNetworkRequest req{QUrl(source)};
     req.setAttribute(QNetworkRequest::CacheLoadControlAttribute,
                      QNetworkRequest::AlwaysNetwork);
@@ -557,6 +628,15 @@ void KrellkamField::requestMjpegSource(int index, const QString &source)
     req.setTransferTimeout(kFetchTimeoutMs);
 
     QNetworkReply *reply = m_net.get(req);
+#ifdef Q_OS_WIN
+    m_slots[index].fetching = true;
+    reply->setReadBufferSize(64 * 1024);
+    QTimer::singleShot(kFetchTimeoutMs, reply, [reply, this, index]() {
+        if (reply->isFinished()) return;
+        setSlotError(index, QStringLiteral("camera timeout"));
+        reply->abort();
+    });
+#endif
     auto *buffer = new QByteArray;
     connect(reply, &QObject::destroyed, this, [buffer]() { delete buffer; });
     connect(reply, &QNetworkReply::readyRead, this, [this, reply, buffer, index]() {
@@ -568,13 +648,21 @@ void KrellkamField::requestMjpegSource(int index, const QString &source)
     });
     connect(reply, &QNetworkReply::finished, this, [this, reply, buffer, index]() {
         reply->deleteLater();
+#ifdef Q_OS_WIN
+        m_slots[index].fetching = false;
+#endif
         if (reply->error() == QNetworkReply::OperationCanceledError)
             return;
         if (reply->error() != QNetworkReply::NoError) {
             setSlotError(index, reply->errorString());
             return;
         }
+#ifdef Q_OS_WIN
+        if (!tryExtractMjpegFrame(index, *buffer))
+            setSlotError(index, QStringLiteral("no camera frame"));
+#else
         (void) tryExtractMjpegFrame(index, *buffer);
+#endif
     });
 }
 
@@ -621,6 +709,9 @@ void KrellkamField::requestYoutubeFrame(const QString &source,
     }
 
     auto *resolver = new QProcess(this);
+#ifdef Q_OS_WIN
+    hideConsole(resolver);
+#endif
     resolver->setProgram(QStringLiteral("yt-dlp"));
     resolver->setArguments(youtubeResolverArgs(source));
     resolver->setProcessChannelMode(QProcess::SeparateChannels);
@@ -679,6 +770,9 @@ void KrellkamField::requestYoutubeFrameFromStream(
     std::function<void(const QByteArray &, const QString &)> callback)
 {
     auto *ffmpeg = new QProcess(this);
+#ifdef Q_OS_WIN
+    hideConsole(ffmpeg);
+#endif
     ffmpeg->setProgram(QStringLiteral("ffmpeg"));
     ffmpeg->setArguments({QStringLiteral("-hide_banner"),
                           QStringLiteral("-nostdin"),
@@ -730,9 +824,40 @@ void KrellkamField::requestYoutubeFrameFromStream(
 
 void KrellkamField::requestCommandSource(int index, const QString &source)
 {
+#ifdef Q_OS_WIN
+    QStringList args = QProcess::splitCommand(source);
+    if (args.isEmpty()) {
+        setSlotError(index, QStringLiteral("missing command"));
+        return;
+    }
+    const QString executable = QStandardPaths::findExecutable(expandUserPath(args.takeFirst()));
+    if (!executable.endsWith(QStringLiteral(".exe"), Qt::CaseInsensitive)) {
+        setSlotError(index, QStringLiteral("choose a Windows .exe that writes an image"));
+        return;
+    }
+    m_slots[index].fetching = true;
+#endif
     auto *proc = new QProcess(this);
+#ifdef Q_OS_WIN
+    hideConsole(proc);
+    proc->setProgram(executable);
+    proc->setArguments(args);
+    connect(proc, &QProcess::readyReadStandardOutput, this, [proc]() {
+        if (proc->bytesAvailable() > kMaxImageBytes) {
+            proc->setProperty("krellkam_image_too_large", true);
+            proc->kill();
+        }
+    });
+    connect(proc, &QProcess::readyReadStandardError, this, [proc]() {
+        if (proc->property("krellkam_command_error").toByteArray().isEmpty())
+            proc->setProperty("krellkam_command_error", proc->readAllStandardError().left(640));
+        else
+            proc->readAllStandardError();
+    });
+#else
     proc->setProgram(QStringLiteral("/bin/sh"));
     proc->setArguments({QStringLiteral("-c"), source});
+#endif
     connect(proc, &QProcess::errorOccurred, this,
             [this, proc, index](QProcess::ProcessError) {
                 const bool killedByUs = proc->property(
@@ -740,6 +865,13 @@ void KrellkamField::requestCommandSource(int index, const QString &source)
                 const QString err = proc->errorString();
                 proc->disconnect();
                 proc->deleteLater();
+#ifdef Q_OS_WIN
+                m_slots[index].fetching = false;
+                if (proc->property("krellkam_image_too_large").toBool()) {
+                    setSlotError(index, QStringLiteral("image too large"));
+                    return;
+                }
+#endif
                 if (killedByUs) {
                     setSlotError(index, QStringLiteral("command timeout"));
                     return;
@@ -751,9 +883,17 @@ void KrellkamField::requestCommandSource(int index, const QString &source)
     connect(proc, &QProcess::finished, this,
             [this, proc, index](int exitCode, QProcess::ExitStatus status) {
                 proc->deleteLater();
+#ifdef Q_OS_WIN
+                m_slots[index].fetching = false;
+#endif
                 if (status != QProcess::NormalExit || exitCode != 0) {
+#ifdef Q_OS_WIN
+                    const QString err = QString::fromLocal8Bit(
+                        proc->property("krellkam_command_error").toByteArray()).trimmed();
+#else
                     const QString err = QString::fromLocal8Bit(proc->readAllStandardError())
                                             .trimmed();
+#endif
                     setSlotError(index, err.isEmpty()
                         ? QStringLiteral("command failed")
                         : err.left(160));
@@ -778,7 +918,21 @@ void KrellkamField::setSlotImage(int index, const QByteArray &bytes)
         return;
     }
     QImage image;
+#ifdef Q_OS_WIN
+    QBuffer input;
+    input.setData(bytes);
+    input.open(QIODevice::ReadOnly);
+    QImageReader reader(&input);
+    const QSize size = reader.size();
+    if (!size.isValid() || size.isEmpty()
+        || static_cast<qint64>(size.width()) * size.height() > kMaxImagePixels) {
+        setSlotError(index, QStringLiteral("invalid image size"));
+        return;
+    }
+    if (!reader.read(&image)) {
+#else
     if (!image.loadFromData(bytes)) {
+#endif
         setSlotError(index, QStringLiteral("bad image"));
         return;
     }
@@ -788,6 +942,11 @@ void KrellkamField::setSlotImage(int index, const QByteArray &bytes)
     }
     m_slots[index].image = image;
     m_slots[index].status.clear();
+#ifdef Q_OS_WIN
+    const QString title = m_slots[index].title;
+    setAccessibleName(title.isEmpty() ? QStringLiteral("KrellKam image")
+                                      : QStringLiteral("KrellKam image: ") + title);
+#endif
     updateViewers(index);
     update();
 }
@@ -834,6 +993,10 @@ void KrellkamField::setSlotError(int index, const QString &status)
 {
     if (index < 0 || index >= m_slots.size()) return;
     m_slots[index].status = status;
+#ifdef Q_OS_WIN
+    if (m_slots[index].image.isNull())
+        setAccessibleDescription(QStringLiteral("KrellKam: ") + status);
+#endif
     update();
 }
 
@@ -882,9 +1045,14 @@ void KrellkamField::openViewer(int index)
 
     auto *dialog = new QDialog(window());
     dialog->setAttribute(Qt::WA_DeleteOnClose, true);
+#ifdef Q_OS_WIN
+    dialog->setWindowTitle(slot.title.isEmpty() ? QStringLiteral("Krellkam")
+        : QStringLiteral("Krellkam - %1").arg(slot.title));
+#else
     dialog->setWindowTitle(slot.source.isEmpty()
         ? QStringLiteral("Krellkam")
         : QStringLiteral("Krellkam - %1").arg(slot.source));
+#endif
     dialog->setWindowFlag(Qt::Tool, true);
 
     auto *layout = new QVBoxLayout(dialog);
@@ -976,11 +1144,18 @@ QString KrellkamPlugin::pluginName() const
 
 QString KrellkamPlugin::pluginVersion() const
 {
+#ifdef Q_OS_WIN
+    return QStringLiteral("0.1.0-windows.1");
+#else
     return QStringLiteral("0.1.0");
+#endif
 }
 
 QList<MonitorBase *> KrellkamPlugin::createMonitors(Theme *theme, QObject *parent)
 {
+#ifdef Q_OS_WIN
+    if (RemoteSource::instance()) return {};
+#endif
     if (!QSettings().value(QStringLiteral("plugins/krellkam/enabled"), false).toBool())
         return {};
     return {new KrellkamMonitor(theme, parent)};
