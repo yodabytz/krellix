@@ -8,6 +8,11 @@
 #include <QHash>
 #include <QVector>
 
+#ifdef Q_OS_WIN
+#include <QElapsedTimer>
+#include <QStringList>
+#endif
+
 #include <vector>
 
 class QNetworkReply;
@@ -33,6 +38,11 @@ public:
     void tick() override;
     void shutdown() override;
 
+#ifdef Q_OS_WIN
+private slots:
+    void updateTheme();
+#endif
+
 private:
     void fetch();
     void handleReply(QNetworkReply *reply);
@@ -46,6 +56,12 @@ private:
     std::vector<KrellwireFeedItem> m_items;
     bool m_fetching = false;
     bool m_tearingDown = false;
+#ifdef Q_OS_WIN
+    QStringList m_requestedUrls;
+    int m_requestedLimit = 0;
+    QElapsedTimer m_requestedAt;
+    bool m_feedSucceeded = false;
+#endif
 };
 
 class KrellwirePlugin : public QObject, public IKrellixPlugin
