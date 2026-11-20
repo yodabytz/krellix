@@ -53,6 +53,7 @@ private:
     QVBoxLayout *m_layout       = nullptr;
     Decal       *m_titleDecal   = nullptr;
     QString      m_surfaceKey   = QStringLiteral("panel_bg");
+    // Keep these legacy fields and the mouse overrides for existing plugin ABI.
     bool         m_dragging     = false;
     QPoint       m_dragOffset;
 

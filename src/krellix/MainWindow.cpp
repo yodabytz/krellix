@@ -829,6 +829,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
 bool MainWindow::event(QEvent *e)
 {
+    if (e->type() == QEvent::UngrabMouse)
+        m_dragging = false;
     const bool handled = QWidget::event(e);
     // A LayoutRequest lands whenever any child's size hint changes —
     // panels growing or shrinking on their own (player controls swapping
@@ -892,6 +894,15 @@ void MainWindow::paintEvent(QPaintEvent *)
 void MainWindow::mousePressEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
+        m_dragging = false;
+        const auto *host = findLiveMonitor(QStringLiteral("host"));
+        const QPoint position = event->globalPosition().toPoint();
+        // Check the press, not the cursor's later location during the drag.
+        if (!host || !host->widget || !host->widget->isVisible()
+            || !host->widget->rect().contains(host->widget->mapFromGlobal(position))) {
+            QWidget::mousePressEvent(event);
+            return;
+        }
         if (QWindow *wh = windowHandle()) {
             if (wh->startSystemMove()) {
                 event->accept();
@@ -899,7 +910,7 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
             }
         }
         m_dragging = true;
-        m_dragOffset = event->globalPosition().toPoint() - frameGeometry().topLeft();
+        m_dragOffset = position - frameGeometry().topLeft();
         event->accept();
         return;
     }
@@ -918,7 +929,7 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event)
 
 void MainWindow::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (event->button() == Qt::LeftButton) {
+    if (event->button() == Qt::LeftButton && m_dragging) {
         m_dragging = false;
         event->accept();
         return;

@@ -3,6 +3,7 @@
 #undef main
 #include "krellix/SettingsDialog.h"
 #include <QDialogButtonBox>
+#include <QMouseEvent>
 #include <QPushButton>
 #include <QTimer>
 #include <QPointer>
@@ -10,6 +11,45 @@
 #include "sysdep/SensorDisplay.h"
 #include "monitors/DiskMonitor.h"
 #include "widgets/Decal.h"
+#include "widgets/Panel.h"
+
+static void mouse(QWidget *target, QEvent::Type type, const QPoint &position,
+                  Qt::MouseButton button, Qt::MouseButtons buttons)
+{
+    QMouseEvent event(type, target->mapFromGlobal(position), position,
+                      button, buttons, Qt::NoModifier);
+    QApplication::sendEvent(target, &event);
+}
+
+static void verifyDragHandle(Theme *theme)
+{
+    MainWindow test(theme, {QStringLiteral("host"), QStringLiteral("clock")});
+    test.move(100, 100);
+    test.show();
+    QApplication::processEvents();
+    auto *host = test.findChild<Panel *>(QStringLiteral("krellixHostnamePanel"));
+    if (!host || !host->isVisible()) qFatal("Missing hostname panel drag handle");
+    auto *hostLabel = host->findChild<Decal *>();
+    if (!hostLabel) qFatal("Missing hostname label");
+    const QPoint hostPos = hostLabel->mapToGlobal(hostLabel->rect().center());
+    const QPoint original = test.pos();
+    const QPoint delta(20, 15);
+    for (Panel *panel : test.findChildren<Panel *>(QString(), Qt::FindDirectChildrenOnly)) {
+        if (panel == host || !panel->isVisible()) continue;
+        const QPoint from = panel->mapToGlobal(panel->rect().center());
+        mouse(panel, QEvent::MouseButtonPress, from, Qt::LeftButton, Qt::LeftButton);
+        mouse(panel, QEvent::MouseMove, hostPos, Qt::NoButton, Qt::LeftButton);
+        mouse(panel, QEvent::MouseButtonRelease, hostPos, Qt::LeftButton, Qt::NoButton);
+        if (test.pos() != original) qFatal("A drag starting outside the hostname moved the window");
+    }
+    mouse(hostLabel, QEvent::MouseButtonPress, hostPos, Qt::LeftButton, Qt::LeftButton);
+    mouse(hostLabel, QEvent::MouseMove, hostPos + delta, Qt::NoButton, Qt::LeftButton);
+    mouse(hostLabel, QEvent::MouseButtonRelease, hostPos + delta, Qt::LeftButton, Qt::NoButton);
+    if (test.pos() != original + delta) qFatal("Dragging the hostname label did not move the window");
+    mouse(hostLabel, QEvent::MouseMove, hostPos + delta * 2, Qt::NoButton, Qt::LeftButton);
+    if (test.pos() != original + delta) qFatal("Drag remained active after release");
+    qInfo("PASS: only the hostname panel can start a window drag");
+}
 
 static int completed = 0;
 static void exercise()
@@ -27,6 +67,7 @@ static void exercise()
         diskChecked = true;
         auto *existing = window->findChild<MonitorBase *>();
         if (!existing) qFatal("No monitor for disk test theme");
+        verifyDragHandle(existing->theme());
         DiskMonitor disk(existing->theme());
         DiskStat::setReadOverride([]() { return QList<DiskSample>{}; });
         QWidget *panel = disk.createWidget(nullptr);
