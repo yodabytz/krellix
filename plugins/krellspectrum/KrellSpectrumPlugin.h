@@ -68,7 +68,7 @@ public:
 public slots:
     void start(KrellSpectrumConfig config);
     void stop();
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
     void setCaptureFps(int fps);
 #endif
 
@@ -99,7 +99,7 @@ private:
     QElapsedTimer m_emitTimer;
     int m_minEmitMs = 16;
     bool m_stopping = false;
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
     bool m_reportedPlayback = false;
 #endif
 };
@@ -174,8 +174,12 @@ private:
     QThread *m_thread = nullptr;
     KrellSpectrumAudioCapture *m_capture = nullptr;
     KrellSpectrumConfig m_config;
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
     quint64 m_captureGeneration = 0;
+#endif
+#ifdef Q_OS_MACOS
+    bool m_requestedPlaybackPermission = false;
+    bool m_shutdown = false;
 #endif
 };
 

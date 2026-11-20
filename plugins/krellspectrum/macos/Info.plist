@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>org.cerberix.krellix.spectrum-capture</string>
+    <key>CFBundleName</key>
+    <string>KrellSpectrum Playback Capture</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>KrellSpectrum reads audio from a virtual playback device. It does not use your physical microphone.</string>
+</dict>
+</plist>

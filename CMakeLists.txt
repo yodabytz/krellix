@@ -356,6 +356,14 @@ set_target_properties(krellspectrum PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
 )
 install(TARGETS krellspectrum LIBRARY DESTINATION lib/krellix/plugins)
+if(APPLE)
+    enable_language(OBJCXX)
+    add_subdirectory(plugins/krellspectrum/macos)
+    target_sources(krellspectrum PRIVATE plugins/krellspectrum/macos/PlaybackPermission.mm)
+    find_library(SPECTRUM_AV_FOUNDATION AVFoundation REQUIRED)
+    target_link_libraries(krellspectrum PRIVATE Qt6::Network "${SPECTRUM_AV_FOUNDATION}")
+    add_dependencies(krellspectrum krellspectrum-coreaudio)
+endif()
 
 add_library(krellmail MODULE
     plugins/krellmail/KrellmailPlugin.cpp

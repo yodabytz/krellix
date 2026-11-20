@@ -17,9 +17,17 @@ add_executable(krellspectrum-render render-fixture.cpp
 target_include_directories(krellspectrum-render PRIVATE "${root}/src")
 target_compile_definitions(krellspectrum-render PRIVATE KRELLIX_THEMES_SYSTEM_DIR="${root}/themes")
 target_link_libraries(krellspectrum-render PRIVATE Qt6::Widgets Qt6::Network)
-if(WIN32)
+if(WIN32 OR APPLE)
     target_sources(krellspectrum-render PRIVATE
         "${root}/src/remote/RemoteSource.cpp"
         "${root}/src/widgets/AlertBanner.cpp")
+endif()
+if(WIN32)
     target_compile_definitions(krellspectrum-render PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()
+if(APPLE)
+    enable_language(OBJCXX)
+    find_library(SPECTRUM_AV_FOUNDATION AVFoundation REQUIRED)
+    target_sources(krellspectrum-render PRIVATE ../macos/PlaybackPermission.mm)
+    target_link_libraries(krellspectrum-render PRIVATE "${SPECTRUM_AV_FOUNDATION}")
 endif()

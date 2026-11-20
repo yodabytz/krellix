@@ -9,6 +9,7 @@ stage=$(mktemp -d /tmp/krellix-package.XXXXXX)
 app="$stage/Krellix.app"
 mkdir -p "$app/Contents/"{MacOS,Helpers,Resources/cli,Resources/plugins/krellmoon,PlugIns/krellix} "$out"
 cp "$build/bin/krellbt-battery" "$app/Contents/Helpers/"
+cp "$build/bin/krellspectrum-coreaudio" "$app/Contents/Helpers/"
 cp "$build/bin/krellix" "$app/Contents/MacOS/"
 for plugin in krellkam krelldacious krellweather krellwire krellmail krellmoon krellspectrum krellstock krellhealth krellstack krellpkg krellbluetooth; do
     cp "$build/plugins/lib$plugin.so" "$app/Contents/PlugIns/krellix/"
@@ -37,6 +38,7 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>NSHighResolutionCapable</key><true/>
 <key>NSBluetoothAlwaysUsageDescription</key><string>KrellBT reads battery levels from your connected Bluetooth accessories.</string>
 <key>NSBluetoothPeripheralUsageDescription</key><string>KrellBT reads battery levels from your connected Bluetooth accessories.</string>
+<key>NSMicrophoneUsageDescription</key><string>KrellSpectrum reads audio from a virtual playback device. It does not use your physical microphone.</string>
 </dict></plist>
 PLIST
 printf '[Paths]\nPlugins = PlugIns\n' > "$app/Contents/Resources/qt.conf"
