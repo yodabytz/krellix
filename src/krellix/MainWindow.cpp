@@ -232,7 +232,17 @@ MainWindow::MainWindow(Theme *theme,
     }
 }
 
-MainWindow::~MainWindow() = default;
+MainWindow::~MainWindow()
+{
+#ifdef Q_OS_WIN
+    disconnect(qApp, nullptr, this, nullptr);
+    disconnect(m_theme, nullptr, this, nullptr);
+    if (m_remote)
+        disconnect(RemoteSource::instance(), nullptr, this, nullptr);
+    while (!m_monitors.isEmpty())
+        retireMonitor(m_monitors.takeLast(), false);
+#endif
+}
 
 void MainWindow::attachRemoteSource(RemoteSource *remote)
 {
@@ -554,6 +564,29 @@ void MainWindow::clearPanelStack()
     m_monitors.clear();
 }
 
+#ifdef Q_OS_WIN
+void MainWindow::retireMonitor(const LiveMonitor &lm, bool deferred)
+{
+    // Stop monitor work while its widgets and the plugin factory still exist.
+    lm.timer->stop();
+    disconnect(m_theme, nullptr, lm.monitor, nullptr);
+    if (auto *remote = RemoteSource::instance())
+        disconnect(remote, nullptr, lm.monitor, nullptr);
+    lm.monitor->shutdown();
+    if (lm.widget) {
+        m_layout->removeWidget(lm.widget);
+        lm.widget->hide();
+    }
+    if (deferred) {
+        lm.monitor->deleteLater();
+        if (lm.widget) lm.widget->deleteLater();
+    } else {
+        delete lm.monitor;
+        delete lm.widget;
+    }
+}
+#endif
+
 void MainWindow::rebuildPanels()
 {
     if (m_rebuildingPanels)
@@ -581,6 +614,12 @@ void MainWindow::rebuildPanels()
     }
 
     const QStringList desired = desiredPanelOrder(pluginMonitors);
+#ifdef Q_OS_WIN
+    for (qsizetype i = m_monitors.size(); i > 0; --i) {
+        if (!desired.contains(m_monitors.at(i - 1).monitor->id()))
+            retireMonitor(m_monitors.takeAt(i - 1), true);
+    }
+#endif
     for (const QString &id : desired) {
         if (findLiveMonitor(id)) continue;
         if (isBuiltinMonitorId(id)) {

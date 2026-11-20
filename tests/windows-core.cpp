@@ -2,6 +2,7 @@
 #include "../src/krellix/main.cpp"
 #undef main
 #include "krellix/SettingsDialog.h"
+#include "monitors/ClockMonitor.h"
 #include "monitors/CpuMonitor.h"
 #include "monitors/NetMonitor.h"
 #include "monitors/DiskMonitor.h"
@@ -15,6 +16,7 @@
 #include <QSpinBox>
 #include <QPushButton>
 #include <QLineEdit>
+#include <QPointer>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QUdpSocket>
@@ -140,6 +142,24 @@ static void exercise()
     QMetaObject::invokeMethod(window, "showSettings", Qt::DirectConnection);
     auto *dialog = window->findChild<SettingsDialog *>();
     if (!dialog || dialog->isModal()) qFatal("Independent settings missing");
+    const auto clock = window->findChild<ClockMonitor *>();
+    if (!clock) qFatal("Missing clock monitor");
+    for (int i = 0; i < 12; ++i) {
+        QPointer<CpuMonitor> cpu = window->findChild<CpuMonitor *>();
+        if (!cpu) qFatal("Enabled CPU monitor missing");
+        auto *timer = cpu->findChild<QTimer *>(QString(), Qt::FindDirectChildrenOnly);
+        if (!timer || !timer->isActive()) qFatal("Enabled CPU timer not running");
+        QSettings().setValue(QStringLiteral("monitors/cpu"), false);
+        QMetaObject::invokeMethod(dialog, "panelStackChanged", Qt::DirectConnection);
+        if (timer->isActive()) qFatal("Retiring CPU monitor still scheduled");
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        if (cpu || window->findChild<CpuMonitor *>()) qFatal("Disabled CPU monitor was not retired");
+        QSettings().setValue(QStringLiteral("monitors/cpu"), true);
+        QMetaObject::invokeMethod(dialog, "panelStackChanged", Qt::DirectConnection);
+        if (window->findChildren<CpuMonitor *>().size() != 1
+            || window->findChild<ClockMonitor *>() != clock)
+            qFatal("Panel rebuild duplicated CPU or replaced the unchanged clock");
+    }
     auto *stack = dialog->findChild<QStackedWidget *>();
     QListWidget *sidebar = nullptr;
     for (auto *list : dialog->findChildren<QListWidget *>())

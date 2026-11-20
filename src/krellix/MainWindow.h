@@ -75,6 +75,9 @@ private:
     void buildBuiltins(const QStringList &enabledIds, bool clockOnly);
     void buildPanelStack(const QStringList &enabledIds);
     void clearPanelStack();
+#ifdef Q_OS_WIN
+    void retireMonitor(const LiveMonitor &monitor, bool deferred);
+#endif
     void rebuildPanels();
     QStringList desiredPanelOrder(const QList<MonitorBase *> &pluginMonitors) const;
     LiveMonitor *findLiveMonitor(const QString &id);

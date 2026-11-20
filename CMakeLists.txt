@@ -7,7 +7,7 @@ project(krellix
 # SemVer pre-release label. Full string ("0.1.2") is what the binary
 # reports via --version, the About dialog, and packaging artifacts. Bump
 # this (and PROJECT_VERSION) when cutting a new release.
-set(KRELLIX_PRERELEASE "")
+set(KRELLIX_PRERELEASE "" CACHE STRING "Optional build pre-release label")
 if(KRELLIX_PRERELEASE STREQUAL "")
     set(KRELLIX_VERSION_FULL "${PROJECT_VERSION}")
 else()

@@ -83,3 +83,20 @@ and loading the actual KrellTop DLL with local/remote lifecycle tests.
 --once` provides a diagnostic JSON sample without starting Krellix. Physical
 temperature accuracy still requires comparison on supported physical hardware;
 VM and synthetic tests cannot establish that.
+
+## Windows Crash Reports
+
+From a PowerShell window in the portable Krellix folder, run
+`./crash-report.ps1` for a local JSON summary of recent Krellix application
+errors. The summary includes event timestamps, process IDs, executable and
+module build stamps, exception codes, and offsets. It does not include
+command lines, profile names, settings, or full paths.
+
+For future crashes, optionally run `./crash-report.ps1 -Action Enable` in
+**64-bit PowerShell as administrator**. Windows Error Reporting keeps up to
+five local minidumps for `krellix.exe` in the crashing user's
+`%LOCALAPPDATA%\krellix\crash-dumps`. This does not require restarting
+Krellix, does not change existing custom settings, and does not upload
+anything. Use `-Action Disable` to remove only the override created by the
+script. Existing dumps are not deleted. Treat dumps as private: they can
+contain sensitive process memory.

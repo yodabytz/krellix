@@ -74,6 +74,13 @@ RemoteSource::RemoteSource(QObject *parent)
 RemoteSource::~RemoteSource()
 {
     if (g_instance == this) g_instance = nullptr;
+#ifdef Q_OS_WIN
+    // Shut down the socket before destroying the cached state its slots use.
+    m_reconnectTimer->stop();
+    findChild<QTimer *>(QStringLiteral("remoteConnectTimeout"))->stop();
+    const QSignalBlocker blocker(m_socket);
+    m_socket->abort();
+#endif
 }
 
 void RemoteSource::connectToHost(const QString &host, quint16 port)

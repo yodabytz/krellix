@@ -91,12 +91,21 @@ public:
                 [this] { fail(); });
         deadline.setSingleShot(true);
         connect(&deadline, &QTimer::timeout, this, [this] { fail(); });
-        connect(qApp, &QCoreApplication::aboutToQuit, this, [this] {
-            stopping = true;
-            process.kill();
-        });
+        connect(qApp, &QCoreApplication::aboutToQuit, this, &Reader::stop);
     }
-    ~Reader() override { stopping = true; process.kill(); process.waitForFinished(1000); }
+    ~Reader() override { stop(); }
+    void stop()
+    {
+        if (stopping) return;
+        stopping = true;
+        deadline.stop();
+        // A terminating helper can still deliver output and exit signals.
+        disconnect(&process, nullptr, this, nullptr);
+        if (process.state() != QProcess::NotRunning) {
+            process.kill();
+            process.waitForFinished(1000);
+        }
+    }
     void request()
     {
         if (stopping || process.state() != QProcess::NotRunning) return;
@@ -110,8 +119,8 @@ public:
         buffer.clear();
         message = QStringLiteral("Detecting sensors...");
         process.setWorkingDirectory(QFileInfo(helper).absolutePath());
-        process.start(helper, {QString::number(QCoreApplication::applicationPid())});
         deadline.start(45000);
+        process.start(helper, {QString::number(QCoreApplication::applicationPid())});
     }
     void fail()
     {
