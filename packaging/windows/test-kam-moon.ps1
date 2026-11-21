@@ -1,12 +1,13 @@
 param([Parameter(Mandatory = $true)][string]$PackageDirectory,
       [Parameter(Mandatory = $true)][string]$KrellixDirectory,
-      [Parameter(Mandatory = $true)][string]$WorkDirectory)
+      [Parameter(Mandatory = $true)][string]$WorkDirectory,
+      [string]$LaunchDirectory = $KrellixDirectory)
 $ErrorActionPreference = 'Stop'
 if (Test-Path -LiteralPath $WorkDirectory) { throw 'Use a fresh test directory.' }
-$work = New-Item -ItemType Directory -Path $WorkDirectory
-$stage = New-Item -ItemType Directory -Path "$work\plugins"
-$hostExe = Join-Path $KrellixDirectory 'krellix.exe'
-$hostHash = (Get-FileHash -LiteralPath $hostExe).Hash
+$work = (New-Item -ItemType Directory -Path $WorkDirectory).FullName
+$stage = (New-Item -ItemType Directory -Path "$work\plugins").FullName
+$hostExe = Join-Path $LaunchDirectory 'krellix.exe'
+$hostHash = (Get-FileHash -LiteralPath "$KrellixDirectory\krellix.exe").Hash
 foreach ($name in 'krellkam','krellmoon') {
     $installed = Join-Path $env:LOCALAPPDATA "krellix\plugins\$name.dll"
     if (Test-Path -LiteralPath $installed) { throw "An installed $name could shadow this test DLL." }
@@ -48,6 +49,8 @@ foreach ($remote in $false,$true) {
 [migration]
 base_defaults_imported_v2=true
 legacy_conf_imported=true
+[window]
+pos=@Point(100 100)
 [plugins]
 krellkam\enabled=true
 krellkam\title1=Windows image fixture
@@ -59,22 +62,28 @@ krellstock\ticker_enabled=false
 "@ | Set-Content -LiteralPath $profile -Encoding ASCII
         $arguments = "--instance $id --monitors clock"
         if ($remote) { $arguments += ' --host 127.0.0.1:19997' }
-        $p = Start-Process -FilePath $hostExe -ArgumentList $arguments -WorkingDirectory $work `
+        $p = Start-Process -FilePath $hostExe -ArgumentList $arguments -WorkingDirectory $work -WindowStyle Normal `
             -RedirectStandardError $log -PassThru
         $null = $p.Handle
         $owner = [Windows.Automation.PropertyCondition]::new($ae::ProcessIdProperty,$p.Id)
         $names = @()
-        for ($n = 0; $n -lt 35; $n++) {
+        $window = $null
+        for ($n = 0; $n -lt 60; $n++) {
             if ($p.HasExited) { throw "Krellix exited early; see $log." }
-            $windows = @($root.FindAll($children,$owner) | Where-Object { -not $_.Current.IsOffscreen })
-            if ($windows.Count) {
-                $names = @($windows[0].FindAll($desc,[Windows.Automation.Condition]::TrueCondition) |
+            $p.Refresh()
+            if ($p.MainWindowHandle -ne [IntPtr]::Zero) {
+                $window = $ae::FromHandle($p.MainWindowHandle)
+            } else {
+                $window = $root.FindAll($children,$owner) | Where-Object { -not $_.Current.IsOffscreen } | Select-Object -First 1
+            }
+            if ($window) {
+                $names = @($window.FindAll($desc,[Windows.Automation.Condition]::TrueCondition) |
                     ForEach-Object { $_.Current.Name })
                 if ($remote -or ('KrellKam image: Windows image fixture' -in $names -and ($names -match $phase))) { break }
             }
             Start-Sleep -Milliseconds 300
         }
-        if (-not $windows.Count) { throw 'The desktop test window did not open.' }
+        if (-not $window) { throw "No desktop window found for PID $($p.Id) on session $($p.SessionId)." }
         foreach ($name in 'krellkam','krellmoon') {
             $loaded = $p.Modules | Where-Object ModuleName -eq "$name.dll"
             if (-not $loaded -or $loaded.FileName -ne "$stage\$name.dll") { throw "$name did not load from the extracted ZIP." }
