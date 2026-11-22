@@ -109,14 +109,11 @@ void DiskMonitor::rebuildDisks(const QList<DiskSample> &samples)
         p->setTitle(s.name);
 
         DiskUI ui;
-        ui.textDecal = p->addDecal(QStringLiteral("label"),
-                                   QStringLiteral("text_primary"));
-        ui.textDecal->setAlignment(Qt::AlignHCenter);
-        ui.textDecal->setText(QStringLiteral("R 0  W 0"));
+        ui.chart      = p->addChart(QStringLiteral("chart_line_disk"));
+        ui.chart->setMaxValue(ui.maxBps);
+        ui.chart->setOverlayText(QStringLiteral("R 0  W 0"));
         ui.readKrell  = p->addKrell();
         ui.writeKrell = p->addKrell();
-        ui.chart      = p->addChart(QStringLiteral("chart_line_disk"));
-        if (ui.chart) ui.chart->setMaxValue(ui.maxBps);
 
         m_visibleDisks.append(s.name);
         m_disks.insert(s.name, ui);
@@ -192,9 +189,7 @@ void DiskMonitor::tick()
         if (ui.chart) {
             ui.chart->setMaxValue(ui.maxBps);
             ui.chart->appendSample(readBps + writeBps);
-        }
-        if (ui.textDecal) {
-            ui.textDecal->setText(QStringLiteral("R %1  W %2")
+            ui.chart->setOverlayText(QStringLiteral("R %1  W %2")
                                   .arg(humanBps(readBps), humanBps(writeBps)));
         }
 

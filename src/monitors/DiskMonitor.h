@@ -37,7 +37,6 @@ private:
 #endif
 
     struct DiskUI {
-        QPointer<Decal> textDecal;
         QPointer<Krell> readKrell;
         QPointer<Krell> writeKrell;
         QPointer<Chart> chart;

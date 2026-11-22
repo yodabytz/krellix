@@ -38,9 +38,7 @@ public:
     // setSeriesColors. Useful for "all CPU cores in one chart" displays.
     void setRainbowSeries(int n);
 
-    // Optional text drawn over the chart in the top-left corner — used by
-    // CpuMonitor (and any other monitor that wants to label its data
-    // inside the graph instead of in a separate decal row, saving height).
+    // Optional live readout over the graph in its upper-left corner.
     void setOverlayText(const QString &text);
 
     QSize sizeHint() const override;

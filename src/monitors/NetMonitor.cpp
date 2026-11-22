@@ -69,13 +69,11 @@ static NetMonitor::IfaceUI buildIfacePanel(Theme *theme, QWidget *parent,
 #ifdef Q_OS_WIN
     ui.panel = p;
 #endif
+    ui.chart   = p->addChart(QStringLiteral("chart_line_net_rx"));
+    ui.chart->setMaxValue(ui.maxBps);
+    ui.chart->setOverlayText(QStringLiteral("RX 0  TX 0"));
     ui.rxKrell = p->addKrell();
     ui.txKrell = p->addKrell();
-    ui.chart   = p->addChart(QStringLiteral("chart_line_net_rx"));
-    if (ui.chart) {
-        ui.chart->setMaxValue(ui.maxBps);
-        ui.chart->setOverlayText(QStringLiteral("RX 0  TX 0"));
-    }
     into->addWidget(p);
     return ui;
 }

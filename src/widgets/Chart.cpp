@@ -2,12 +2,14 @@
 
 #include "theme/Theme.h"
 
+#include <QFontMetrics>
 #include <QLinearGradient>
 #include <QPaintEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QPolygonF>
 #include <QResizeEvent>
+#include <QTransform>
 #include <QtGlobal>
 
 #include <algorithm>
@@ -174,6 +176,7 @@ void Chart::setOverlayText(const QString &text)
 {
     if (m_overlayText == text) return;
     m_overlayText = text;
+    setAccessibleName(text);
     update();
 }
 
@@ -333,16 +336,7 @@ void Chart::paintEvent(QPaintEvent *)
             p.drawTiledPixmap(r, overlay);
     }
 
-    QFont overlayFont = m_theme->font(QStringLiteral("label"));
-    const bool hasOverlay = !m_overlayText.isEmpty();
-    const QFontMetrics overlayMetrics(overlayFont);
-    int overlayBand = 0;
-    if (hasOverlay && r.height() >= overlayMetrics.height() + 12)
-        overlayBand = overlayMetrics.height() + 2;
-
-    QRect graphRect = r;
-    if (overlayBand > 0)
-        graphRect.setTop(r.top() + overlayBand);
+    const QRect &graphRect = r;
 
     const int maxGridLines = qMax(0, m_theme->metric(QStringLiteral("chart_grid_lines"), 5));
     const double fullScale = (m_max > 0.0) ? m_max : 1.0;
@@ -427,43 +421,31 @@ void Chart::paintEvent(QPaintEvent *)
         }
     }
 
-    // Optional overlay label: reserve a short top band when there is enough
-    // height so 100% samples do not run through the number.
-    if (hasOverlay) {
-        p.setRenderHint(QPainter::TextAntialiasing, true);
-        p.setFont(overlayFont);
-        // Themes can give chart-overlay text its own color/shadow via
-        // the dedicated "chart_overlay" key (e.g. amber-on-grey on the
-        // egan-grey theme). Falls back to text_primary so themes that
-        // don't define it get the previous behavior.
+    // Paint the glyphs last, without a backing strip or clipping the graph.
+    const QRect textRect = r.adjusted(4, 2, -4, -2);
+    if (!m_overlayText.isEmpty() && !textRect.isEmpty()) {
+        const QFont font = m_theme->font(QStringLiteral("label"));
+        const QFontMetrics metrics(font, this);
+        const qreal scale = qMin<qreal>(1.0, qreal(textRect.height()) / metrics.height());
+        const QString text = metrics.elidedText(m_overlayText, Qt::ElideRight,
+                                                 static_cast<int>(textRect.width() / scale));
         const Theme::TextStyle ts = m_theme->textStyle(
             QStringLiteral("chart_overlay"),
             QStringLiteral("text_primary"));
-        const QRect textRect = overlayBand > 0
-            ? QRect(r.left() + 4, r.top() + 1, qMax(0, r.width() - 8), overlayBand)
-            : r.adjusted(4, 1, -4, -1);
-        const QString displayText =
-            overlayMetrics.elidedText(m_overlayText, Qt::ElideRight, textRect.width());
-        if (ts.shadow.present) {
-            p.setPen(ts.shadow.color);
-            p.drawText(textRect.translated(ts.shadow.offsetX, ts.shadow.offsetY),
-                       Qt::AlignTop | Qt::AlignLeft, displayText);
-        }
-        const QColor textColor = ts.color.isValid()
-            ? ts.color
-            : m_theme->color(QStringLiteral("text_primary"));
-        QColor outline = ts.shadow.present ? ts.shadow.color : QColor(0, 0, 0, 200);
-        if (!outline.isValid() || outline.alpha() == 0)
-            outline = QColor(0, 0, 0, 200);
-        QPainterPath textPath;
-        textPath.addText(QPointF(textRect.left(),
-                                 textRect.top() + overlayMetrics.ascent()),
-                         overlayFont,
-                         displayText);
-        QPen outlinePen(outline);
-        outlinePen.setWidthF(2.0);
-        outlinePen.setJoinStyle(Qt::RoundJoin);
+        const QColor textColor = ts.color;
+        const int contrast = qGray(textColor.rgb()) >= 128 ? 0 : 255;
+        QPainterPath glyphs;
+        glyphs.addText(QPointF(0, metrics.ascent()), font, text);
+        QTransform transform;
+        transform.translate(textRect.x(), textRect.y()).scale(scale, scale);
+        const QPainterPath textPath = transform.map(glyphs);
+
         p.setRenderHint(QPainter::Antialiasing, true);
+        if (ts.shadow.present)
+            p.fillPath(textPath.translated(ts.shadow.offsetX, ts.shadow.offsetY),
+                       ts.shadow.color);
+        QPen outlinePen(QColor(contrast, contrast, contrast, 185), 2.0);
+        outlinePen.setJoinStyle(Qt::RoundJoin);
         p.strokePath(textPath, outlinePen);
         p.fillPath(textPath, textColor);
     }

@@ -141,7 +141,6 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
         auto *p = new Panel(theme(), container);
         p->setSurfaceKey(QStringLiteral("panel_bg_cpu"));
         p->setTitle(QStringLiteral("CPU"));
-        Krell *aggKrell = p->addKrell();
         Chart *chart = p->addChart();
         chart->setMaxValue(1.0);
         const int nCores = cores.size();
@@ -151,24 +150,19 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
                                   .arg(nCores));
 
         m_combinedChart = chart;
-        m_aggregateUI.krell = aggKrell;
+        m_aggregateUI.krell = p->addKrell();
         for (const CpuSample &core : cores)
             m_combinedCoreIndices.append(core.index);
         vbox->addWidget(p);
     } else if (m_mode == Mode::Aggregate) {
-        // Per-CPU panel layout is intentionally compact: just a krell
-        // row and a chart, with the core name + current % drawn as an
-        // overlay inside the chart (top-left). Saves a decal row.
         auto *p = new Panel(theme(), container);
         p->setSurfaceKey(QStringLiteral("panel_bg_cpu"));
         p->setTitle(QStringLiteral("CPU"));
         CoreUI ui;
-        ui.krell = p->addKrell();
         ui.chart = p->addChart(QStringLiteral("chart_line_cpu"));
-        if (ui.chart) {
-            ui.chart->setMaxValue(1.0);
-            ui.chart->setOverlayText(QStringLiteral("CPU 0%"));
-        }
+        ui.chart->setMaxValue(1.0);
+        ui.chart->setOverlayText(percentText(0));
+        ui.krell = p->addKrell();
         m_aggregateUI = ui;
         vbox->addWidget(p);
     } else {
@@ -183,18 +177,11 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
             auto *p = new Panel(theme(), container);
             p->setSurfaceKey(QStringLiteral("panel_bg_cpu"));
             CoreUI ui;
-            ui.valueDecal = p->addDecal(QStringLiteral("label"),
-                                        QStringLiteral("text_secondary"));
-            if (ui.valueDecal) {
-                ui.valueDecal->setAlignment(Qt::AlignHCenter);
-                ui.valueDecal->setText(displayName);
-            }
-            ui.krell = p->addKrell();
+            p->setTitle(displayName);
             ui.chart = p->addChart(QStringLiteral("chart_line_cpu"));
-            if (ui.chart) {
-                ui.chart->setMaxValue(1.0);
-                ui.chart->setOverlayText(QStringLiteral("0%"));
-            }
+            ui.chart->setMaxValue(1.0);
+            ui.chart->setOverlayText(percentText(0));
+            ui.krell = p->addKrell();
             m_cores.append(ui);
             m_visibleCoreIndices.append(smp.index);
             m_visibleCoreLabels.append(displayName);
@@ -255,7 +242,7 @@ void CpuMonitor::tick()
 
     if (m_mode == Mode::Combined) {
         if (m_havePrev && m_combinedChart && !m_combinedCoreIndices.isEmpty()) {
-            // Per-core series + aggregate krell at the top.
+            // Per-core series and an aggregate krell below the chart.
             int sumPct = 0;
             int counted = 0;
             const int n = m_combinedCoreIndices.size();
@@ -308,8 +295,7 @@ void CpuMonitor::tick()
             if (m_aggregateUI.chart) {
                 m_aggregateUI.chart->appendSample(util);
                 const int pct = static_cast<int>(util * 100.0 + 0.5);
-                m_aggregateUI.chart->setOverlayText(
-                    QStringLiteral("CPU %1").arg(percentText(pct)));
+                m_aggregateUI.chart->setOverlayText(percentText(pct));
             }
         }
     } else if (m_havePrev) {

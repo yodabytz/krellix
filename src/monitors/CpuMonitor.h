@@ -9,13 +9,12 @@
 #include <QPointer>
 
 class Chart;
-class Decal;
 class Krell;
 class QVBoxLayout;
 class QWidget;
 
 // Per-core CPU monitor: one Panel per core (cpu0, cpu1, ...) holding a
-// percent decal, a krell (instant utilization), and a chart (1 Hz history).
+// title, history chart with its live readout, and an instant-utilization krell.
 class CpuMonitor : public MonitorBase
 {
     Q_OBJECT
@@ -33,7 +32,6 @@ public:
 
 private:
     struct CoreUI {
-        QPointer<Decal> valueDecal;
         QPointer<Krell> krell;
         QPointer<Chart> chart;
     };

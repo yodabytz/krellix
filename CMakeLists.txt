@@ -156,6 +156,31 @@ set_target_properties(krellix PROPERTIES
 install(TARGETS krellix RUNTIME DESTINATION bin)
 install(DIRECTORY themes/ DESTINATION share/krellix/themes)
 
+include(CTest)
+if(BUILD_TESTING)
+    qt_add_executable(chart-panel-layout tests/chart-panel-layout.cpp
+        src/monitors/MonitorBase.cpp src/monitors/CpuMonitor.cpp
+        src/monitors/NetMonitor.cpp src/monitors/DiskMonitor.cpp
+        src/sysdep/CpuStat.cpp src/sysdep/NetStat.cpp src/sysdep/DiskStat.cpp
+        src/sysdep/DockerNet.cpp src/theme/Theme.cpp
+        src/widgets/Chart.cpp src/widgets/Panel.cpp src/widgets/Decal.cpp
+        src/widgets/Krell.cpp src/widgets/Meter.cpp)
+    target_include_directories(chart-panel-layout PRIVATE src)
+    target_link_libraries(chart-panel-layout PRIVATE Qt6::Widgets Qt6::Network)
+    if(WIN32)
+        target_sources(chart-panel-layout PRIVATE src/sysdep/WindowsStats.cpp)
+        target_link_libraries(chart-panel-layout PRIVATE iphlpapi ws2_32 wtsapi32 psapi)
+        target_compile_definitions(chart-panel-layout PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+    elseif(APPLE)
+        target_link_libraries(chart-panel-layout PRIVATE ${IOKIT_FRAMEWORK} "-framework CoreFoundation")
+    endif()
+    foreach(scale IN ITEMS 1 1.5 2)
+        add_test(NAME chart-panel-layout-${scale} COMMAND chart-panel-layout)
+        set_tests_properties(chart-panel-layout-${scale} PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_SCALE_FACTOR=${scale}" TIMEOUT 20)
+    endforeach()
+endif()
+
 if(WIN32)
     include(packaging/windows/core.cmake)
     return()
@@ -407,7 +432,6 @@ set_target_properties(krellstock PROPERTIES
 )
 install(TARGETS krellstock LIBRARY DESTINATION lib/krellix/plugins)
 
-include(CTest)
 if(BUILD_TESTING)
     set(LIFECYCLE_SOURCES ${KRELLIX_SOURCES})
     list(REMOVE_ITEM LIFECYCLE_SOURCES src/krellix/main.cpp)
