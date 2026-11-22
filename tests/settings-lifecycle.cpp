@@ -10,6 +10,7 @@
 #include <QTemporaryDir>
 #include "sysdep/SensorDisplay.h"
 #include "monitors/DiskMonitor.h"
+#include "widgets/Chart.h"
 #include "widgets/Decal.h"
 #include "widgets/Panel.h"
 
@@ -73,18 +74,17 @@ static void exercise()
         QWidget *panel = disk.createWidget(nullptr);
         DiskStat::setReadOverride([]() { DiskSample s; s.name = QStringLiteral("vda"); s.sectorsRead = 100; return QList<DiskSample>{s}; });
         disk.tick();
-        bool foundRate = false;
-        for (auto *label : panel->findChildren<Decal *>()) {
+        for (auto *label : panel->findChildren<Decal *>())
             if (label->text().contains(QStringLiteral("no whole disks"))) qFatal("Disk panel stayed empty after remote sample");
-            if (label->text().startsWith(QStringLiteral("R "))) foundRate = true;
-        }
-        if (!foundRate) qFatal("Remote disk panel never appeared");
+        const auto *chart = panel->findChild<Chart *>();
+        if (!chart || !chart->accessibleName().startsWith(QStringLiteral("R ")))
+            qFatal("Remote disk chart readout never appeared");
         DiskStat::setReadOverride([]() { return QList<DiskSample>{}; });
         disk.tick();
         bool foundEmpty = false;
         for (auto *label : panel->findChildren<Decal *>())
             if (label->text().contains(QStringLiteral("no whole disks"))) foundEmpty = true;
-        if (!foundEmpty) qFatal("Disconnected disk left stale panel");
+        if (!foundEmpty || panel->findChild<Chart *>()) qFatal("Disconnected disk left stale panel");
         delete panel;
         DiskStat::setReadOverride(nullptr);
     }
