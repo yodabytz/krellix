@@ -5,10 +5,27 @@ A themeable Qt 6 desktop system monitor in the spirit of GKrellM.
 A skinny vertical panel of stacked "krell" monitors — CPU, memory, disk, net, sensors,
 and more — driven by a clean-sheet native theme format that any user can author.
 
-> **Status: 0.1.0-beta.** Host, CPU (per-core krell + chart), Memory/Swap, and Clock
-> monitors render against a hot-reloadable theme. Disk, Net, FS, Sensors, Battery,
-> and the optional `krellixd` remote daemon are still to come. Expect breakages
-> while the API stabilizes.
+**[Download Krellix](https://cerberix.org/extras/krellix/#downloads)** for Linux,
+Intel Mac, or Windows.
+
+## Install
+
+The [Krellix download page](https://cerberix.org/extras/krellix/) lists current
+packages and direct downloads. For Linux, set up the signed repository first
+if you want updates through your package manager.
+
+| Platform | Package | Installation |
+| --- | --- | --- |
+| Cerberix / Arch Linux (x86-64) | Pacman `.pkg.tar.zst` | [Repository setup](https://cerberix.org/extras/#repo-setup), then `sudo pacman -Syu krellix` |
+| Ubuntu 24.04 (amd64) | `.deb` | [APT setup](https://cerberix.org/extras/#apt-setup), then `sudo apt install krellix` |
+| Fedora 43 and 44 (x86-64) | `.rpm` | [DNF setup](https://cerberix.org/extras/#rpm-setup), then `sudo dnf install krellix` |
+| macOS (Intel) | `.dmg` or `.tar.gz` | [Download the self-contained app](https://cerberix.org/extras/krellix/#downloads) |
+| Windows (x64 preview) | Portable `.zip` | [Download the preview](https://cerberix.org/extras/krellix/#downloads), extract it, and run `krellix.exe` |
+
+The optional Linux package `krellix-server` provides `krellixd` for remote
+monitoring. Point the desktop client at that host with `krellix --host HOST`.
+See the [plugin catalog](https://cerberix.org/extras/krellix/plugins/) and
+[theme catalog](https://cerberix.org/extras/krellix/themes/) for add-ons.
 
 <img src="https://raw.githubusercontent.com/yodabytz/krellix/refs/heads/main/krellix-display2.png" width="400">
 
@@ -42,6 +59,11 @@ See [`docs/theme-spec.md`](docs/theme-spec.md) for the full format.
 While krellix is running, edits to `theme.json` are picked up automatically — the
 panel repaints on save, so theme authors can iterate without restarting the app.
 
+## Feedback
+
+Share feedback in [Discussions](https://github.com/yodabytz/krellix/discussions)
+or [report a bug](https://github.com/yodabytz/krellix/issues).
+
 ## License
 
-GPL-3.0-or-later. See `COPYING` (TODO).
+GPL-3.0-or-later. See [LICENSE](LICENSE).
