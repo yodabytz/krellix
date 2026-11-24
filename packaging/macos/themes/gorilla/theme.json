@@ -1,6 +1,6 @@
 {
   "name": "gorilla",
-  "version": "1.3",
+  "version": "1.4",
   "author": "krellix",
   "description": "Classic Gorilla panels and chart artwork for macOS.",
   "surfaces": {
@@ -68,6 +68,14 @@
     "top_strip_height": 27
   },
   "text_styles": {
+    "text_secondary": {
+      "color": "#000000",
+      "shadow": {
+        "x": 2,
+        "y": 0,
+        "color": "#99565b5f"
+      }
+    },
     "chart_overlay": {
       "color": "#ffffff",
       "shadow": {
