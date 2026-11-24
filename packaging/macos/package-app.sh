@@ -15,6 +15,7 @@ for plugin in krellkam krelldacious krellweather krellwire krellmail krellmoon k
     cp "$build/plugins/lib$plugin.so" "$app/Contents/PlugIns/krellix/"
 done
 cp -R "$root/themes" "$app/Contents/Resources/"
+bash "$root/packaging/macos/overlay-themes.sh" "$app"
 cp "$root/plugins/krellmoon/assets/"*.png "$app/Contents/Resources/plugins/krellmoon/"
 cp "$root/packaging/macos/krellix-all" "$app/Contents/Resources/cli/"
 chmod 755 "$app/Contents/Resources/cli/krellix-all"

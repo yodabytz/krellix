@@ -9,6 +9,6 @@ Install the directory under `~/.config/krellix/themes/` (back up any existing
 Gorilla directory), then select `gorilla` in Appearance. If you customized its
 fonts or colors, merge those settings from your backup into `theme.json`.
 
-When assembling a macOS bundle, use this version for
-`Krellix.app/Contents/Resources/themes/gorilla/`. Do not use this override in
-Linux or Windows packages.
+The macOS packager installs these overrides after copying the shared themes
+into `Krellix.app/Contents/Resources/themes/`. Linux and Windows packages
+continue to use the shared themes only.
