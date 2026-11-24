@@ -1,0 +1,57 @@
+{
+  "name": "egan",
+  "version": "1.0",
+  "description": "Classic Egan slate panels with white labels and gold readouts.",
+  "images": {
+    "frame_left": "assets/border.png",
+    "frame_right": "assets/border.png",
+    "chart_bg": "assets/chart-bg.png"
+  },
+  "surfaces": {
+    "panel_bg": { "image": "assets/surfaces.png", "slice": 2 },
+    "panel_bg_host": { "image": "assets/chart-bg.png", "slice": 2 },
+    "chart_bg": { "image": "assets/chart-bg.png", "slice": 2 }
+  },
+  "colors": {
+    "panel_bg": "#626171",
+    "panel_border": "#33333e",
+    "chart_bg": "#383842",
+    "chart_grid": "#4d4d59",
+    "text_meter_bg": "#383842",
+    "text_primary": "#ffe098",
+    "text_secondary": "#f8f8fa",
+    "text_accent": "#ffe098",
+    "chart_overlay": "#ffe098",
+    "krell_track": "#3e3e49",
+    "krell_indicator": "#cacbd4",
+    "chart_line_default": "#aeb0bf",
+    "chart_line_cpu": "#babcc9",
+    "chart_line_mem": "#9c9ead",
+    "chart_line_swap": "#858790",
+    "chart_line_disk": "#aeb0bf",
+    "chart_line_net_rx": "#879dad",
+    "chart_line_net_tx": "#a2a986",
+    "accent_ok": "#b4c094",
+    "accent_warning": "#ffe098",
+    "accent_critical": "#ffa9a1"
+  },
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9, "bold": false },
+    "value": { "family": "Monospace", "size": 9, "bold": false },
+    "panel_title": { "size": 10, "bold": false },
+    "time": { "family": "Monospace", "size": 11, "bold": false }
+  },
+  "metrics": {
+    "panel_padding": 3,
+    "panel_spacing": 2,
+    "panel_border": 0,
+    "krell_height": 5,
+    "chart_grid_lines": 4
+  },
+  "text_styles": {
+    "text_primary": { "color": "#ffe098", "shadow": { "x": 2, "y": 1, "color": "#b5000000" } },
+    "text_secondary": { "color": "#f8f8fa", "shadow": { "x": 2, "y": 1, "color": "#d0000000" } },
+    "text_accent": { "color": "#ffe098", "shadow": { "x": 2, "y": 1, "color": "#b5000000" } },
+    "chart_overlay": { "color": "#ffe098", "shadow": { "x": 1, "y": 1, "color": "#b5000000" } }
+  }
+}
