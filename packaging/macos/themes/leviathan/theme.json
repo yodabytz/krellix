@@ -1,0 +1,78 @@
+{
+  "name": "leviathan",
+  "version": "1.0",
+  "description": "Abyssal steel, weathered bronze, and bioluminescent cyan beneath the Leviathan.",
+  "colors": {
+    "panel_bg": "#09141a",
+    "panel_border": "#42616a",
+    "chart_bg": "#041319",
+    "chart_grid": "#17353d",
+    "text_primary": "#eef8fa",
+    "text_secondary": "#f4fafb",
+    "text_accent": "#7dd3ff",
+    "text_clock": "#00ffd1",
+    "chart_overlay": "#7dd3ff",
+    "krell_track": "#08131c",
+    "krell_indicator": "#00ffd1",
+    "chart_line_default": "#0fc9d4",
+    "chart_line_cpu": "#00ffd1",
+    "chart_line_cpu_series": "#00eace",
+    "chart_line_mem": "#21d7f5",
+    "chart_line_swap": "#6899db",
+    "chart_line_net_rx": "#24d8ff",
+    "chart_line_net_rx_series": "#bd78ef",
+    "chart_line_net_tx": "#d9a35a",
+    "chart_line_disk": "#39ee91",
+    "text_meter_bg": "#07191f",
+    "accent_ok": "#39ee91",
+    "accent_warning": "#e1b479",
+    "accent_critical": "#ff6262"
+  },
+  "fonts": {
+    "label": { "family": "Helvetica Neue", "size": 9, "bold": false },
+    "value": { "family": "Helvetica Neue", "size": 10, "bold": true },
+    "panel_title": { "size": 11, "bold": true },
+    "time": { "family": "Helvetica Neue", "size": 14, "bold": true }
+  },
+  "metrics": {
+    "panel_padding": 6,
+    "panel_spacing": 2,
+    "panel_border": 0,
+    "krell_height": 12,
+    "chart_height": 64,
+    "chart_grid_lines": 4,
+    "chart_overlay_right": 1,
+    "panel_icon_size": 16,
+    "top_strip_height": 106,
+    "top_strip_keep_aspect": 1
+  },
+  "surfaces": {
+    "panel_bg": { "image": "assets/panel.png", "slice": 6 },
+    "panel_bg_host": { "image": "assets/host-panel.png", "slice": 6 },
+    "chart_bg": { "image": "assets/chart-bg.png", "slice": 4 },
+    "panel_bg_top": { "image": "assets/leviathan-banner.png", "slice": 0 }
+  },
+  "images": {
+    "chart_bg": { "image": "assets/chart-bg.png", "mode": "stretch" },
+    "krell_track": { "image": "assets/krell-track.png", "mode": "tile" },
+    "krell": { "image": "assets/krell.png", "frames": 1 },
+    "frame_top": "assets/frame-top.png",
+    "frame_bottom": "assets/frame-bottom.png",
+    "frame_left": "assets/frame-left.png",
+    "frame_right": "assets/frame-right.png",
+    "panel_icon_cpu": "assets/icon-cpu.png",
+    "panel_icon_mem": "assets/icon-memory.png",
+    "panel_icon_proc": "assets/icon-proc.png",
+    "panel_icon_net": "assets/icon-network.png",
+    "panel_icon_disk": "assets/icon-disk.png",
+    "panel_icon_netports": "assets/icon-ports.png",
+    "panel_icon_krellstock": "assets/icon-stocks.png",
+    "panel_icon_krellstock_ticker": "assets/icon-stocks.png",
+    "panel_icon_krellpkg": "assets/icon-packages.png",
+    "panel_icon_krellhealth": "assets/icon-health.png"
+  },
+  "text_styles": {
+    "text_clock": { "color": "#00ffd1", "shadow": { "x": 1, "y": 1, "color": "#b0004246" } },
+    "chart_overlay": { "color": "#7dd3ff", "shadow": { "x": 1, "y": 1, "color": "#b5000000" } }
+  }
+}
