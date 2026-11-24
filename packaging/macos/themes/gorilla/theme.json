@@ -1,6 +1,6 @@
 {
   "name": "gorilla",
-  "version": "1.5",
+  "version": "1.6",
   "author": "krellix",
   "description": "Classic Gorilla panels and chart artwork for macOS.",
   "surfaces": {
@@ -18,6 +18,9 @@
       "opacity": 1.0
     }
   },
+  "images": {
+    "chart_bg": "assets/panel.png"
+  },
   "colors": {
     "panel_bg": "#E2E3DD",
     "panel_border": "#E2E3DD",
@@ -32,8 +35,8 @@
     "krell_indicator": "#bd93f7",
     "chart_line_default": "#f5f5f5",
     "chart_line_cpu": "#f5f5f5",
-    "chart_line_mem": "#50fa7b",
-    "chart_line_swap": "#f1fa8c",
+    "chart_line_mem": "#484848",
+    "chart_line_swap": "#585858",
     "chart_line_net_rx": "#f5f5f5",
     "chart_line_net_tx": "#d4d4d4",
     "chart_line_disk": "#f5f5f5",
@@ -52,6 +55,9 @@
       "size": 10,
       "bold": true
     },
+    "panel_title": {
+      "bold": false
+    },
     "time": {
       "family": "Monospace",
       "size": 10,
@@ -66,17 +72,33 @@
     "krell_height": 8,
     "chart_height": 32,
     "chart_grid_lines": 5,
-    "chart_grid_width": 2,
+    "chart_grid_width": 1,
     "chart_series_grayscale": 1,
     "top_strip_height": 27
   },
   "text_styles": {
+    "text_primary": {
+      "color": "#000000",
+      "shadow": {
+        "x": 2,
+        "y": 0,
+        "color": "#3d565b5f"
+      }
+    },
     "text_secondary": {
       "color": "#000000",
       "shadow": {
         "x": 2,
         "y": 0,
-        "color": "#99565b5f"
+        "color": "#3d565b5f"
+      }
+    },
+    "text_accent": {
+      "color": "#ff79c6",
+      "shadow": {
+        "x": 2,
+        "y": 0,
+        "color": "#3d565b5f"
       }
     },
     "chart_overlay": {
