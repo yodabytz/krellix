@@ -141,7 +141,7 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
         auto *p = new Panel(theme(), container);
         p->setSurfaceKey(QStringLiteral("panel_bg_cpu"));
         p->setTitle(QStringLiteral("CPU"));
-        Chart *chart = p->addChart();
+        Chart *chart = p->addChart(QStringLiteral("chart_line_cpu"));
         chart->setMaxValue(1.0);
         const int nCores = cores.size();
         chart->setRainbowSeries(nCores);

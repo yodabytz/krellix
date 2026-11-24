@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="216" height="24" viewBox="0 0 216 24">
+  <g fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#ffc254">
+      <rect x="5" y="5" width="14" height="14" rx="2"/>
+      <rect x="9" y="9" width="6" height="6" rx=".8" fill="#ffc254" fill-opacity=".28"/>
+      <path d="M8 2v3m4-3v3m4-3v3M8 19v3m4-3v3m4-3v3M2 8h3m-3 4h3m-3 4h3m14-8h3m-3 4h3m-3 4h3"/>
+    </g>
+    <g transform="translate(24)" stroke="#28daff">
+      <rect x="2.5" y="6" width="19" height="12" rx="2"/>
+      <path d="M6 18v2m4-2v2m4-2v2m4-2v2M6 10h3v4H6zm5 0h3v4h-3zm5 0h2v4h-2z"/>
+    </g>
+    <g transform="translate(48)" stroke="#ffc254">
+      <path d="m9.4 3 1.2 2.7h2.8L14.6 3 18 4.8l-.5 2.9 1.7 1.7 2.9-.5V15l-2.9-.5-1.7 1.7.5 2.9-3.4 1.8-1.2-2.7h-2.8l-1.2 2.7-3.4-1.8.5-2.9-1.7-1.7-2.9.5V8.9l2.9.5 1.7-1.7L6 4.8z"/>
+      <circle cx="12" cy="12" r="3.4"/>
+    </g>
+    <g transform="translate(72)" stroke="#28daff" stroke-width="2">
+      <path d="M2.5 8.5a14.5 14.5 0 0 1 19 0M5.8 12a9.3 9.3 0 0 1 12.4 0M9 15.5a4.6 4.6 0 0 1 6 0"/>
+      <circle cx="12" cy="19" r="1" fill="#28daff"/>
+    </g>
+    <g transform="translate(96)" stroke="#28daff">
+      <ellipse cx="12" cy="5.5" rx="7.5" ry="3"/>
+      <path d="M4.5 5.5v13c0 4 15 4 15 0v-13M4.5 10c0 4 15 4 15 0m-15 4.5c0 4 15 4 15 0"/>
+    </g>
+    <g transform="translate(120)" stroke="#28daff">
+      <circle cx="12" cy="5" r="2.7"/><circle cx="5" cy="18" r="2.7"/><circle cx="19" cy="18" r="2.7"/>
+      <path d="m10.7 7.4-4.4 8.2m7-8.2 4.4 8.2M7.8 18h8.4"/>
+    </g>
+    <g transform="translate(144)" stroke="#28daff" stroke-width="2">
+      <path d="M3 20h18M4 15l5-5 4 2.5 7-8.5m-5 0h5v5"/>
+    </g>
+    <g transform="translate(168)" stroke="#ffc254">
+      <path d="M3 7 12 2.5 21 7v10l-9 4.5L3 17zm0 0 9 4.5L21 7M12 11.5v10M7.5 4.7l9 4.6v4"/>
+    </g>
+    <g transform="translate(192)" stroke="#ff7451">
+      <path fill="#ff582b" fill-opacity=".28" d="M12 21 4 13C-2 6 7 1 12 7c5-6 14-1 8 6z"/>
+      <path d="M4 11.5h4l2-3 2.7 6 2.2-3H20" stroke="#ffd091"/>
+    </g>
+  </g>
+</svg>

@@ -416,6 +416,7 @@ void Chart::paintEvent(QPaintEvent *)
         // Multi-series: don't fill (overlapping translucent fills become
         // muddy). Just stroke each line in its own color.
         const bool grayscale = m_theme->metric(QStringLiteral("chart_series_grayscale"), 0) != 0;
+        const QColor seriesColor = m_theme->color(m_colorKey + QStringLiteral("_series"));
         const auto shades = qMin<std::size_t>(65, m_multiSamples.size());
         for (std::size_t i = 0; i < m_multiSamples.size(); ++i) {
             QColor c = i < static_cast<std::size_t>(m_seriesColors.size())
@@ -426,6 +427,8 @@ void Chart::paintEvent(QPaintEvent *)
                 const auto slot = index % 2 == 0 ? index / 2 : shades - 1 - index / 2;
                 const int shade = 255 - static_cast<int>(64 * slot / qMax<std::size_t>(1, shades - 1));
                 c = QColor(shade, shade, shade);
+            } else if (seriesColor.isValid()) {
+                c = seriesColor.lighter(85 + static_cast<int>(i % 8) * 8);
             }
             drawSeries(m_multiSamples[i], QBrush(c), c, /*fillBelow=*/false);
         }
@@ -447,7 +450,10 @@ void Chart::paintEvent(QPaintEvent *)
         QPainterPath glyphs;
         glyphs.addText(QPointF(0, metrics.ascent()), font, text);
         QTransform transform;
-        transform.translate(textRect.x(), textRect.y()).scale(scale, scale);
+        const qreal x = m_theme->metric(QStringLiteral("chart_overlay_right"), 0) != 0
+            ? textRect.right() + 1 - metrics.horizontalAdvance(text) * scale
+            : textRect.x();
+        transform.translate(x, textRect.y()).scale(scale, scale);
         const QPainterPath textPath = transform.map(glyphs);
 
         p.setRenderHint(QPainter::Antialiasing, true);

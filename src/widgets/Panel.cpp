@@ -13,6 +13,13 @@
 
 namespace {
 
+QString titleIconKey(const QString &surfaceKey)
+{
+    const auto prefix = QStringLiteral("panel_bg_");
+    return surfaceKey.startsWith(prefix)
+        ? QStringLiteral("panel_icon_") + surfaceKey.mid(prefix.size()) : QString();
+}
+
 // Render `src` into `target` with 9-slice (border-image) scaling:
 // corner squares of `slice` pixels stay 1:1 native size, the four
 // edge bands stretch only along their long axis, and the center
@@ -109,6 +116,7 @@ void Panel::setSurfaceKey(const QString &key)
 {
     if (m_surfaceKey == key || key.isEmpty()) return;
     m_surfaceKey = key;
+    if (m_titleDecal) m_titleDecal->setThemeIcon(titleIconKey(key));
     update();
 }
 
@@ -120,6 +128,7 @@ void Panel::setTitle(const QString &title)
                                  QStringLiteral("text_secondary"),
                                  this);
         m_titleDecal->setAlignment(Qt::AlignHCenter);
+        m_titleDecal->setThemeIcon(titleIconKey(m_surfaceKey));
         m_layout->insertWidget(0, m_titleDecal);
     }
     m_titleDecal->setText(title);

@@ -158,8 +158,12 @@ void checkChartStyling(Theme &theme, const QString &configPath, QWidget &network
     if (!QDir().mkpath(fixture) || !QDir::setCurrent(configPath))
         qFatal("Could not set up the text meter fixture");
     QFile json(fixture + QStringLiteral("/theme.json"));
+    QImage icon(16, 16, QImage::Format_ARGB32);
+    icon.fill(QColor("#ff5500"));
+    if (!icon.save(fixture + QStringLiteral("/icon.png"))) qFatal("Could not write the title icon fixture");
     const QByteArray data = R"({"colors":{"text_meter_bg":"#eeeeec",
-        "net_krell_track":"#a9a9a9","net_krell_indicator":"#3e3e3e"}})";
+        "net_krell_track":"#a9a9a9","net_krell_indicator":"#3e3e3e"},
+        "images":{"panel_icon_net":"icon.png"}})";
     if (!json.open(QIODevice::WriteOnly) || json.write(data) != data.size())
         qFatal("Could not write the text meter fixture");
     json.close();
@@ -173,6 +177,20 @@ void checkChartStyling(Theme &theme, const QString &configPath, QWidget &network
     meter.setFillVisible(false);
     if (meter.grab().toImage().pixelColor(3, 3) != QColor("#eeeeec"))
         qFatal("Text-only meter did not use its themed background");
+
+    auto *title = network.findChild<Decal *>();
+    if (!title || title->text() != QStringLiteral("Uplink")) qFatal("Network title missing");
+    title->resize(120, title->sizeHint().height());
+    const auto titled = title->grab().toImage();
+    if (titled.pixelColor(4, titled.height() / 2) != QColor("#ff5500"))
+        qFatal("The themed icon did not render beside the panel title");
+    Panel unthemed(&theme);
+    unthemed.setTitle(QStringLiteral("Unchanged"));
+    auto *ordinaryTitle = unthemed.findChild<Decal *>();
+    ordinaryTitle->resize(120, ordinaryTitle->sizeHint().height());
+    const auto ordinaryTitlePixels = ordinaryTitle->grab().toImage();
+    if (ordinaryTitlePixels.pixelColor(4, ordinaryTitlePixels.height() / 2) == QColor("#ff5500"))
+        qFatal("The network icon leaked into other panel titles");
 
     const auto bars = network.findChildren<Krell *>();
     if (bars.size() != 2) qFatal("Network panel lost its RX/TX bars");

@@ -10,6 +10,11 @@ palette and light Uptime background.
 shadowed labels and gold readouts. It follows the
 [original GKrellM Egan preview](http://www.muhri.net/gkrellm/egan.jpg).
 
+`fenrir/` uses the supplied armor textures and wolf-and-moon artwork. Its
+title icons, proportional banner, and right-aligned readouts require the
+current Mac build. A panel width of about 240 gives the reference proportions;
+the banner also scales to narrower profiles without changing saved settings.
+
 Install the directory under `~/.config/krellix/themes/` (back up any existing
 directory of the same name), then select the theme in Appearance. If you
 customized its fonts or colors, merge those settings from your backup into

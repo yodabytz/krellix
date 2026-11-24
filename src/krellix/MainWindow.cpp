@@ -712,6 +712,7 @@ void MainWindow::applyFixedWidth()
         QSettings().value(QStringLiteral("appearance/panel_width"), 100).toInt(),
         600);
     setFixedWidth(w);
+    applyTopStripFromTheme();
 }
 
 void MainWindow::applyFrameMargins()
@@ -807,7 +808,14 @@ void MainWindow::onThemeChanged()
 void MainWindow::applyTopStripFromTheme()
 {
     if (!m_topStrip) return;
-    const int h = m_theme->metric(QStringLiteral("top_strip_height"), 0);
+    int h = m_theme->metric(QStringLiteral("top_strip_height"), 0);
+    if (h > 0 && m_theme->metric(QStringLiteral("top_strip_keep_aspect"), 0) != 0) {
+        const auto image = m_theme->surface(QStringLiteral("panel_bg_top")).image;
+        const auto margins = m_layout->contentsMargins();
+        const int innerWidth = qMax(0, width() - margins.left() - margins.right());
+        if (!image.isNull())
+            h = qBound(1, qRound(innerWidth * (qreal(image.height()) / image.width())), 4096);
+    }
     if (h > 0) {
         m_topStrip->setFixedHeight(h);
         m_topStrip->setVisible(true);

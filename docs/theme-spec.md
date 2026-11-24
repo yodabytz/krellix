@@ -51,6 +51,7 @@ colors like `"red"`). Recognized keys:
 | `text_meter_bg`   | Optional background for text-only meters such as Uptime |
 | `text_primary`     | Primary text + chart line color          |
 | `text_secondary`   | Secondary/label text                     |
+| `text_clock`      | Optional clock text color; falls back to `text_primary` |
 | `krell_track`      | Krell unfilled track color               |
 | `krell_indicator`  | Krell moving indicator color             |
 | `net_krell_track`  | Optional track color or gradient for Network RX/TX bars |
@@ -111,6 +112,13 @@ Map of name → integer (clamped to `0..4096`).
 | `chart_grid_lines` | 5       | Number of horizontal grid divisions     |
 | `chart_grid_width` | 1       | Horizontal grid line width (1 to 4 logical pixels) |
 | `chart_series_grayscale` | 0  | Use white and light gray lines in combined charts when set to 1 |
+| `chart_overlay_right` | 0 | Put the live chart readout at the top right when set to 1 |
+| `panel_icon_size` | 16 | Maximum panel title icon width or height (8 to 32 logical pixels) |
+| `top_strip_keep_aspect` | 0 | Scale an enabled top strip proportionally to the panel width |
+
+For combined charts, a color such as `chart_line_cpu_series` or
+`chart_line_net_rx_series` opts into several shades of that color. A grayscale
+series palette takes precedence if both options are configured.
 
 ### `images`
 
@@ -134,6 +142,7 @@ Recognized keys:
 | `panel_bg`     | Tiled across each Panel as the background; falls back to color |
 | `krell_track`  | Tiled across the Krell strip as the unfilled track; falls back |
 | `krell`        | Indicator sprite. With `frames > 1` the image is treated as a horizontal strip of N equal-width frames; the frame painted is `frame = value * frames` |
+| `panel_icon_*` | Optional icon beside a panel title, e.g. `panel_icon_cpu` for `panel_bg_cpu` |
 
 Image-themed widgets gracefully fall back to color-only rendering for any
 key that isn't supplied — so a theme can mix images and colors freely.

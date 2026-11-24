@@ -10,11 +10,13 @@
 #include <QSettings>
 #include <QShowEvent>
 #include <QTimer>
+#include <QVariant>
 
 #include <cmath>
 
 namespace {
 constexpr int kScrollGapPx        = 24;
+constexpr int kIconGapPx          = 4;
 constexpr int kDefaultScrollPps   = 30;     // pixels/sec
 constexpr int kDefaultScrollFps   = 12;
 constexpr int kMinIntervalMs      = 33;
@@ -72,6 +74,27 @@ void Decal::setColorKey(const QString &colorKey)
     if (m_colorKey == colorKey) return;
     m_colorKey = colorKey;
     update();
+}
+
+void Decal::setThemeIcon(const QString &key)
+{
+    if (property("krellThemeIcon").toString() == key) return;
+    // Keep the layout of the exported widget unchanged for bundled plugins.
+    setProperty("krellThemeIcon", key);
+    onThemeChanged();
+}
+
+QPixmap Decal::themeIcon() const
+{
+    const auto key = property("krellThemeIcon").toString();
+    return key.isEmpty() ? QPixmap() : m_theme->pixmap(key);
+}
+
+QSize Decal::themeIconSize(const QPixmap &icon) const
+{
+    if (icon.isNull()) return QSize(0, 0);
+    const int limit = qBound(8, m_theme->metric(QStringLiteral("panel_icon_size"), 16), 32);
+    return icon.size().scaled(limit, limit, Qt::KeepAspectRatio);
 }
 
 void Decal::setAlwaysScroll(bool alwaysScroll)
@@ -138,7 +161,9 @@ int Decal::textPixelWidth() const
 void Decal::updateScrollState()
 {
     const int tw = textPixelWidth();
-    const bool shouldScroll = ((tw > width()) || m_alwaysScroll)
+    const int iconWidth = themeIconSize(themeIcon()).width();
+    const int available = width() - (iconWidth > 0 ? iconWidth + kIconGapPx : 0);
+    const bool shouldScroll = available > 0 && ((tw > available) || m_alwaysScroll)
         && isVisible()
         && !m_text.isEmpty();
     if (shouldScroll == m_scrolling) return;
@@ -162,14 +187,16 @@ QSize Decal::sizeHint() const
     // always claims a vertical strip.
     const int w = fm.horizontalAdvance(m_text.isEmpty()
                                        ? QStringLiteral("M") : QStringLiteral("M"));
-    return QSize(w + 4, fm.height() + 2);
+    const auto icon = themeIconSize(themeIcon());
+    return QSize(w + 4 + (icon.width() > 0 ? icon.width() + kIconGapPx : 0),
+                 qMax(fm.height(), icon.height()) + 2);
 }
 
 QSize Decal::minimumSizeHint() const
 {
     const QFont f = m_theme->font(m_fontKey);
     const QFontMetrics fm(f);
-    return QSize(0, fm.height() + 2);
+    return QSize(0, qMax(fm.height(), themeIconSize(themeIcon()).height()) + 2);
 }
 
 void Decal::resizeEvent(QResizeEvent *event)
@@ -201,10 +228,24 @@ void Decal::paintEvent(QPaintEvent *)
 
     // v2 text style: color + optional drop shadow. Falls back to a bare
     // color (no shadow) when the theme uses the v1 flat colors block.
-    const Theme::TextStyle ts = m_theme->textStyle(m_colorKey);
+    const Theme::TextStyle ts = m_fontKey == QStringLiteral("time")
+        ? m_theme->textStyle(QStringLiteral("text_clock"), m_colorKey)
+        : m_theme->textStyle(m_colorKey);
     const QColor fg = ts.color.isValid() ? ts.color : QColor(Qt::white);
 
     const QRect r = rect();
+    auto textRect = r;
+    auto alignment = m_alignment;
+    const auto icon = themeIcon();
+    if (!icon.isNull()) {
+        const auto size = themeIconSize(icon);
+        p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        p.drawPixmap(QRect(QPoint(0, (r.height() - size.height()) / 2), size), icon);
+        textRect.adjust(size.width() + kIconGapPx, 0, 0, 0);
+        if (textRect.isEmpty()) return;
+        p.setClipRect(textRect);
+        alignment = Qt::AlignLeft;
+    }
     const QFontMetrics fm(p.font());
     const int yBaseline = (r.height() + fm.ascent() - fm.descent()) / 2;
 
@@ -215,10 +256,10 @@ void Decal::paintEvent(QPaintEvent *)
             p.setPen(fg);
         }
         if (m_scrolling) {
-            p.drawText(x, y, m_text);
+            p.drawText(textRect.left() + x, y, m_text);
         } else {
-            p.drawText(QRect(x, 0, r.width() - x, r.height()),
-                       Qt::AlignVCenter | m_alignment, m_text);
+            p.drawText(textRect.adjusted(x, 0, 0, 0),
+                       Qt::AlignVCenter | alignment, m_text);
         }
     };
 

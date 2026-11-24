@@ -29,6 +29,7 @@ public:
     Qt::Alignment alignment() const { return m_alignment; }
     void setAlwaysScroll(bool alwaysScroll);
     void setColorKey(const QString &colorKey);
+    void setThemeIcon(const QString &key);
 #ifdef Q_OS_WIN
     static void setScrollSettings(int pixelsPerSecond, int framesPerSecond);
 #endif
@@ -48,6 +49,8 @@ private slots:
 
 private:
     int  textPixelWidth() const;
+    QPixmap themeIcon() const;
+    QSize themeIconSize(const QPixmap &icon) const;
     void updateScrollState();
 
     Theme  *m_theme;
