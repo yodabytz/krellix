@@ -116,7 +116,7 @@ void checkOverlay(Theme &theme)
         qFatal("The readout is not near the top of the chart");
 }
 
-void checkChartStyling(Theme &theme, const QString &configPath)
+void checkChartStyling(Theme &theme, const QString &configPath, QWidget &network)
 {
     Chart chart(&theme);
     chart.resize(120, 80);
@@ -158,7 +158,8 @@ void checkChartStyling(Theme &theme, const QString &configPath)
     if (!QDir().mkpath(fixture) || !QDir::setCurrent(configPath))
         qFatal("Could not set up the text meter fixture");
     QFile json(fixture + QStringLiteral("/theme.json"));
-    const QByteArray data = R"({"colors":{"text_meter_bg":"#eeeeec"}})";
+    const QByteArray data = R"({"colors":{"text_meter_bg":"#eeeeec",
+        "net_krell_track":"#a9a9a9","net_krell_indicator":"#3e3e3e"}})";
     if (!json.open(QIODevice::WriteOnly) || json.write(data) != data.size())
         qFatal("Could not write the text meter fixture");
     json.close();
@@ -172,6 +173,22 @@ void checkChartStyling(Theme &theme, const QString &configPath)
     meter.setFillVisible(false);
     if (meter.grab().toImage().pixelColor(3, 3) != QColor("#eeeeec"))
         qFatal("Text-only meter did not use its themed background");
+
+    const auto bars = network.findChildren<Krell *>();
+    if (bars.size() != 2) qFatal("Network panel lost its RX/TX bars");
+    const auto checkBar = [](Krell *bar, const QColor &track, const QColor &indicator) {
+        bar->resize(120, 8);
+        bar->setValue(0.5);
+        const auto image = bar->grab().toImage();
+        const int y = image.height() / 2;
+        if (image.pixelColor(image.width() / 4, y) != track
+            || image.pixelColor(image.width() / 2, y) != indicator)
+            qFatal("Krell track or moving indicator used the wrong color");
+    };
+    for (auto *bar : bars) checkBar(bar, QColor("#a9a9a9"), QColor("#3e3e3e"));
+    Krell ordinary(&theme);
+    checkBar(&ordinary, theme.color(QStringLiteral("krell_track")),
+             theme.color(QStringLiteral("krell_indicator")));
 }
 
 } // namespace
@@ -223,7 +240,7 @@ int main(int argc, char **argv)
         || !diskChart->accessibleName().contains(QStringLiteral(" W ")))
         qFatal("The throughput readouts lost their direction labels");
     checkOverlay(theme);
-    checkChartStyling(theme, config.path());
+    checkChartStyling(theme, config.path(), *link);
     checkTitleFont(theme, config.path());
     qInfo("PASS: title, live chart readout and moving tracks on all charted monitors");
 }

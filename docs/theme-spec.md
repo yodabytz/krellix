@@ -53,6 +53,11 @@ colors like `"red"`). Recognized keys:
 | `text_secondary`   | Secondary/label text                     |
 | `krell_track`      | Krell unfilled track color               |
 | `krell_indicator`  | Krell moving indicator color             |
+| `net_krell_track`  | Optional track color or gradient for Network RX/TX bars |
+| `net_krell_indicator` | Optional moving indicator color or gradient for Network RX/TX bars |
+
+When set, the `net_krell_*` colors replace the corresponding general Krell
+color or image on Network bars only.
 
 Any unrecognized key is loaded but unused — safe for theme authors to add
 custom tokens for use by future plugins.

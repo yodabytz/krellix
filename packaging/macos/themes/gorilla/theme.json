@@ -1,6 +1,6 @@
 {
   "name": "gorilla",
-  "version": "1.6",
+  "version": "1.7",
   "author": "krellix",
   "description": "Classic Gorilla panels and chart artwork for macOS.",
   "surfaces": {
@@ -33,6 +33,8 @@
     "text_accent": "#ff79c6",
     "krell_track": "#44475a",
     "krell_indicator": "#bd93f7",
+    "net_krell_track": "#a9a9a9",
+    "net_krell_indicator": "#3e3e3e",
     "chart_line_default": "#f5f5f5",
     "chart_line_cpu": "#f5f5f5",
     "chart_line_mem": "#484848",

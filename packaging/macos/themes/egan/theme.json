@@ -1,6 +1,6 @@
 {
   "name": "egan",
-  "version": "1.2",
+  "version": "1.3",
   "description": "Classic Egan slate panels with white labels and gold readouts.",
   "images": {
     "frame_top": "assets/border-top.png",
@@ -37,10 +37,10 @@
     "accent_critical": "#ffa9a1"
   },
   "fonts": {
-    "label": { "family": "Monospace", "size": 9, "bold": false },
-    "value": { "family": "Monospace", "size": 9, "bold": false },
+    "label": { "family": "Helvetica Neue", "size": 9, "bold": false },
+    "value": { "family": "Helvetica Neue", "size": 9, "bold": false },
     "panel_title": { "size": 12, "bold": false },
-    "time": { "family": "Monospace", "size": 11, "bold": false }
+    "time": { "family": "Helvetica Neue", "size": 11, "bold": false }
   },
   "metrics": {
     "panel_padding": 3,

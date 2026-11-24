@@ -18,6 +18,7 @@ public:
     // Clamps to [0, 1].
     void setValue(double normalized);
     double value() const { return m_value; }
+    void setThemeRole(const QString &role);
 
     enum class AlertLevel { None, Warning, Critical };
     void setAlertLevel(AlertLevel level);

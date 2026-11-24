@@ -4,6 +4,7 @@
 
 #include <QPaintEvent>
 #include <QPainter>
+#include <QVariant>
 #include <QtGlobal>
 
 Krell::Krell(Theme *theme, QWidget *parent)
@@ -16,6 +17,13 @@ Krell::Krell(Theme *theme, QWidget *parent)
 }
 
 Krell::~Krell() = default;
+
+void Krell::setThemeRole(const QString &role)
+{
+    // Keep the object layout unchanged for separately built plugins.
+    setProperty("krellThemeRole", role);
+    update();
+}
 
 void Krell::setValue(double normalized)
 {
@@ -64,11 +72,20 @@ void Krell::paintEvent(QPaintEvent *)
     const QRect r = rect();
     if (r.width() <= 0 || r.height() <= 0) return;
 
+    const auto role = property("krellThemeRole").toString();
+    const auto themedKey = [&](const QString &key) {
+        if (role.isEmpty()) return key;
+        const auto scoped = role + QLatin1Char('_') + key;
+        return m_theme->color(scoped).isValid() ? scoped : key;
+    };
+
     // Track: prefer themed pixmap (tiled across width), else solid or
     // gradient brush via Theme::brush() — lets a theme paint
     // krell_track as a vertical gradient (e.g. metal sheen) without
     // needing a sprite.
-    const QPixmap trackPix = m_theme->pixmap(QStringLiteral("krell_track"));
+    const auto baseTrack = QStringLiteral("krell_track");
+    const auto trackKey = themedKey(baseTrack);
+    const QPixmap trackPix = trackKey == baseTrack ? m_theme->pixmap(baseTrack) : QPixmap();
     if (!trackPix.isNull()) {
         const QString mode = m_theme->imageMode(QStringLiteral("krell_track"),
                                                 QStringLiteral("tile"));
@@ -77,14 +94,17 @@ void Krell::paintEvent(QPaintEvent *)
         else
             p.drawTiledPixmap(r, trackPix);
     } else {
-        p.fillRect(r, m_theme->brush(QStringLiteral("krell_track"), r));
+        p.fillRect(r, m_theme->brush(trackKey, r));
     }
 
     // Indicator: prefer sprite-sheet frame, else flat colored notch.
     // Sprite layout defaults to horizontal frames (frames laid left→right).
     // If "krell.vertical" is non-zero the frames are stacked top→bottom
     // (gkrellm legacy convention).
-    const QPixmap krellPix = m_theme->pixmap(QStringLiteral("krell"));
+    const auto baseIndicator = QStringLiteral("krell_indicator");
+    const auto indicatorKey = themedKey(baseIndicator);
+    const QPixmap krellPix = indicatorKey == baseIndicator
+        ? m_theme->pixmap(QStringLiteral("krell")) : QPixmap();
     if (!krellPix.isNull() && krellPix.width() > 0 && krellPix.height() > 0) {
         const int  frames   = qMax(1, m_theme->imageInt(QStringLiteral("krell.frames"), 1));
         const bool vertical = m_theme->imageInt(QStringLiteral("krell.vertical"), 0) != 0;
@@ -111,7 +131,7 @@ void Krell::paintEvent(QPaintEvent *)
     // krell_indicator gradient runs the whole width of the krell, and
     // as the notch slides right it reveals different stops. Far more
     // useful than constraining the gradient to the notch's own width.
-    QString indKey = QStringLiteral("krell_indicator");
+    QString indKey = indicatorKey;
     switch (m_alertLevel) {
     case AlertLevel::Warning:
         indKey = QStringLiteral("accent_warning");
@@ -124,7 +144,7 @@ void Krell::paintEvent(QPaintEvent *)
     }
     const QBrush indBrush = m_theme->brush(
         indKey, r,
-        m_theme->color(QStringLiteral("krell_indicator")));
+        m_theme->color(indicatorKey));
 
     const int notchW = qMax(2, r.width() / 24);
     const int xMax   = r.width() - notchW;

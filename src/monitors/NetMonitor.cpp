@@ -74,6 +74,8 @@ static NetMonitor::IfaceUI buildIfacePanel(Theme *theme, QWidget *parent,
     ui.chart->setOverlayText(QStringLiteral("RX 0  TX 0"));
     ui.rxKrell = p->addKrell();
     ui.txKrell = p->addKrell();
+    ui.rxKrell->setThemeRole(QStringLiteral("net"));
+    ui.txKrell->setThemeRole(QStringLiteral("net"));
     into->addWidget(p);
     return ui;
 }

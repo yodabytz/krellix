@@ -2,7 +2,7 @@
 
 `gorilla/` restores the classic Gorilla banner on macOS. It uses white and
 gray chart lines, thin dark grid lines, light panels (including Uptime), and
-gray Memory and Swap meters. Panel text has a soft shadow; the chart readout
+gray Memory, Swap, and Network bars. Panel text has a soft shadow; the chart readout
 has its own independent style. Use the current Mac build for the grayscale
 palette and light Uptime background.
 
