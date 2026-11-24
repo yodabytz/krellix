@@ -75,9 +75,15 @@ Recognized keys:
 | ------- | -------------------------------- |
 | `label` | Decals showing labels / units    |
 | `value` | Decals showing values / titles   |
+| `panel_title` | Optional font override for panel headings such as CPU, Proc, and Memory |
 | `netports` | Optional Linux Net Ports row font override |
 
 Sizes are clamped to `4..72` points.
+
+Panel headings inherit `label` with 2 additional points (up to 72) and
+semibold weight on all platforms. Set `fonts.panel_title` to customize
+headings without changing chart readouts or other labels. Unspecified
+properties inherit the heading defaults.
 
 On Linux, Net Ports rows default to 75% of the `label` font size (minimum
 4 points), retaining the theme's family, weight and style. An explicit

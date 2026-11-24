@@ -115,13 +115,8 @@ void Panel::setSurfaceKey(const QString &key)
 void Panel::setTitle(const QString &title)
 {
     if (!m_titleDecal) {
-#ifdef Q_OS_MACOS
-        const auto fontKey = QStringLiteral("panel_title");
-#else
-        const auto fontKey = QStringLiteral("label");
-#endif
         m_titleDecal = new Decal(m_theme,
-                                 fontKey,
+                                 QStringLiteral("panel_title"),
                                  QStringLiteral("text_secondary"),
                                  this);
         m_titleDecal->setAlignment(Qt::AlignHCenter);

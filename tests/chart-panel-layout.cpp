@@ -61,15 +61,13 @@ void checkTitleFont(Theme &theme, const QString &configPath)
     const auto *title = panel.layout()->itemAt(0)->widget();
     auto *label = panel.addDecal(QStringLiteral("label"));
     label->setText(QStringLiteral("75%"));
-    const auto check = [&] {
+    const auto check = [&](int overrideSize = 0) {
         const QFont base = theme.font(QStringLiteral("label"));
         QFont expected = base;
-#ifdef Q_OS_MACOS
-        expected.setPointSizeF(base.pointSizeF() + 2.0);
+        expected.setPointSizeF(overrideSize ? overrideSize : base.pointSizeF() + 2.0);
         expected.setWeight(QFont::DemiBold);
         const QFont actual = theme.font(QStringLiteral("panel_title"));
-        if (actual != expected) qFatal("Wrong macOS panel title font");
-#endif
+        if (actual != expected) qFatal("Wrong panel title font");
         if (title->sizeHint().height() != QFontMetrics(expected).height() + 2)
             qFatal("Panel title did not size itself for its font");
         if (label->sizeHint().height() != QFontMetrics(base).height() + 2)
@@ -78,19 +76,23 @@ void checkTitleFont(Theme &theme, const QString &configPath)
     check();
 
     const auto originalPath = QDir::currentPath();
-    const auto fixture = configPath + QStringLiteral("/themes/title-font-test");
-    if (!QDir().mkpath(fixture) || !QDir::setCurrent(configPath))
-        qFatal("Could not set up the custom theme fixture");
-    QFile json(fixture + QStringLiteral("/theme.json"));
-    const QByteArray data = R"({"fonts":{"label":{"family":"Monospace","size":14}}})";
-    if (!json.open(QIODevice::WriteOnly) || json.write(data) != data.size())
-        qFatal("Could not write the custom theme fixture");
-    json.close();
-    if (!theme.load(QStringLiteral("title-font-test")) || !QDir::setCurrent(originalPath))
-        qFatal("Could not load the custom theme fixture");
-    if (theme.font(QStringLiteral("label")).pointSize() != 14)
-        qFatal("Custom label font size was not loaded");
-    check();
+    if (!QDir::setCurrent(configPath)) qFatal("Could not enter the theme fixture directory");
+    for (const int size : {0, 17}) {
+        const auto name = QStringLiteral("title-font-test-%1").arg(size);
+        const auto fixture = QStringLiteral("themes/") + name;
+        if (!QDir().mkpath(fixture)) qFatal("Could not create the custom theme directory");
+        QFile json(fixture + QStringLiteral("/theme.json"));
+        QByteArray data = R"({"fonts":{"label":{"family":"Monospace","size":14})";
+        if (size) data += R"(,"panel_title":{"size":17})";
+        data += "}}";
+        if (!json.open(QIODevice::WriteOnly) || json.write(data) != data.size())
+            qFatal("Could not write the custom theme fixture");
+        json.close();
+        if (!theme.load(name) || theme.font(QStringLiteral("label")).pointSize() != 14)
+            qFatal("Could not load the custom theme fixture");
+        check(size);
+    }
+    if (!QDir::setCurrent(originalPath)) qFatal("Could not restore the working directory");
 }
 
 void checkOverlay(Theme &theme)

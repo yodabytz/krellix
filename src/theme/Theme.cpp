@@ -344,12 +344,16 @@ bool Theme::parseJsonFile(const QString &path)
     const QJsonValue fontsVal = root.value(QStringLiteral("fonts"));
     if (fontsVal.isObject()) {
         const QJsonObject fObj = fontsVal.toObject();
+        const auto titleKey = QStringLiteral("panel_title");
         for (auto it = fObj.constBegin(); it != fObj.constEnd(); ++it) {
-            if (!it.value().isObject()) continue;
+            if (it.key() == titleKey || !it.value().isObject()) continue;
             m_fonts.insert(it.key(),
                            fontFromJson(it.value().toObject(),
                                         m_fonts.value(it.key())));
         }
+        const auto title = fObj.value(titleKey);
+        if (title.isObject())
+            m_fonts.insert(titleKey, fontFromJson(title.toObject(), font(titleKey)));
     }
 
     const QJsonValue metricsVal = root.value(QStringLiteral("metrics"));
@@ -468,14 +472,12 @@ QBrush Theme::brush(const QString &key,
 
 QFont Theme::font(const QString &key, const QFont &fallback) const
 {
-#ifdef Q_OS_MACOS
-    if (key == QStringLiteral("panel_title")) {
-        QFont title = m_fonts.value(QStringLiteral("label"), fallback);
-        title.setPointSizeF(title.pointSizeF() + 2.0);
+    if (key == QStringLiteral("panel_title") && !m_fonts.contains(key)) {
+        QFont title = m_fonts.value(QStringLiteral("label"));
+        title.setPointSizeF(qMin(72.0, title.pointSizeF() + 2.0));
         title.setWeight(QFont::DemiBold);
         return title;
     }
-#endif
     return m_fonts.value(key, fallback);
 }
 
