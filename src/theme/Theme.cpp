@@ -468,6 +468,14 @@ QBrush Theme::brush(const QString &key,
 
 QFont Theme::font(const QString &key, const QFont &fallback) const
 {
+#ifdef Q_OS_MACOS
+    if (key == QStringLiteral("panel_title")) {
+        QFont title = m_fonts.value(QStringLiteral("label"), fallback);
+        title.setPointSizeF(title.pointSizeF() + 2.0);
+        title.setWeight(QFont::DemiBold);
+        return title;
+    }
+#endif
     return m_fonts.value(key, fallback);
 }
 

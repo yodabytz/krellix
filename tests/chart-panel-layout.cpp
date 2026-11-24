@@ -8,6 +8,9 @@
 #include "widgets/Panel.h"
 
 #include <QApplication>
+#include <QDir>
+#include <QFile>
+#include <QFontMetrics>
 #include <QImage>
 #include <QLayout>
 #include <QSettings>
@@ -49,6 +52,45 @@ Chart *checkPanel(QWidget &container, const QString &title, int tracks)
         if (!krell) qFatal("Moving krell track is not below the chart");
     }
     return chart;
+}
+
+void checkTitleFont(Theme &theme, const QString &configPath)
+{
+    Panel panel(&theme);
+    panel.setTitle(QStringLiteral("Memory"));
+    const auto *title = panel.layout()->itemAt(0)->widget();
+    auto *label = panel.addDecal(QStringLiteral("label"));
+    label->setText(QStringLiteral("75%"));
+    const auto check = [&] {
+        const QFont base = theme.font(QStringLiteral("label"));
+        QFont expected = base;
+#ifdef Q_OS_MACOS
+        expected.setPointSizeF(base.pointSizeF() + 2.0);
+        expected.setWeight(QFont::DemiBold);
+        const QFont actual = theme.font(QStringLiteral("panel_title"));
+        if (actual != expected) qFatal("Wrong macOS panel title font");
+#endif
+        if (title->sizeHint().height() != QFontMetrics(expected).height() + 2)
+            qFatal("Panel title did not size itself for its font");
+        if (label->sizeHint().height() != QFontMetrics(base).height() + 2)
+            qFatal("Ordinary label did not keep the theme label font");
+    };
+    check();
+
+    const auto originalPath = QDir::currentPath();
+    const auto fixture = configPath + QStringLiteral("/themes/title-font-test");
+    if (!QDir().mkpath(fixture) || !QDir::setCurrent(configPath))
+        qFatal("Could not set up the custom theme fixture");
+    QFile json(fixture + QStringLiteral("/theme.json"));
+    const QByteArray data = R"({"fonts":{"label":{"family":"Monospace","size":14}}})";
+    if (!json.open(QIODevice::WriteOnly) || json.write(data) != data.size())
+        qFatal("Could not write the custom theme fixture");
+    json.close();
+    if (!theme.load(QStringLiteral("title-font-test")) || !QDir::setCurrent(originalPath))
+        qFatal("Could not load the custom theme fixture");
+    if (theme.font(QStringLiteral("label")).pointSize() != 14)
+        qFatal("Custom label font size was not loaded");
+    check();
 }
 
 void checkOverlay(Theme &theme)
@@ -119,5 +161,6 @@ int main(int argc, char **argv)
         || !diskChart->accessibleName().contains(QStringLiteral(" W ")))
         qFatal("The throughput readouts lost their direction labels");
     checkOverlay(theme);
+    checkTitleFont(theme, config.path());
     qInfo("PASS: title, live chart readout and moving tracks on all charted monitors");
 }

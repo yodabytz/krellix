@@ -115,10 +115,13 @@ void Panel::setSurfaceKey(const QString &key)
 void Panel::setTitle(const QString &title)
 {
     if (!m_titleDecal) {
-        // Non-bold "label" font with center alignment — bold/left-aligned
-        // titles overpowered the data below them.
+#ifdef Q_OS_MACOS
+        const auto fontKey = QStringLiteral("panel_title");
+#else
+        const auto fontKey = QStringLiteral("label");
+#endif
         m_titleDecal = new Decal(m_theme,
-                                 QStringLiteral("label"),
+                                 fontKey,
                                  QStringLiteral("text_secondary"),
                                  this);
         m_titleDecal->setAlignment(Qt::AlignHCenter);
