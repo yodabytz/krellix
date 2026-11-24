@@ -1,9 +1,10 @@
 # macOS theme overrides
 
-`gorilla/` restores the classic Gorilla banner, light panel texture, and dark
-chart texture on macOS. Panel labels have a subtle shadow; the chart readout
-has its own independent style. It is a theme-only update and does not replace
-the app.
+`gorilla/` restores the classic Gorilla banner on macOS. It uses white and
+gray chart lines, dark grid lines, light panels (including Uptime), and a
+subtle shadow on panel labels. The chart readout has its own independent style.
+Use the current Mac build for the grayscale palette, thicker grid, and light
+Uptime background.
 Install the directory under `~/.config/krellix/themes/` (back up any existing
 Gorilla directory), then select `gorilla` in Appearance. If you customized its
 fonts or colors, merge those settings from your backup into `theme.json`.

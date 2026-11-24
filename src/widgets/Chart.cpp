@@ -353,7 +353,8 @@ void Chart::paintEvent(QPaintEvent *)
         ? gridStep * static_cast<double>(gridLines)
         : fullScale;
     if (gridLines > 0 && graphRect.height() > 1) {
-        p.setPen(grid);
+        const int gridWidth = qBound(1, m_theme->metric(QStringLiteral("chart_grid_width"), 1), 4);
+        p.setPen(QPen(grid, gridWidth));
         for (int i = 1; i <= gridLines; ++i) {
             const double value = static_cast<double>(i) / gridLines;
             const int y = graphRect.bottom()
@@ -414,9 +415,18 @@ void Chart::paintEvent(QPaintEvent *)
     } else {
         // Multi-series: don't fill (overlapping translucent fills become
         // muddy). Just stroke each line in its own color.
+        const bool grayscale = m_theme->metric(QStringLiteral("chart_series_grayscale"), 0) != 0;
+        const auto shades = qMin<std::size_t>(65, m_multiSamples.size());
         for (std::size_t i = 0; i < m_multiSamples.size(); ++i) {
-            const QColor c = (i < static_cast<std::size_t>(m_seriesColors.size()))
+            QColor c = i < static_cast<std::size_t>(m_seriesColors.size())
                 ? m_seriesColors.at(static_cast<int>(i)) : line;
+            if (grayscale) {
+                // Alternate bright and darker shades for adjacent series.
+                const auto index = i % shades;
+                const auto slot = index % 2 == 0 ? index / 2 : shades - 1 - index / 2;
+                const int shade = 255 - static_cast<int>(64 * slot / qMax<std::size_t>(1, shades - 1));
+                c = QColor(shade, shade, shade);
+            }
             drawSeries(m_multiSamples[i], QBrush(c), c, /*fillBelow=*/false);
         }
     }

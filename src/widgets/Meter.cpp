@@ -71,7 +71,10 @@ void Meter::paintEvent(QPaintEvent *)
     if (r.width() <= 0 || r.height() <= 0) return;
 
     const QPixmap bgPix = m_theme->pixmap(QStringLiteral("chart_bg"));
-    if (!bgPix.isNull()) {
+    const auto textBackground = QStringLiteral("text_meter_bg");
+    if (!m_fillVisible && m_theme->color(textBackground).isValid()) {
+        p.fillRect(r, m_theme->brush(textBackground, r, Qt::transparent));
+    } else if (!bgPix.isNull()) {
         p.drawPixmap(r, bgPix);
     } else {
         p.fillRect(r, m_theme->brush(QStringLiteral("chart_bg"), r,

@@ -48,6 +48,7 @@ colors like `"red"`). Recognized keys:
 | `panel_highlight`  | Reserved for future hover/selection      |
 | `chart_bg`         | Chart background                         |
 | `chart_grid`       | Chart horizontal grid lines              |
+| `text_meter_bg`   | Optional background for text-only meters such as Uptime |
 | `text_primary`     | Primary text + chart line color          |
 | `text_secondary`   | Secondary/label text                     |
 | `krell_track`      | Krell unfilled track color               |
@@ -103,6 +104,8 @@ Map of name → integer (clamped to `0..4096`).
 | `krell_height`     | 8       | Krell strip height                      |
 | `chart_height`     | 32      | Chart strip height                      |
 | `chart_grid_lines` | 5       | Number of horizontal grid divisions     |
+| `chart_grid_width` | 1       | Horizontal grid line width (1 to 4 logical pixels) |
+| `chart_series_grayscale` | 0  | Use white and light gray lines in combined charts when set to 1 |
 
 ### `images`
 

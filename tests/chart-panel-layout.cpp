@@ -5,6 +5,7 @@
 #include "widgets/Chart.h"
 #include "widgets/Decal.h"
 #include "widgets/Krell.h"
+#include "widgets/Meter.h"
 #include "widgets/Panel.h"
 
 #include <QApplication>
@@ -13,6 +14,7 @@
 #include <QFontMetrics>
 #include <QImage>
 #include <QLayout>
+#include <QSet>
 #include <QSettings>
 #include <QTemporaryDir>
 #include <memory>
@@ -114,6 +116,64 @@ void checkOverlay(Theme &theme)
         qFatal("The readout is not near the top of the chart");
 }
 
+void checkChartStyling(Theme &theme, const QString &configPath)
+{
+    Chart chart(&theme);
+    chart.resize(120, 80);
+    chart.show();
+    QApplication::processEvents();
+    chart.appendSample(0.9);
+    const auto gridPixels = [&] {
+        const auto image = chart.grab().toImage();
+        const auto grid = theme.color(QStringLiteral("chart_grid"));
+        int count = 0;
+        for (int y = 0; y < image.height(); ++y)
+            if (image.pixelColor(image.width() / 2, y) == grid) ++count;
+        return count;
+    };
+    const int thin = gridPixels();
+    theme.setMetric(QStringLiteral("chart_grid_width"), 2);
+    if (thin == 0 || gridPixels() <= thin) qFatal("Grid did not paint thicker lines");
+
+    chart.setRainbowSeries(12);
+    for (int x = 0; x < 120; ++x)
+        for (int i = 0; i < 12; ++i)
+            chart.appendSampleAt(i, 0.08 + i * 0.065);
+    const auto original = chart.grab().toImage();
+    theme.setMetric(QStringLiteral("chart_series_grayscale"), 1);
+    const auto grayscale = chart.grab().toImage();
+    QSet<QRgb> shades;
+    for (int y = 0; y < grayscale.height(); ++y) {
+        const auto pixel = grayscale.pixel(grayscale.width() / 2, y);
+        if (qRed(pixel) >= 191 && qRed(pixel) == qGreen(pixel) && qRed(pixel) == qBlue(pixel))
+            shades.insert(pixel);
+    }
+    if (shades.size() != 12 || original == grayscale)
+        qFatal("Combined chart did not paint 12 distinct grayscale lines");
+    theme.setMetric(QStringLiteral("chart_series_grayscale"), 0);
+    if (chart.grab().toImage() != original) qFatal("Palette changes lost history");
+
+    const auto originalPath = QDir::currentPath();
+    const auto fixture = configPath + QStringLiteral("/themes/text-meter-test");
+    if (!QDir().mkpath(fixture) || !QDir::setCurrent(configPath))
+        qFatal("Could not set up the text meter fixture");
+    QFile json(fixture + QStringLiteral("/theme.json"));
+    const QByteArray data = R"({"colors":{"text_meter_bg":"#eeeeec"}})";
+    if (!json.open(QIODevice::WriteOnly) || json.write(data) != data.size())
+        qFatal("Could not write the text meter fixture");
+    json.close();
+    if (!theme.load(QStringLiteral("text-meter-test")) || !QDir::setCurrent(originalPath))
+        qFatal("Could not load the text meter fixture");
+    Meter meter(&theme, QStringLiteral("text_primary"));
+    meter.resize(120, 20);
+    meter.setText(QStringLiteral("5d 12:00"));
+    if (meter.grab().toImage().pixelColor(3, 3) != theme.color(QStringLiteral("chart_bg")))
+        qFatal("Text-only background affected a regular meter");
+    meter.setFillVisible(false);
+    if (meter.grab().toImage().pixelColor(3, 3) != QColor("#eeeeec"))
+        qFatal("Text-only meter did not use its themed background");
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -163,6 +223,7 @@ int main(int argc, char **argv)
         || !diskChart->accessibleName().contains(QStringLiteral(" W ")))
         qFatal("The throughput readouts lost their direction labels");
     checkOverlay(theme);
+    checkChartStyling(theme, config.path());
     checkTitleFont(theme, config.path());
     qInfo("PASS: title, live chart readout and moving tracks on all charted monitors");
 }
