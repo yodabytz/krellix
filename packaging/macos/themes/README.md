@@ -23,6 +23,10 @@ reference proportions.
 gold monitor icons, and a winged scarab footer. Use the current Mac build to
 scale the footer proportionally with the panel width.
 
+`nucleo/` uses the supplied brushed-steel and blue LED artwork. Its top logo
+and decorative playback strip scale with the panel; the buttons are not
+interactive. A width of about 240 matches the reference proportions.
+
 Install the directory under `~/.config/krellix/themes/` (back up any existing
 directory of the same name), then select the theme in Appearance. If you
 customized its fonts or colors, merge those settings from your backup into

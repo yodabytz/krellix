@@ -1,0 +1,91 @@
+{
+  "name": "Nucleo",
+  "version": "1.0",
+  "author": "Theme designer",
+  "description": "Nucleo: brushed steel, blue LEDs and amber instrumentation.",
+  "colors": {
+    "panel_bg": "#1a1a1a",
+    "panel_border": "#9ea4aa",
+    "chart_bg": "#101114",
+    "chart_grid": "#303438",
+    "text_primary": "#f4f4f4",
+    "text_secondary": "#c5c8ca",
+    "text_accent": "#ffa000",
+    "krell_track": "#151515",
+    "krell_indicator": "#ffa000",
+    "chart_line_default": "#ffa000",
+    "chart_line_cpu": "#ffa000",
+    "chart_line_mem": "#0074ff",
+    "chart_line_swap": "#d98aff",
+    "chart_line_net_rx": "#32aaff",
+    "chart_line_net_tx": "#ffa000",
+    "chart_line_disk": "#39ee91",
+    "accent_ok": "#39ee91",
+    "accent_warning": "#ffa000",
+    "accent_critical": "#ff6262"
+  },
+  "fonts": {
+    "label": {
+      "family": "Sans Serif",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Sans Serif",
+      "size": 10,
+      "bold": true
+    }
+  },
+  "metrics": {
+    "panel_padding": 6,
+    "panel_spacing": 2,
+    "panel_border": 0,
+    "krell_height": 12,
+    "chart_height": 64,
+    "chart_grid_lines": 4,
+    "top_strip_height": 30,
+    "top_strip_keep_aspect": 1
+  },
+  "surfaces": {
+    "panel_bg": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_host": {
+      "image": "assets/host-panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "slice": 4,
+      "opacity": 1.0
+    },
+    "panel_bg_top": {
+      "image": "assets/optional-header.png",
+      "slice": 0
+    }
+  },
+  "images": {
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "mode": "stretch"
+    },
+    "krell_track": {
+      "image": "assets/krell-track.png",
+      "mode": "tile"
+    },
+    "krell": {
+      "image": "assets/krell.png",
+      "frames": 1
+    },
+    "frame_top": "assets/frame-top.png",
+    "frame_bottom": {
+      "image": "assets/optional-footer.png",
+      "mode": "stretch"
+    },
+    "frame_left": "assets/frame-left.png",
+    "frame_right": "assets/frame-right.png"
+  }
+}
