@@ -47,6 +47,12 @@
 
 namespace {
 
+bool stretchBottomFrame(const Theme *theme)
+{
+    return theme->imageMode(QStringLiteral("frame_bottom"), QStringLiteral("tile"))
+        == QStringLiteral("stretch");
+}
+
 QStringList defaultMonitorOrder()
 {
     return {
@@ -195,7 +201,6 @@ MainWindow::MainWindow(Theme *theme,
     (void) m_pluginLoader->discoverAndLoad(m_theme, this);
     buildPanelStack(m_cliEnabledIds);
 
-    applyFrameMargins();
     applyFixedWidth();
     fitToPanelStack();
     restorePosition();
@@ -656,7 +661,6 @@ void MainWindow::rebuildPanels()
             lm->monitor->tick();
     }
 
-    applyFrameMargins();
     applyFixedWidth();
     fitToPanelStack();
     scheduleFitToPanelStack();
@@ -712,6 +716,7 @@ void MainWindow::applyFixedWidth()
         QSettings().value(QStringLiteral("appearance/panel_width"), 100).toInt(),
         600);
     setFixedWidth(w);
+    applyFrameMargins();
     applyTopStripFromTheme();
 }
 
@@ -719,9 +724,13 @@ void MainWindow::applyFrameMargins()
 {
     if (!m_layout) return;
     const int top    = m_theme->pixmap(QStringLiteral("frame_top")).height();
-    const int bottom = m_theme->pixmap(QStringLiteral("frame_bottom")).height();
+    const auto footer = m_theme->pixmap(QStringLiteral("frame_bottom"));
     const int left   = m_theme->pixmap(QStringLiteral("frame_left")).width();
     const int right  = m_theme->pixmap(QStringLiteral("frame_right")).width();
+    const int innerWidth = qMax(0, width() - left - right);
+    const int bottom = !footer.isNull() && stretchBottomFrame(m_theme)
+        ? qBound(0, qRound(innerWidth * (qreal(footer.height()) / footer.width())), 4096)
+        : footer.height();
     m_layout->setContentsMargins(left, top, right, bottom);
 }
 
@@ -797,9 +806,7 @@ void MainWindow::persistPosition()
 
 void MainWindow::onThemeChanged()
 {
-    applyFrameMargins();
     applyFixedWidth();
-    applyTopStripFromTheme();
     fitToPanelStack();
     scheduleFitToPanelStack();
     update();
@@ -858,11 +865,7 @@ bool MainWindow::event(QEvent *e)
 
 void MainWindow::paintEvent(QPaintEvent *)
 {
-    // Window-frame compositing: top + bottom frames stretch horizontally
-    // (smoothly) to the window width; left + right frames TILE vertically
-    // down the side rather than stretching, so a tall window doesn't blow
-    // up the artwork into pixelated mush. Alpha channel of each pixmap
-    // forms the visible silhouette of the window.
+    // Tile the frame strips unless the theme opts into one scaled footer.
     QPainter p(this);
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
 
@@ -872,7 +875,7 @@ void MainWindow::paintEvent(QPaintEvent *)
     const QPixmap rightPix  = m_theme->pixmap(QStringLiteral("frame_right"));
 
     const int topH    = topPix.isNull()    ? 0 : topPix.height();
-    const int bottomH = bottomPix.isNull() ? 0 : bottomPix.height();
+    const int bottomH = m_layout->contentsMargins().bottom();
     const int leftW   = leftPix.isNull()   ? 0 : leftPix.width();
     const int rightW  = rightPix.isNull()  ? 0 : rightPix.width();
 
@@ -881,11 +884,16 @@ void MainWindow::paintEvent(QPaintEvent *)
 
     if (!topPix.isNull())
         p.drawTiledPixmap(QRect(0, 0, width(), topH), topPix);
-    if (!bottomPix.isNull())
-        p.drawTiledPixmap(QRect(0, height() - bottomH, width(), bottomH), bottomPix);
+    const bool scaledFooter = stretchBottomFrame(m_theme);
+    if (!bottomPix.isNull() && bottomH > 0) {
+        if (scaledFooter)
+            p.drawPixmap(QRect(leftW, height() - bottomH, width() - leftW - rightW, bottomH), bottomPix);
+        else
+            p.drawTiledPixmap(QRect(0, height() - bottomH, width(), bottomH), bottomPix);
+    }
 
     const int sideTop    = topH;
-    const int sideBottom = height() - bottomH;
+    const int sideBottom = scaledFooter ? height() : height() - bottomH;
     if (sideBottom > sideTop) {
         if (!leftPix.isNull()) {
             p.drawTiledPixmap(QRect(0, sideTop, leftW, sideBottom - sideTop),

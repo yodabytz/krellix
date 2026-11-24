@@ -3,6 +3,10 @@
 #undef main
 #include "krellix/SettingsDialog.h"
 #include <QDialogButtonBox>
+#include <QDir>
+#include <QFile>
+#include <QImage>
+#include <QLayout>
 #include <QMouseEvent>
 #include <QPushButton>
 #include <QTimer>
@@ -80,6 +84,54 @@ static void verifyClockScroll(Theme *theme)
     qInfo("PASS: clock scrolls only on overflow");
 }
 
+static void verifyFooterFrame()
+{
+    QTemporaryDir fixture;
+    const auto current = QDir::currentPath();
+    const auto path = fixture.path() + QStringLiteral("/themes/footer-frame-test");
+    if (!fixture.isValid() || !QDir().mkpath(path) || !QDir::setCurrent(fixture.path()))
+        qFatal("Could not prepare footer theme test");
+
+    QImage footer(100, 20, QImage::Format_RGB32);
+    footer.fill(Qt::red);
+    for (int y = 0; y < footer.height(); ++y)
+        for (int x = 50; x < footer.width(); ++x)
+            footer.setPixelColor(x, y, Qt::blue);
+    if (!footer.save(path + QStringLiteral("/footer.png"))) qFatal("Could not save footer artwork");
+
+    QSettings settings;
+    const auto widthKey = QStringLiteral("appearance/panel_width");
+    const QVariant savedWidth = settings.value(widthKey);
+    for (bool stretch : {false, true}) {
+        QFile json(path + QStringLiteral("/theme.json"));
+        const QByteArray data = stretch
+            ? R"({"images":{"frame_bottom":{"image":"footer.png","mode":"stretch"}}})"
+            : R"({"images":{"frame_bottom":"footer.png"}})";
+        if (!json.open(QIODevice::WriteOnly) || json.write(data) != data.size())
+            qFatal("Could not write footer theme test");
+        json.close();
+        Theme theme;
+        if (!theme.load(QStringLiteral("footer-frame-test"))) qFatal("Could not load footer theme test");
+        for (int width : {120, 240}) {
+            settings.setValue(widthKey, width);
+            MainWindow window(&theme, {QStringLiteral("clock")});
+            window.show();
+            QApplication::processEvents();
+            const int expected = stretch ? width / 5 : footer.height();
+            if (window.layout()->contentsMargins().bottom() != expected)
+                qFatal("Footer height did not match its frame mode");
+            const auto image = window.grab().toImage();
+            const auto color = image.pixelColor(image.width() - 5, image.height() - 5);
+            if (color != (stretch ? QColor(Qt::blue) : QColor(Qt::red)))
+                qFatal("Footer did not paint in its configured frame mode");
+        }
+    }
+    if (savedWidth.isValid()) settings.setValue(widthKey, savedWidth);
+    else settings.remove(widthKey);
+    if (!QDir::setCurrent(current)) qFatal("Could not restore test working directory");
+    qInfo("PASS: proportional footer scales at 120 and 240; existing frames still tile");
+}
+
 static void exercise()
 {
     MainWindow *window = nullptr;
@@ -97,6 +149,7 @@ static void exercise()
         if (!existing) qFatal("No monitor for disk test theme");
         verifyDragHandle(existing->theme());
         verifyClockScroll(existing->theme());
+        verifyFooterFrame();
         DiskMonitor disk(existing->theme());
         DiskStat::setReadOverride([]() { return QList<DiskSample>{}; });
         QWidget *panel = disk.createWidget(nullptr);

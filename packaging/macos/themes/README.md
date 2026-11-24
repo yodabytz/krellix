@@ -19,6 +19,10 @@ the banner also scales to narrower profiles without changing saved settings.
 with cyan monitor icons and live readouts. A width of about 240 matches the
 reference proportions.
 
+`anubis/` uses the supplied Egyptian gold and lapis textures, a jackal banner,
+gold monitor icons, and a winged scarab footer. Use the current Mac build to
+scale the footer proportionally with the panel width.
+
 Install the directory under `~/.config/krellix/themes/` (back up any existing
 directory of the same name), then select the theme in Appearance. If you
 customized its fonts or colors, merge those settings from your backup into

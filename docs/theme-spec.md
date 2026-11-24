@@ -143,6 +143,7 @@ Recognized keys:
 | `krell_track`  | Tiled across the Krell strip as the unfilled track; falls back |
 | `krell`        | Indicator sprite. With `frames > 1` the image is treated as a horizontal strip of N equal-width frames; the frame painted is `frame = value * frames` |
 | `panel_icon_*` | Optional icon beside a panel title, e.g. `panel_icon_cpu` for `panel_bg_cpu` |
+| `frame_bottom` | Bottom frame strip; use `{"image":"assets/footer.png","mode":"stretch"}` for a single proportional footer between the side frames |
 
 Image-themed widgets gracefully fall back to color-only rendering for any
 key that isn't supplied — so a theme can mix images and colors freely.

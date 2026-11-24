@@ -1,0 +1,78 @@
+{
+  "name": "anubis",
+  "version": "1.0",
+  "description": "Obsidian and lapis panels, Egyptian gold, and a winged scarab beneath Anubis.",
+  "colors": {
+    "panel_bg": "#0a0d12",
+    "panel_border": "#d4a53a",
+    "chart_bg": "#070e19",
+    "chart_grid": "#23354c",
+    "text_primary": "#f2e6c8",
+    "text_secondary": "#fff4dc",
+    "text_accent": "#f5ca65",
+    "text_clock": "#ffd36b",
+    "chart_overlay": "#ffd36b",
+    "krell_track": "#08131c",
+    "krell_indicator": "#ffc84b",
+    "chart_line_default": "#00d4ff",
+    "chart_line_cpu": "#ffc84b",
+    "chart_line_cpu_series": "#ffc84b",
+    "chart_line_mem": "#e7ac41",
+    "chart_line_swap": "#2c90dc",
+    "chart_line_net_rx": "#00d4ff",
+    "chart_line_net_rx_series": "#bd78ef",
+    "chart_line_net_tx": "#e7b64e",
+    "chart_line_disk": "#39ee91",
+    "text_meter_bg": "#101a2a",
+    "accent_ok": "#39ee91",
+    "accent_warning": "#f5ca65",
+    "accent_critical": "#ff6262"
+  },
+  "fonts": {
+    "label": { "family": "Helvetica Neue", "size": 9, "bold": false },
+    "value": { "family": "Helvetica Neue", "size": 10, "bold": true },
+    "panel_title": { "size": 11, "bold": true },
+    "time": { "family": "Helvetica Neue", "size": 14, "bold": true }
+  },
+  "metrics": {
+    "panel_padding": 6,
+    "panel_spacing": 2,
+    "panel_border": 0,
+    "krell_height": 12,
+    "chart_height": 64,
+    "chart_grid_lines": 4,
+    "chart_overlay_right": 1,
+    "panel_icon_size": 16,
+    "top_strip_height": 106,
+    "top_strip_keep_aspect": 1
+  },
+  "surfaces": {
+    "panel_bg": { "image": "assets/panel.png", "slice": 6 },
+    "panel_bg_host": { "image": "assets/host-panel.png", "slice": 6 },
+    "chart_bg": { "image": "assets/chart-bg.png", "slice": 4 },
+    "panel_bg_top": { "image": "assets/anubis-banner.png", "slice": 0 }
+  },
+  "images": {
+    "chart_bg": { "image": "assets/chart-bg.png", "mode": "stretch" },
+    "krell_track": { "image": "assets/krell-track.png", "mode": "tile" },
+    "krell": { "image": "assets/krell.png", "frames": 1 },
+    "frame_top": "assets/frame-top.png",
+    "frame_bottom": { "image": "assets/scarab-footer.png", "mode": "stretch" },
+    "frame_left": "assets/frame-left.png",
+    "frame_right": "assets/frame-right.png",
+    "panel_icon_cpu": "assets/icon-cpu.png",
+    "panel_icon_mem": "assets/icon-memory.png",
+    "panel_icon_proc": "assets/icon-proc.png",
+    "panel_icon_net": "assets/icon-network.png",
+    "panel_icon_disk": "assets/icon-disk.png",
+    "panel_icon_netports": "assets/icon-ports.png",
+    "panel_icon_krellstock": "assets/icon-stocks.png",
+    "panel_icon_krellstock_ticker": "assets/icon-stocks.png",
+    "panel_icon_krellpkg": "assets/icon-packages.png",
+    "panel_icon_krellhealth": "assets/icon-health.png"
+  },
+  "text_styles": {
+    "text_clock": { "color": "#ffd36b", "shadow": { "x": 1, "y": 1, "color": "#b0533000" } },
+    "chart_overlay": { "color": "#ffd36b", "shadow": { "x": 1, "y": 1, "color": "#b5000000" } }
+  }
+}
