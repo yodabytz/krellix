@@ -26,7 +26,6 @@ QWidget *ClockMonitor::createWidget(QWidget *parent)
     m_dateDecal = p->addDecal(QStringLiteral("label"),
                               QStringLiteral("text_secondary"));
     if (m_timeDecal) m_timeDecal->setAlignment(Qt::AlignHCenter);
-    if (m_timeDecal) m_timeDecal->setAlwaysScroll(true);
     if (m_dateDecal) m_dateDecal->setAlignment(Qt::AlignHCenter);
     tick();
     return p;

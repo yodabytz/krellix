@@ -8,7 +8,9 @@
 #include <QTimer>
 #include <QPointer>
 #include <QTemporaryDir>
+#include <memory>
 #include "sysdep/SensorDisplay.h"
+#include "monitors/ClockMonitor.h"
 #include "monitors/DiskMonitor.h"
 #include "widgets/Chart.h"
 #include "widgets/Decal.h"
@@ -53,6 +55,31 @@ static void verifyDragHandle(Theme *theme)
 }
 
 static int completed = 0;
+
+static void verifyClockScroll(Theme *theme)
+{
+    ClockMonitor clock(theme);
+    std::unique_ptr<QWidget> panel(clock.createWidget(nullptr));
+    const auto labels = panel->findChildren<Decal *>(QString(), Qt::FindDirectChildrenOnly);
+    if (labels.size() != 2 || labels.first()->text().isEmpty()) qFatal("Clock text missing");
+    auto *timer = labels.first()->findChild<QTimer *>();
+    if (!timer) qFatal("Clock scroll timer missing");
+
+    panel->setFixedWidth(400);
+    panel->show();
+    QApplication::processEvents();
+    if (timer->isActive()) qFatal("Clock scrolled even though it fit");
+
+    panel->setFixedWidth(20);
+    QApplication::processEvents();
+    if (!timer->isActive()) qFatal("Clock did not scroll when it overflowed");
+
+    panel->setFixedWidth(400);
+    QApplication::processEvents();
+    if (timer->isActive()) qFatal("Clock kept scrolling after it fit again");
+    qInfo("PASS: clock scrolls only on overflow");
+}
+
 static void exercise()
 {
     MainWindow *window = nullptr;
@@ -69,6 +96,7 @@ static void exercise()
         auto *existing = window->findChild<MonitorBase *>();
         if (!existing) qFatal("No monitor for disk test theme");
         verifyDragHandle(existing->theme());
+        verifyClockScroll(existing->theme());
         DiskMonitor disk(existing->theme());
         DiskStat::setReadOverride([]() { return QList<DiskSample>{}; });
         QWidget *panel = disk.createWidget(nullptr);
