@@ -1,10 +1,10 @@
 {
   "name": "Bluesteel",
-  "version": "2.0",
+  "version": "2.1",
   "author": "Theme designer",
-  "description": "Muted brushed steel and recessed charcoal charts inspired by Daniel Erat's classic GKrellM BlueSteel.",
+  "description": "Soft cloudy satin steel and recessed charcoal charts inspired by classic GKrellM Bluesteel.",
   "colors": {
-    "panel_bg": "#555e70",
+    "panel_bg": "#606477",
     "panel_border": "#a0aaba",
     "chart_bg": "#20262f",
     "chart_grid": "#404955",
