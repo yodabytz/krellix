@@ -18,7 +18,8 @@ if(BUILD_TESTING)
     target_link_libraries(krellmail-icon PRIVATE Qt6::Widgets Qt6::Network)
     target_link_options(krellmail-icon PRIVATE "-Wl,--export-all-symbols")
     set_target_properties(krellmail-icon PROPERTIES ENABLE_EXPORTS ON OUTPUT_NAME krellix
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/krellmail-icon-test-host")
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/krellmail-icon-test-host"
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/krellmail-icon-test-host")
     add_dependencies(krellmail-icon krellmail)
     add_test(NAME krellmail-icon COMMAND krellmail-icon "$<TARGET_FILE:krellmail>")
     set_tests_properties(krellmail-icon PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 15)
