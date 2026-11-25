@@ -41,8 +41,14 @@ public:
 protected:
     void paintEvent(QPaintEvent *event) override;
 
+#ifdef Q_OS_WIN
+private Q_SLOTS:
+#else
 private:
+#endif
     void reloadArtwork();
+
+private:
     void syncAnimation();
     int animationFrames() const;
 

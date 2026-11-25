@@ -130,8 +130,14 @@ KrellmailEnvelope::KrellmailEnvelope(Theme *theme, QWidget *parent)
         m_phase = (m_phase + 1) % animationFrames();
         update();
     });
-    if (m_theme)
+    if (m_theme) {
+#ifdef Q_OS_WIN
+        // MinGW can expose the host signal's import thunk instead of its address.
+        connect(m_theme, SIGNAL(themeChanged()), this, SLOT(reloadArtwork()));
+#else
         connect(m_theme, &Theme::themeChanged, this, &KrellmailEnvelope::reloadArtwork);
+#endif
+    }
     reloadArtwork();
 }
 
