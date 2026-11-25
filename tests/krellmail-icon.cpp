@@ -16,13 +16,16 @@
 #include <QTemporaryDir>
 #include <QThread>
 #include <QWidget>
+#include <cstdio>
 #include <memory>
 
 namespace {
 void require(bool condition, const char *message)
 {
-    if (!condition)
+    if (!condition) {
+        std::fprintf(stderr, "%s\n", message);
         qFatal("%s", message);
+    }
 }
 
 template<typename Predicate>
@@ -83,8 +86,10 @@ int main(int argc, char **argv)
 
     QPluginLoader loader(QString::fromLocal8Bit(argv[1]));
     auto *plugin = qobject_cast<IKrellixPlugin *>(loader.instance());
-    if (!plugin)
-        qFatal("Cannot load KrellMail: %s", qPrintable(loader.errorString()));
+    if (!plugin) {
+        const QByteArray error = loader.errorString().toLocal8Bit();
+        require(false, error.constData());
+    }
     Theme theme;
     require(theme.load(QStringLiteral("gallery-mail-plain")), "Cannot load plain theme");
     const auto monitors = plugin->createMonitors(&theme, nullptr);
