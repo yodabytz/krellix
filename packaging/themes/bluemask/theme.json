@@ -1,0 +1,87 @@
+{
+  "name": "Bluemask",
+  "version": "1.0",
+  "author": "Theme designer",
+  "description": "Muted lavender charcoal and dusty blue charts inspired by classic GKrellM Bluemask.",
+  "colors": {
+    "panel_bg": "#444653",
+    "panel_border": "#88899e",
+    "chart_bg": "#151e29",
+    "chart_grid": "#404955",
+    "text_primary": "#f0f4fa",
+    "text_secondary": "#c8d5e4",
+    "text_accent": "#c0d6e8",
+    "krell_track": "#151e29",
+    "krell_indicator": "#91b9db",
+    "chart_line_default": "#82afd5",
+    "chart_line_cpu": "#82afd5",
+    "chart_line_mem": "#6396bd",
+    "chart_line_swap": "#91b9db",
+    "chart_line_net_rx": "#82afd5",
+    "chart_line_net_tx": "#6396bd",
+    "chart_line_disk": "#82afd5",
+    "accent_ok": "#8ee69b",
+    "accent_warning": "#c0d6e8",
+    "accent_critical": "#ff8585"
+  },
+  "fonts": {
+    "label": {
+      "family": "Sans Serif",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Sans Serif",
+      "size": 10,
+      "bold": true
+    }
+  },
+  "metrics": {
+    "panel_padding": 6,
+    "panel_spacing": 2,
+    "panel_border": 0,
+    "krell_height": 12,
+    "chart_height": 64,
+    "chart_grid_lines": 4
+  },
+  "surfaces": {
+    "panel_bg": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_host": {
+      "image": "assets/host-panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "slice": 4,
+      "opacity": 1.0
+    }
+  },
+  "images": {
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "mode": "stretch"
+    },
+    "krell_track": {
+      "image": "assets/krell-track.png",
+      "mode": "tile"
+    },
+    "krell": {
+      "image": "assets/krell.png",
+      "frames": 1
+    },
+    "frame_top": "assets/frame-top.png",
+    "frame_bottom": "assets/frame-bottom.png",
+    "frame_left": "assets/frame-left.png",
+    "frame_right": "assets/frame-right.png",
+    "panel_icon_krellmail": "assets/mail-icon.png",
+    "panel_icon_krellmail_unread": {
+      "image": "assets/mail-spin.png",
+      "frames": 32
+    }
+  }
+}

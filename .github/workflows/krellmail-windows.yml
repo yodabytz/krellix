@@ -1,0 +1,93 @@
+name: KrellMail for Windows
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'plugins/krellmail/**'
+      - 'tests/krellmail-icon.cpp'
+      - 'packaging/windows/*mail.ps1'
+      - '.github/workflows/krellmail-windows.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Get the published portable host
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'krellix-preview6.zip'
+          Invoke-WebRequest 'https://repo.cerberix.org/windows/krellix-0.1.2-windows-preview.6-x86_64.zip' -OutFile $archive
+          if ((Get-FileHash $archive).Hash -ne 'a900cc2d31a2043b8659be2b9b8abc319122ce37fedf499b13190d9144aacaeb') {
+            throw 'Unexpected portable host archive'
+          }
+          Expand-Archive $archive -DestinationPath "$env:RUNNER_TEMP\portable"
+      - uses: msys2/setup-msys2@3c51bf698df1e37b2261f53cb67797b97761185c # v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-qt6-base
+      - name: Build and test KrellMail
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          portable=$(cygpath -u "$RUNNER_TEMP")/portable/Krellix
+          cmp "$portable/Qt6Core.dll" /ucrt64/bin/Qt6Core.dll
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
+            "-DKRELLIX_SENSOR_DIR=$(cygpath -m "$portable/sensors")"
+          cmake --build build --target krellmail-icon krellmail-integration -j 4
+          ctest --test-dir build -R '^krellmail-(icon|integration)$' --output-on-failure
+          # Check the plugin against the DLLs shipped beside the published host.
+          cp "$portable/"*.dll build/krellmail-icon-test-host/
+          ctest --test-dir build -R '^krellmail-icon$' --output-on-failure
+      - name: Test the published host and package the plugin
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $hostDir = "$env:RUNNER_TEMP\portable\Krellix"
+          $sandbox = "$env:RUNNER_TEMP\mail-test"
+          New-Item -ItemType Directory "$sandbox\plugins", "$sandbox\themes", "$env:APPDATA\krellix" -Force | Out-Null
+          Copy-Item build/plugins/krellmail.dll "$sandbox\plugins"
+          Copy-Item packaging/themes/bluemask "$sandbox\themes" -Recurse
+          "[plugins]`nkrellmail\enabled=true`nkrellmail\account_count=0" |
+            Set-Content "$env:APPDATA\krellix\krellix-krellmail-test.ini" -Encoding ASCII
+          $env:QT_FORCE_STDERR_LOGGING = '1'
+          $env:QT_LOGGING_RULES = 'krellix.plugin.info=true'
+          $env:KRELLIX_DEV_PLUGINS = '1'
+          $log = "$sandbox\startup.log"
+          $app = Start-Process "$hostDir\krellix.exe" -WorkingDirectory $sandbox -PassThru `
+            -ArgumentList '--instance', 'krellmail-test', '--theme', 'bluemask', '--monitors', 'host,krellmail' `
+            -RedirectStandardError $log
+          try {
+            for ($i = 0; $i -lt 20; $i++) {
+              if ($app.HasExited) { throw "Portable host exited: $($app.ExitCode)" }
+              if (Select-String -LiteralPath $log -Pattern 'io.krellix.krellmail.*0.1.1-windows.1.*factory ready' -Quiet) { break }
+              Start-Sleep -Milliseconds 500
+            }
+            Get-Content $log
+            if (-not (Select-String -LiteralPath $log -Pattern 'io.krellix.krellmail.*0.1.1-windows.1.*factory ready' -Quiet)) {
+              throw 'Published host did not load the new plugin'
+            }
+            if (Select-String -LiteralPath $log -Pattern 'krellix.theme:.*(not found|failed|refusing|missing)' -Quiet) {
+              throw 'Theme loading failed'
+            }
+          } finally {
+            if (-not $app.HasExited) { Stop-Process -Id $app.Id }
+          }
+          ./packaging/windows/package-mail.ps1 -Build "$PWD/build" -HostDirectory $hostDir `
+            -HostVersion '0.1.2-windows-preview.6' -Destination "$env:RUNNER_TEMP/mail-package"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: krellmail-windows-preview6
+          path: ${{ runner.temp }}/mail-package/*.zip
+          if-no-files-found: error

@@ -5,6 +5,7 @@
 
 #include <QNetworkAccessManager>
 #include <QPaintEvent>
+#include <QPixmap>
 #include <QPointer>
 #include <QSslSocket>
 #include <QTimer>
@@ -41,8 +42,15 @@ protected:
     void paintEvent(QPaintEvent *event) override;
 
 private:
+    void reloadArtwork();
+    void syncAnimation();
+    int animationFrames() const;
+
     Theme *m_theme = nullptr;
+    QPixmap m_idleIcon;
+    QPixmap m_unreadSprite;
     QTimer m_timer;
+    int m_unreadFrames = 0;
     int m_count = 0;
     int m_phase = 0;
 };

@@ -411,6 +411,18 @@ set_target_properties(krellmail PROPERTIES
 )
 install(TARGETS krellmail LIBRARY DESTINATION lib/krellix/plugins)
 
+if(BUILD_TESTING)
+    qt_add_executable(krellmail-icon tests/krellmail-icon.cpp
+        src/monitors/MonitorBase.cpp src/theme/Theme.cpp src/widgets/Panel.cpp
+        src/widgets/Decal.cpp src/widgets/Krell.cpp src/widgets/Chart.cpp src/widgets/Meter.cpp)
+    target_include_directories(krellmail-icon PRIVATE src)
+    target_link_libraries(krellmail-icon PRIVATE Qt6::Widgets Qt6::Network)
+    set_target_properties(krellmail-icon PROPERTIES ENABLE_EXPORTS ON)
+    add_dependencies(krellmail-icon krellmail)
+    add_test(NAME krellmail-icon COMMAND krellmail-icon "$<TARGET_FILE:krellmail>")
+    set_tests_properties(krellmail-icon PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 15)
+endif()
+
 add_library(krellstock MODULE
     plugins/krellstock/KrellstockPlugin.cpp
     plugins/krellstock/KrellstockPlugin.h

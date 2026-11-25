@@ -11,14 +11,31 @@ if ((Get-FileHash $dll -Algorithm SHA256).Hash -ne $manifest.plugin_sha256) {
 }
 $plugins = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'krellix\plugins'
 $target = Join-Path $plugins 'krellmail.dll'
+$replace = $false
 if (Test-Path $target) {
-    if ((Get-FileHash $target -Algorithm SHA256).Hash -ne $manifest.plugin_sha256) {
+    $installedHash = (Get-FileHash $target -Algorithm SHA256).Hash
+    if ($installedHash -eq $manifest.plugin_sha256) {
+        Write-Output 'This KrellMail build is already installed.'
+        return
+    }
+    # Only replace the known previous public DLL, never an unknown or newer build.
+    if ($installedHash -ne '065cb8cc96ace6425b912bb5c00e48fbb53589b480bd3ac5023fb5e6341df30d' -or
+        $manifest.plugin_version -ne '0.1.1-windows.1') {
         throw 'A different KrellMail build already exists. Refusing to overwrite or downgrade it.'
     }
-    Write-Output 'This KrellMail build is already installed.'
-    return
+    $replace = $true
 }
 New-Item -ItemType Directory $plugins -Force | Out-Null
-Copy-Item $dll $target
+if ($replace) {
+    $temporary = Join-Path $plugins ([Guid]::NewGuid().ToString('N') + '.tmp')
+    try {
+        Copy-Item $dll $temporary
+        [IO.File]::Replace($temporary, $target, "$target.before-0.1.1")
+    } finally {
+        if (Test-Path $temporary) { Remove-Item -LiteralPath $temporary }
+    }
+} else {
+    Copy-Item $dll $target
+}
 Copy-Item "$PSScriptRoot\manifest.json" (Join-Path $plugins 'krellmail-manifest.json')
 Write-Output "Installed KrellMail $($manifest.plugin_version). Reopen the local instance and enable it in Settings / Plugins."
