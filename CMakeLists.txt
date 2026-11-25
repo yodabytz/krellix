@@ -482,6 +482,10 @@ foreach(extra_plugin krellhealth krellstack krellbluetooth krellpkg)
     install(TARGETS ${extra_plugin} LIBRARY DESTINATION lib/krellix/plugins)
 endforeach()
 
+if(APPLE)
+    add_subdirectory(plugins/krelltop/macos)
+endif()
+
 if(BUILD_TESTING)
     qt_add_executable(remote-telemetry tests/remote-telemetry.cpp src/remote/RemoteSource.cpp src/remote/RemoteSource.h)
     qt_add_executable(remote-reconnect tests/remote-reconnect.cpp src/remote/RemoteSource.cpp src/remote/RemoteSource.h src/widgets/AlertBanner.cpp src/widgets/AlertBanner.h)

@@ -11,7 +11,7 @@ mkdir -p "$app/Contents/"{MacOS,Helpers,Resources/cli,Resources/plugins/krellmoo
 cp "$build/bin/krellbt-battery" "$app/Contents/Helpers/"
 cp "$build/bin/krellspectrum-coreaudio" "$app/Contents/Helpers/"
 cp "$build/bin/krellix" "$app/Contents/MacOS/"
-for plugin in krellkam krelldacious krellweather krellwire krellmail krellmoon krellspectrum krellstock krellhealth krellstack krellpkg krellbluetooth; do
+for plugin in krellkam krelldacious krellweather krellwire krellmail krellmoon krellspectrum krellstock krellhealth krellstack krellpkg krellbluetooth krelltop; do
     cp "$build/plugins/lib$plugin.so" "$app/Contents/PlugIns/krellix/"
 done
 cp -R "$root/themes" "$app/Contents/Resources/"
