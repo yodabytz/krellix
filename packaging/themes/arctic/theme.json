@@ -1,0 +1,47 @@
+{
+  "name": "Arctic",
+  "version": "1.0",
+  "author": "Theme designer",
+  "description": "Ice-white scientific instrumentation theme",
+  "colors": {
+    "panel_bg": "#EAF3FA",
+    "panel_border": "#B4C9DA",
+    "chart_bg": "#F8FCFF",
+    "chart_grid": "#D5E4EF",
+    "text_primary": "#142D46",
+    "text_secondary": "#405D76",
+    "text_accent": "#005CB8",
+    "krell_track": "#D1E0EC",
+    "krell_indicator": "#E66A18",
+    "chart_line_default": "#005CB8",
+    "chart_line_cpu": "#0067D9",
+    "chart_line_mem": "#007F83",
+    "chart_line_swap": "#8156B3",
+    "chart_line_net_rx": "#0085B5",
+    "chart_line_net_tx": "#C45112",
+    "chart_line_disk": "#3159A8",
+    "accent_ok": "#087C53",
+    "accent_warning": "#A45B00",
+    "accent_critical": "#C52D45"
+  },
+  "fonts": {
+    "label": {
+      "family": "Sans Serif",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Sans Serif",
+      "size": 10,
+      "bold": true
+    }
+  },
+  "metrics": {
+    "panel_padding": 6,
+    "panel_spacing": 3,
+    "panel_border": 1,
+    "krell_height": 10,
+    "chart_height": 64,
+    "chart_grid_lines": 4
+  }
+}

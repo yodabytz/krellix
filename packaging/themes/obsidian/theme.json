@@ -1,0 +1,47 @@
+{
+  "name": "Obsidian",
+  "version": "1.0",
+  "author": "Krellix",
+  "description": "Graphite and champagne gold, color-only theme",
+  "colors": {
+    "panel_bg": "#191e25",
+    "panel_border": "#39434e",
+    "chart_bg": "#101419",
+    "chart_grid": "#29323c",
+    "text_primary": "#f1f4f6",
+    "text_secondary": "#a7b3bf",
+    "text_accent": "#e8c58b",
+    "krell_track": "#303944",
+    "krell_indicator": "#e8c58b",
+    "chart_line_default": "#e8c58b",
+    "chart_line_cpu": "#e8c58b",
+    "chart_line_mem": "#5ed6b0",
+    "chart_line_swap": "#a6b9e8",
+    "chart_line_net_rx": "#58c9ef",
+    "chart_line_net_tx": "#f3a66b",
+    "chart_line_disk": "#9edb86",
+    "accent_ok": "#5ed6b0",
+    "accent_warning": "#e8c58b",
+    "accent_critical": "#ff777d"
+  },
+  "fonts": {
+    "label": {
+      "family": "Sans Serif",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Sans Serif",
+      "size": 10,
+      "bold": true
+    }
+  },
+  "metrics": {
+    "panel_padding": 6,
+    "panel_spacing": 3,
+    "panel_border": 1,
+    "krell_height": 8,
+    "chart_height": 64,
+    "chart_grid_lines": 4
+  }
+}

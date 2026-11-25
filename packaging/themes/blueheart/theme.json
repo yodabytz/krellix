@@ -1,0 +1,82 @@
+{
+  "name": "BlueHeart",
+  "version": "1.0",
+  "author": "Theme designer",
+  "description": "Soft rounded steel bevels and blue marbled surfaces inspired by classic GKrellM.",
+  "colors": {
+    "panel_bg": "#0b1d3a",
+    "panel_border": "#526b81",
+    "chart_bg": "#09192d",
+    "chart_grid": "#234361",
+    "text_primary": "#edf6ff",
+    "text_secondary": "#a9cbe5",
+    "text_accent": "#d5e7f5",
+    "krell_track": "#09192d",
+    "krell_indicator": "#7fb3d8",
+    "chart_line_default": "#3f89bf",
+    "chart_line_cpu": "#3f89bf",
+    "chart_line_mem": "#7fb3d8",
+    "chart_line_swap": "#236b9e",
+    "chart_line_net_rx": "#3f89bf",
+    "chart_line_net_tx": "#7fb3d8",
+    "chart_line_disk": "#3f89bf",
+    "accent_ok": "#79e6a1",
+    "accent_warning": "#f2d478",
+    "accent_critical": "#ff8585"
+  },
+  "fonts": {
+    "label": {
+      "family": "Serif",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Serif",
+      "size": 10,
+      "bold": true
+    }
+  },
+  "metrics": {
+    "panel_padding": 6,
+    "panel_spacing": 2,
+    "panel_border": 0,
+    "krell_height": 12,
+    "chart_height": 64,
+    "chart_grid_lines": 4
+  },
+  "surfaces": {
+    "panel_bg": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_host": {
+      "image": "assets/host-panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "slice": 4,
+      "opacity": 1.0
+    }
+  },
+  "images": {
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "mode": "stretch"
+    },
+    "krell_track": {
+      "image": "assets/krell-track.png",
+      "mode": "tile"
+    },
+    "krell": {
+      "image": "assets/krell.png",
+      "frames": 1
+    },
+    "frame_top": "assets/frame-top.png",
+    "frame_bottom": "assets/frame-bottom.png",
+    "frame_left": "assets/frame-left.png",
+    "frame_right": "assets/frame-right.png"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "Spectrum",
+  "version": "1.0",
+  "author": "Theme designer",
+  "description": "Vibrant retro-futuristic color-only theme",
+  "colors": {
+    "panel_bg": "#20203b",
+    "panel_border": "#514c80",
+    "chart_bg": "#111329",
+    "chart_grid": "#353654",
+    "text_primary": "#f8f5ff",
+    "text_secondary": "#c5c8e8",
+    "text_accent": "#ffcf65",
+    "krell_track": "#343553",
+    "krell_indicator": "#ff8b76",
+    "chart_line_default": "#57e8ff",
+    "chart_line_cpu": "#ff8b76",
+    "chart_line_mem": "#b6f56a",
+    "chart_line_swap": "#ff83d5",
+    "chart_line_net_rx": "#57e8ff",
+    "chart_line_net_tx": "#ffcf65",
+    "chart_line_disk": "#b6f56a",
+    "accent_ok": "#71f4ae",
+    "accent_warning": "#ffcf65",
+    "accent_critical": "#ff668e"
+  },
+  "fonts": {
+    "label": {
+      "family": "Sans Serif",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Sans Serif",
+      "size": 10,
+      "bold": true
+    }
+  },
+  "metrics": {
+    "panel_padding": 6,
+    "panel_spacing": 2,
+    "panel_border": 1,
+    "krell_height": 12,
+    "chart_height": 64,
+    "chart_grid_lines": 4
+  }
+}
