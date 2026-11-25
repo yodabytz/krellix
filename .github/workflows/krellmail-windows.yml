@@ -42,7 +42,8 @@ jobs:
         run: |
           set -euo pipefail
           portable=$(cygpath -u "$RUNNER_TEMP")/portable/Krellix
-          cmp "$portable/Qt6Core.dll" /ucrt64/bin/Qt6Core.dll
+          [[ "$(pacman -Q mingw-w64-ucrt-x86_64-qt6-base)" == 'mingw-w64-ucrt-x86_64-qt6-base 6.12.0-'* ]]
+          [[ "$(g++ -dumpfullversion)" == 16.2.0 ]]
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
             "-DKRELLIX_SENSOR_DIR=$(cygpath -m "$portable/sensors")"
           cmake --build build --target krellmail-icon krellmail-integration -j 4
