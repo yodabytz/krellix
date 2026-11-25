@@ -27,6 +27,10 @@ scale the footer proportionally with the panel width.
 and decorative playback strip scale with the panel; the buttons are not
 interactive. A width of about 240 matches the reference proportions.
 
+`kronix/` uses the supplied foliage artwork, dark panels, and neon-green and
+violet accents. Its header and footer keep their proportions at narrow and
+wide widths; about 240 matches the reference.
+
 Install the directory under `~/.config/krellix/themes/` (back up any existing
 directory of the same name), then select the theme in Appearance. If you
 customized its fonts or colors, merge those settings from your backup into

@@ -1,0 +1,91 @@
+{
+  "name": "Kronix",
+  "version": "1.0",
+  "author": "Theme designer",
+  "description": "Kronix: cannabis foliage, smoky obsidian, neon green and violet.",
+  "colors": {
+    "panel_bg": "#0b0d0a",
+    "panel_border": "#b9a86a",
+    "chart_bg": "#080f09",
+    "chart_grid": "#203b20",
+    "text_primary": "#f4f4f4",
+    "text_secondary": "#d1d8bd",
+    "text_accent": "#a7ff00",
+    "krell_track": "#101b0e",
+    "krell_indicator": "#a7ff00",
+    "chart_line_default": "#a7ff00",
+    "chart_line_cpu": "#a7ff00",
+    "chart_line_mem": "#00ff57",
+    "chart_line_swap": "#b973ff",
+    "chart_line_net_rx": "#00ff57",
+    "chart_line_net_tx": "#a7ff00",
+    "chart_line_disk": "#00ff57",
+    "accent_ok": "#00ff57",
+    "accent_warning": "#a7ff00",
+    "accent_critical": "#ff6262"
+  },
+  "fonts": {
+    "label": {
+      "family": "Sans Serif",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Sans Serif",
+      "size": 10,
+      "bold": true
+    }
+  },
+  "metrics": {
+    "panel_padding": 6,
+    "panel_spacing": 2,
+    "panel_border": 0,
+    "krell_height": 12,
+    "chart_height": 64,
+    "chart_grid_lines": 4,
+    "top_strip_height": 103,
+    "top_strip_keep_aspect": 1
+  },
+  "surfaces": {
+    "panel_bg": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_host": {
+      "image": "assets/host-panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "slice": 4,
+      "opacity": 1.0
+    },
+    "panel_bg_top": {
+      "image": "assets/optional-header.png",
+      "slice": 0
+    }
+  },
+  "images": {
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "mode": "stretch"
+    },
+    "krell_track": {
+      "image": "assets/krell-track.png",
+      "mode": "tile"
+    },
+    "krell": {
+      "image": "assets/krell.png",
+      "frames": 1
+    },
+    "frame_top": "assets/frame-top.png",
+    "frame_bottom": {
+      "image": "assets/optional-footer.png",
+      "mode": "stretch"
+    },
+    "frame_left": "assets/frame-left.png",
+    "frame_right": "assets/frame-right.png"
+  }
+}
