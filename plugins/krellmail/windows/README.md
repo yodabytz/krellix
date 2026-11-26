@@ -5,7 +5,7 @@ Install the signed ZIP for your Windows Krellix preview, extract it, and run
 Reopen the **local** window and configure accounts in Settings / Plugins.
 The installer does not copy accounts or turn on the plugin automatically.
 
-KrellMail 0.1.7-windows.2 supports the Windows preview.11 host. Choose the
+KrellMail 0.1.7-windows.3 supports the Windows preview.12 host. Choose the
 mail animation under Settings / Plugins / Krellmail.
 Install Bluemask separately and select it in Appearance to use its mail artwork.
 Choose Follow Theme,

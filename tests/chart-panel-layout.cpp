@@ -93,6 +93,59 @@ void checkMemoryMeters()
     verifyFill(swap, QStringLiteral("chart_line_swap"), 75);
 }
 
+void checkCombinedCpuFill(const QString &configPath)
+{
+    Theme theme;
+    const QString originalPath = QDir::currentPath();
+    if (!QDir::setCurrent(configPath)) qFatal("Could not enter the CPU fill fixture directory");
+    const auto make = [](const QString &name, const QByteArray &fill) {
+        const QString path = QStringLiteral("themes/") + name;
+        if (!QDir().mkpath(path)) qFatal("Could not create the CPU fill theme");
+        QFile json(path + QStringLiteral("/theme.json"));
+        const QByteArray data = R"({"metrics":{"chart_grid_lines":0},"colors":{"chart_bg":"#121416","chart_line_cpu_series":"#ff426a")"
+            + fill + "}}";
+        if (!json.open(QIODevice::WriteOnly) || json.write(data) != data.size())
+            qFatal("Could not write the CPU fill theme");
+    };
+    make(QStringLiteral("combined-unfilled"), {});
+    make(QStringLiteral("combined-filled"), R"(,"chart_fill_cpu_series":"#aa2248")");
+    if (!theme.load(QStringLiteral("combined-unfilled"))) qFatal("Could not load unfilled theme");
+
+    Chart cpu(&theme, QStringLiteral("chart_line_cpu"));
+    Chart net(&theme, QStringLiteral("chart_line_net_rx"));
+    for (auto *chart : {&cpu, &net}) {
+        chart->resize(120, 80);
+        chart->setMaxValue(1.0);
+        chart->setRainbowSeries(2);
+        for (int i = 0; i < 200; ++i) {
+            chart->appendSampleAt(0, .32);
+            chart->appendSampleAt(1, .68);
+        }
+    }
+    const auto plain = cpu.grab().toImage();
+    const auto plainNet = net.grab().toImage();
+    if (!theme.load(QStringLiteral("combined-filled"))) qFatal("Could not load CPU fill theme");
+    const auto filled = cpu.grab().toImage();
+    const int x = filled.width() / 2;
+    const int bottom = filled.height() - 3;
+    if (filled.pixelColor(x, bottom) != QColor("#aa2248")
+        || filled.pixelColor(x, filled.height() / 8) != QColor("#121416")
+        || plain.pixelColor(x, bottom) != QColor("#121416"))
+        qFatal("Combined CPU fill did not rise from the baseline to the outline");
+    const QColor base("#ff426a");
+    QSet<QRgb> outline;
+    for (int y = 0; y < filled.height(); ++y) {
+        const auto pixel = filled.pixel(x, y);
+        if (pixel == base.lighter(85).rgb() || pixel == base.lighter(93).rgb())
+            outline.insert(pixel);
+    }
+    if (outline.size() != 2 || net.grab().toImage() != plainNet)
+        qFatal("CPU fill hid an outline or changed another monitor");
+    if (!theme.load(QStringLiteral("combined-unfilled")) || cpu.grab().toImage() != plain)
+        qFatal("Switching fill removed combined chart history");
+    if (!QDir::setCurrent(originalPath)) qFatal("Could not restore the working directory");
+}
+
 Chart *checkPanel(QWidget &container, const QString &title, int tracks)
 {
     const auto panels = container.findChildren<Panel *>(QString(), Qt::FindDirectChildrenOnly);
@@ -315,5 +368,6 @@ int main(int argc, char **argv)
     checkChartStyling(theme, config.path(), *link);
     checkTitleFont(theme, config.path());
     checkMemoryMeters();
+    checkCombinedCpuFill(config.path());
     qInfo("PASS: chart layout, live readouts, moving tracks, and compact Memory and Swap meters");
 }

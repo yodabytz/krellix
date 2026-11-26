@@ -365,8 +365,8 @@ void Chart::paintEvent(QPaintEvent *)
 
     auto drawSeries = [&](const std::vector<double> &ring,
                           const QBrush &linePaint,
-                          const QColor &fillColor,
-                          bool fillBelow) {
+                          const QBrush &areaPaint,
+                          bool drawStroke = true) {
         const int n = static_cast<int>(ring.size());
         if (n < 2 || graphRect.width() < 2 || graphRect.height() < 2) return;
 
@@ -384,20 +384,19 @@ void Chart::paintEvent(QPaintEvent *)
             poly << QPointF(x, y);
         }
 
-        if (fillBelow) {
+        if (areaPaint.style() != Qt::NoBrush) {
             QPolygonF area = poly;
             area << QPointF(static_cast<double>(graphRect.right()),
                             static_cast<double>(graphRect.bottom()))
                  << QPointF(static_cast<double>(graphRect.left()),
                             static_cast<double>(graphRect.bottom()));
-            QColor fill = fillColor;
-            fill.setAlpha(110);
             p.setRenderHint(QPainter::Antialiasing, false);
             p.setPen(Qt::NoPen);
-            p.setBrush(fill);
+            p.setBrush(areaPaint);
             p.drawPolygon(area);
         }
 
+        if (!drawStroke) return;
         QPolygon intPoly;
         intPoly.reserve(static_cast<int>(poly.size()));
         for (const QPointF &pt : poly) intPoly << pt.toPoint();
@@ -411,10 +410,19 @@ void Chart::paintEvent(QPaintEvent *)
     };
 
     if (m_multiSamples.empty()) {
-        drawSeries(m_samples, lineBrush, line, /*fillBelow=*/true);
+        QColor fill = line;
+        fill.setAlpha(110);
+        drawSeries(m_samples, lineBrush, QBrush(fill));
     } else {
-        // Multi-series: don't fill (overlapping translucent fills become
-        // muddy). Just stroke each line in its own color.
+        // Fill the upper envelope once so separate core outlines stay legible.
+        const auto fillKey = QStringLiteral("chart_fill_cpu_series");
+        if (m_colorKey == QStringLiteral("chart_line_cpu") && m_theme->color(fillKey).isValid()) {
+            std::vector<double> envelope(m_multiSamples.front().size(), 0.0);
+            for (const auto &series : m_multiSamples)
+                for (std::size_t i = 0; i < qMin(envelope.size(), series.size()); ++i)
+                    envelope[i] = qMax(envelope[i], series[i]);
+            drawSeries(envelope, QBrush(), m_theme->brush(fillKey, r), /*drawStroke=*/false);
+        }
         const bool grayscale = m_theme->metric(QStringLiteral("chart_series_grayscale"), 0) != 0;
         const QColor seriesColor = m_theme->color(m_colorKey + QStringLiteral("_series"));
         const auto shades = qMin<std::size_t>(65, m_multiSamples.size());
@@ -430,7 +438,7 @@ void Chart::paintEvent(QPaintEvent *)
             } else if (seriesColor.isValid()) {
                 c = seriesColor.lighter(85 + static_cast<int>(i % 8) * 8);
             }
-            drawSeries(m_multiSamples[i], QBrush(c), c, /*fillBelow=*/false);
+            drawSeries(m_multiSamples[i], QBrush(c), QBrush());
         }
     }
 

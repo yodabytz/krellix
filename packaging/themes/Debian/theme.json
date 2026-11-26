@@ -1,6 +1,6 @@
 {
   "name": "Debian",
-  "version": "1.1",
+  "version": "1.2",
   "author": "Theme designer",
   "description": "Flat charcoal and Debian raspberry-red",
   "colors": {
@@ -16,6 +16,15 @@
     "chart_line_default": "#d70748",
     "chart_line_cpu": "#ff2860",
     "chart_line_cpu_series": "#ff2860",
+    "chart_fill_cpu_series": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [0, "#d7315b"],
+        [0.62, "#b51b44"],
+        [1, "#64112d"]
+      ]
+    },
     "chart_line_mem": "#d70748",
     "chart_line_swap": "#a82b55",
     "chart_line_net_rx": "#ff2860",
