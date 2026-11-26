@@ -1,0 +1,31 @@
+{
+  "name": "workbench",
+  "version": "1.0",
+  "description": "A color-only starter for Krellix theme authors.",
+  "colors": {
+    "panel_bg": "#182725",
+    "panel_border": "#39534e",
+    "chart_bg": "#101b19",
+    "chart_grid": "#36524c",
+    "text_primary": "#effaf7",
+    "text_secondary": "#b2cbc5",
+    "krell_track": "#314843",
+    "krell_indicator": "#69dfbf",
+    "chart_line_cpu": "#69dfbf",
+    "chart_line_mem": "#8ac7ff",
+    "chart_line_swap": "#ffc478"
+  },
+  "fonts": {
+    "label": { "size": 9 },
+    "panel_title": { "size": 11 },
+    "value": { "size": 10, "bold": true }
+  },
+  "metrics": {
+    "panel_padding": 4,
+    "panel_spacing": 2,
+    "krell_height": 12,
+    "meter_height": 12,
+    "chart_height": 48,
+    "chart_grid_lines": 4
+  }
+}

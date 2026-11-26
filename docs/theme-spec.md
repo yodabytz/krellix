@@ -3,14 +3,19 @@
 A krellix theme is a directory containing a `theme.json` file plus any image
 assets it references. Themes live in:
 
-- `~/.config/krellix/themes/<name>/` (user, takes precedence)
+- `~/.config/krellix/themes/<name>/` (Linux and macOS user install);
+  on Linux use `$XDG_CONFIG_HOME/krellix/themes/<name>/` when set
+- `%LOCALAPPDATA%\krellix\themes\<name>\` (Windows user install)
+- `themes\<name>\` next to `krellix.exe` (Windows portable)
 - `/usr/share/krellix/themes/<name>/` (system, installed)
 - `./themes/<name>/` (relative to working dir, for development)
 
 Theme names must match `[A-Za-z0-9._-]{1,64}` and may not start with `.`.
 
 While krellix is running, edits to `theme.json` are picked up automatically;
-panels repaint on save. Asset paths are resolved relative to the theme
+panels repaint on save. After replacing only artwork or the animation
+manifest, re-save `theme.json` or reselect the theme to refresh its caches.
+Asset paths are resolved relative to the theme
 directory and may not escape it.
 
 ## `theme.json`
@@ -106,8 +111,9 @@ Map of name → integer (clamped to `0..4096`).
 | `panel_spacing`    | 2       | Gap between widgets within a panel      |
 | `netports_row_spacing` | 0   | Linux Net Ports row gap; updates live   |
 | `panel_border`     | 1       | Panel border line width (0 = none)      |
-| `panel_min_width`  | 200     | Window/panel fixed width in pixels      |
-| `krell_height`     | 8       | Krell strip height                      |
+| `panel_min_width`  | 100     | Legacy metric; the current client uses the user's panel width instead |
+| `krell_height`     | 8       | Base slider track height; a themed sprite can set it instead |
+| `meter_height`     | 0       | Base meter height; 0 falls back to Krell height for meters without text |
 | `chart_height`     | 32      | Chart strip height                      |
 | `chart_grid_lines` | 5       | Number of horizontal grid divisions     |
 | `chart_grid_width` | 1       | Horizontal grid line width (1 to 4 logical pixels) |
@@ -119,6 +125,9 @@ Map of name → integer (clamped to `0..4096`).
 For combined charts, a color such as `chart_line_cpu_series` or
 `chart_line_net_rx_series` opts into several shades of that color. A grayscale
 series palette takes precedence if both options are configured.
+In current builds, sliders and the Memory and Swap indicators render at
+two-thirds of their base height, rounded to logical pixels. Text-only
+meters and charts are not reduced.
 
 ### `images`
 
@@ -182,17 +191,20 @@ support scalable base art plus optional decorative overlay images:
     "overlays": ["assets/logo.png"],
     "slice": 4,
     "opacity": 1.0,
-    "tint": "#00000020"
+    "tint": "#20000000"
   }
 }
 ```
 
 `slice` enables 9-slice scaling for framed panel art. `overlays` are drawn on
 top without 9-slice scaling, so logos or badges do not stretch with the panel.
+Qt eight-digit colors use `#AARRGGBB` (alpha first). For a hands-on walkthrough,
+see the [theme author's guide](https://cerberix.org/extras/krellix/themes/#build-a-theme).
 
 ## Limits
 
 - `theme.json` must be ≤ 256 KiB.
 - File and asset paths are confirmed to canonicalize inside the theme
   directory before being loaded.
-- Invalid JSON or unsafe paths leave the previously loaded theme in place.
+- Invalid JSON can fall back to default styling. Missing or unsafe asset
+  paths do not load; keep a backup of the last working theme.

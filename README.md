@@ -54,10 +54,18 @@ Themes live in:
 - `/usr/share/krellix/themes/<name>/` (system)
 
 A theme is a directory containing `theme.json` plus any PNG sprites it references.
-See [`docs/theme-spec.md`](docs/theme-spec.md) for the full format.
+Start with the [theme author's guide](https://cerberix.org/extras/krellix/themes/#build-a-theme)
+or the [Workbench example](examples/workbench). See [`docs/theme-spec.md`](docs/theme-spec.md)
+for the format reference.
 
 While krellix is running, edits to `theme.json` are picked up automatically — the
 panel repaints on save, so theme authors can iterate without restarting the app.
+
+## Plugin development
+
+Follow the [plugin author's guide](https://cerberix.org/extras/krellix/plugins/#build-a-plugin)
+to build the [KrellHello example](examples/krellhello). The
+[SDK reference](docs/plugin-spec.md) describes discovery, linking, and monitor lifetimes.
 
 ## Feedback
 

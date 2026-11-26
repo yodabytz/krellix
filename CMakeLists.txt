@@ -156,6 +156,11 @@ set_target_properties(krellix PROPERTIES
 install(TARGETS krellix RUNTIME DESTINATION bin)
 install(DIRECTORY themes/ DESTINATION share/krellix/themes)
 
+option(KRELLIX_BUILD_EXAMPLES "Build plugin SDK examples" OFF)
+if(KRELLIX_BUILD_EXAMPLES)
+    add_subdirectory(examples/krellhello)
+endif()
+
 include(CTest)
 if(BUILD_TESTING)
     qt_add_executable(theme-animation tests/theme-animation.cpp src/theme/Theme.cpp src/widgets/Krell.cpp)
