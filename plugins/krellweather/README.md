@@ -5,6 +5,41 @@ Settings > Plugins > Krellweather > Weather icons selects Color (default),
 Theme, or Monochrome. The choice is saved per local profile. It does not
 start another weather request.
 
+## Theme artwork
+
+In **Theme** mode, a theme can supply static PNG artwork in its `images`
+section. Paths are relative to the theme directory. For example:
+
+```json
+{
+  "images": {
+    "panel_icon_krellweather_clear": "assets/sun.png",
+    "panel_icon_krellweather_clear_night": "assets/moon.png",
+    "panel_icon_krellweather_light_rain": "assets/drizzle-blue.png"
+  }
+}
+```
+
+Append a condition suffix to `panel_icon_krellweather_`:
+
+| Category | Suffixes |
+|---|---|
+| Sky | `clear`, `mostly_clear`, `partly_cloudy`, `mostly_cloudy`, `cloudy`, `overcast` |
+| Rain | `drizzle`, `light_rain`, `rain`, `heavy_rain`, `rain_showers`, `freezing_rain` |
+| Frozen | `light_snow`, `snow`, `heavy_snow`, `snow_showers`, `sleet`, `mixed`, `hail`, `blowing_snow` |
+| Atmosphere | `fog`, `mist`, `haze`, `smoke`, `dust`, `wind`, `strong_wind` |
+| Storm | `thunderstorm`, `tornado` |
+| Unavailable | `unknown` |
+
+At night, KrellWeather checks the `_night` variant first. It then tries the
+ordinary key, except for clear, mostly clear, partly cloudy, mostly cloudy,
+and haze, where daytime artwork can show the sun. If an asset is missing or
+unreadable, the corresponding themed vector is used. The image is centered
+and scaled proportionally in the same slot. Color and Monochrome always
+use vectors. GIF animation is not supported for weather icons.
+
+## Renderer
+
 The renderer uses Qt paths and transparent, device-pixel-aware cached images.
 The classifier uses the Aviation Weather Center's
 [METAR weather groups](https://aviationweather.gov/viewer/help/#weather-symbols)

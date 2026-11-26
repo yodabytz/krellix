@@ -27,9 +27,9 @@ jobs:
       - name: Get the published portable host
         shell: pwsh
         run: |
-          $archive = Join-Path $env:RUNNER_TEMP 'krellix-preview7.zip'
-          Invoke-WebRequest 'https://repo.cerberix.org/windows/krellix-0.1.2-windows-preview.7-x86_64.zip' -OutFile $archive
-          if ((Get-FileHash $archive).Hash -ne '111d2366d82ec87c222d745ee7d63f5e11a68a2c5aaf111b75272960785fdda3') {
+          $archive = Join-Path $env:RUNNER_TEMP 'krellix-preview8.zip'
+          Invoke-WebRequest 'https://repo.cerberix.org/windows/krellix-0.1.2-windows-preview.8-x86_64.zip' -OutFile $archive
+          if ((Get-FileHash $archive).Hash -ne '8bd428be0c6de66c4d4640f87a83d781bc5ceeb96f9590553590d909a47b706a') {
             throw 'Unexpected portable host archive'
           }
           Expand-Archive $archive -DestinationPath "$env:RUNNER_TEMP\portable"
@@ -62,13 +62,12 @@ jobs:
           mkdir -p build/krellmail-icon-test-host/platforms
           cp "$offscreen" build/krellmail-icon-test-host/platforms/
           ctest --test-dir build -R '^krellmail-icon$' --output-on-failure
-      - name: Test and package the updated portable host and plugin
+      - name: Test the published portable host and package KrellWeather
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $hostDir = "$env:RUNNER_TEMP\portable\Krellix"
           $sandbox = "$env:RUNNER_TEMP\mail-test"
-          Copy-Item build/sensors-candidate/krellix.exe "$hostDir\krellix.exe" -Force
           New-Item -ItemType Directory "$sandbox\plugins", "$sandbox\themes", "$env:APPDATA\krellix" -Force | Out-Null
           Copy-Item build/plugins/krellmail.dll, build/plugins/krellweather.dll "$sandbox\plugins"
           Copy-Item packaging/themes/bluemask "$sandbox\themes" -Recurse
@@ -83,7 +82,7 @@ jobs:
             -ArgumentList '--instance', 'krellmail-test', '--theme', 'bluemask', '--monitors', 'host,krellmail,krellweather' `
             -RedirectStandardError $log
           $mailPattern = 'io.krellix.krellmail.*0\.1\.5-windows\.2.*factory ready'
-          $weatherPattern = 'loaded plugin.*"krellweather" "0\.1\.1-windows\.1".*factory ready'
+          $weatherPattern = 'loaded plugin.*"krellweather" "0\.1\.2-windows\.1".*factory ready'
           try {
             for ($i = 0; $i -lt 20; $i++) {
               if ($app.HasExited) { throw "Portable host exited: $($app.ExitCode)" }
@@ -94,7 +93,7 @@ jobs:
             Get-Content $log
             if (!(Select-String -LiteralPath $log -Pattern $mailPattern -Quiet) -or
                 !(Select-String -LiteralPath $log -Pattern $weatherPattern -Quiet)) {
-              throw 'Portable host did not load both updated plugins'
+              throw 'Published host did not load both plugins'
             }
             if (Select-String -LiteralPath $log -Pattern 'krellix.theme:.*(not found|failed|refusing|missing)' -Quiet) {
               throw 'Theme loading failed'
@@ -102,22 +101,10 @@ jobs:
           } finally {
             if (-not $app.HasExited) { Stop-Process -Id $app.Id }
           }
-          ./packaging/windows/package-mail.ps1 -Build "$PWD/build" -HostDirectory $hostDir `
-            -HostVersion '0.1.2-windows-preview.8' -Destination "$env:RUNNER_TEMP/mail-package"
           ./packaging/windows/package-weather.ps1 -Build "$PWD/build" -HostDirectory $hostDir `
-            -Destination "$env:RUNNER_TEMP/weather-package"
-          $manifestPath = "$hostDir\extras\krelltop\manifest.json"
-          if (Test-Path -LiteralPath $manifestPath) {
-            $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-            $manifest.host_version = '0.1.2-windows-preview.8'
-            $manifest.host_sha256 = (Get-FileHash "$hostDir\krellix.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
-            $manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding ASCII
-          }
-          Compress-Archive -LiteralPath $hostDir -DestinationPath "$env:RUNNER_TEMP/mail-package/krellix-0.1.2-windows-preview.8-x86_64.zip"
+            -Destination "$env:RUNNER_TEMP/weather-package" -UseReleasedHost
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: krellix-appearance-preview8
-          path: |
-            ${{ runner.temp }}/mail-package/*.zip
-            ${{ runner.temp }}/weather-package/*.zip
+          name: krellweather-theme-overrides-preview8
+          path: ${{ runner.temp }}/weather-package/*.zip
           if-no-files-found: error

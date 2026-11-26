@@ -148,6 +148,11 @@ Recognized keys:
 Image-themed widgets gracefully fall back to color-only rendering for any
 key that isn't supplied — so a theme can mix images and colors freely.
 
+KrellWeather also accepts [per-condition artwork](../plugins/krellweather/README.md#theme-artwork)
+in Theme mode, such as `panel_icon_krellweather_clear` and
+`panel_icon_krellweather_clear_night`. These are static assets; missing
+keys keep the built-in vector icons.
+
 ### `surfaces`
 
 Surfaces are the preferred way to theme panel and chart backgrounds. They
