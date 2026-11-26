@@ -88,7 +88,7 @@ int main(int argc, char **argv)
     check(!theme.hasAnimation(QStringLiteral("images.frame_right"))
           && !theme.hasAnimation(QStringLiteral("images.frame_bottom"))
           && !theme.hasAnimation(QStringLiteral("images.krell")), "Invalid manifest entries were accepted");
-    const auto clock = theme.findChild<QTimer *>(QStringLiteral("theme-frame-clock"));
+    auto *clock = theme.findChild<QTimer *>(QStringLiteral("theme-frame-clock"));
     check(clock && !clock->isActive(), "Unpainted theme started a timer");
     auto frame = [&] { return theme.animationFrame(frameLeft, &window, QRect(0, 0, 12, 10), QSize(12, 10)); };
     auto first = frame();
@@ -105,6 +105,8 @@ int main(int argc, char **argv)
           R"({"images":{"frame_left":"static.png"},"surfaces":{"panel_bg":{"image":"static.png",
                 "mode":"vertical-caps","cap_top":3,"cap_bottom":2}}})");
     check(theme.load(name), "Cannot load capped animation fixture");
+    clock = theme.findChild<QTimer *>(QStringLiteral("theme-frame-clock"));
+    check(clock, "Reloaded animation lost its shared clock");
     Theme::SurfaceGeometry caps;
     const auto animated = theme.paintedSurface(QStringLiteral("panel_bg"), {}, &window, caps, QRect(5, 6, 16, 12));
     check(caps.mode == Theme::SurfaceGeometry::VerticalCaps && caps.source == QMargins(0, 3, 0, 2)
