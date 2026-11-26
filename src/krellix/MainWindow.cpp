@@ -721,9 +721,17 @@ void MainWindow::applyFixedWidth()
     // (defaults to 100). Themes never override this — switching themes
     // keeps your chosen width. Resize handle is not provided; change the
     // value via Settings.
-    const int w = qBound(80,
-        QSettings().value(QStringLiteral("appearance/panel_width"), 100).toInt(),
-        600);
+    QSettings settings;
+    const int w = qBound(80, settings.value(QStringLiteral("appearance/panel_width"), 100).toInt(), 600);
+    const auto referenceKey = QStringLiteral("appearance/frame_reference_width");
+    if (m_frameReferenceWidth == 0) {
+        bool valid = false;
+        const int saved = settings.value(referenceKey).toInt(&valid);
+        m_frameReferenceWidth = valid ? qBound(80, saved, 600) : w;
+    }
+    // Keep the artwork height established by the old width, even across restarts.
+    if (w != m_frameReferenceWidth && settings.value(referenceKey).toInt() != m_frameReferenceWidth)
+        settings.setValue(referenceKey, m_frameReferenceWidth);
     setFixedWidth(w);
     applyFrameMargins();
     applyTopStripFromTheme();
@@ -736,9 +744,9 @@ void MainWindow::applyFrameMargins()
     const auto footer = m_theme->pixmap(QStringLiteral("frame_bottom"));
     const int left   = m_theme->pixmap(QStringLiteral("frame_left")).width();
     const int right  = m_theme->pixmap(QStringLiteral("frame_right")).width();
-    const int innerWidth = qMax(0, width() - left - right);
+    const int referenceInnerWidth = qMax(0, m_frameReferenceWidth - left - right);
     const int bottom = !footer.isNull() && stretchBottomFrame(m_theme)
-        ? qBound(0, qRound(innerWidth * (qreal(footer.height()) / footer.width())), 4096)
+        ? qBound(0, qRound(referenceInnerWidth * (qreal(footer.height()) / footer.width())), 4096)
         : footer.height();
     m_layout->setContentsMargins(left, top, right, bottom);
 }
@@ -863,12 +871,13 @@ void MainWindow::applyTopStripFromTheme()
 {
     if (!m_topStrip) return;
     int h = m_theme->metric(QStringLiteral("top_strip_height"), 0);
-    if (h > 0 && m_theme->metric(QStringLiteral("top_strip_keep_aspect"), 0) != 0) {
+    if (h > 0 && m_frameReferenceWidth > 0
+        && m_theme->metric(QStringLiteral("top_strip_keep_aspect"), 0) != 0) {
         const auto image = m_theme->surface(QStringLiteral("panel_bg_top")).image;
         const auto margins = m_layout->contentsMargins();
-        const int innerWidth = qMax(0, width() - margins.left() - margins.right());
+        const int referenceInnerWidth = qMax(0, m_frameReferenceWidth - margins.left() - margins.right());
         if (!image.isNull())
-            h = qBound(1, qRound(innerWidth * (qreal(image.height()) / image.width())), 4096);
+            h = qBound(1, qRound(referenceInnerWidth * (qreal(image.height()) / image.width())), 4096);
     }
     if (h > 0) {
         m_topStrip->setFixedHeight(h);

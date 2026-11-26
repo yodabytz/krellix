@@ -406,6 +406,82 @@ static void verifyFooterFrame()
     qInfo("PASS: proportional footer scales at 120 and 240; existing frames still tile");
 }
 
+static void verifyWidthOnlyResize()
+{
+    QTemporaryDir fixture;
+    const QDir previous = QDir::current();
+    if (!fixture.isValid() || !QDir::setCurrent(fixture.path())
+        || !QDir().mkpath(QStringLiteral("themes/width-only")))
+        qFatal("Could not prepare width fixture");
+    const QString path = QStringLiteral("themes/width-only/");
+    QImage artwork(240, 80, QImage::Format_RGB32);
+    artwork.fill(Qt::blue);
+    if (!artwork.save(path + QStringLiteral("frame.png"))) qFatal("Could not save width fixture artwork");
+    const QByteArray manifest = R"({"metrics":{"top_strip_height":80,"top_strip_keep_aspect":1},
+        "surfaces":{"panel_bg_top":{"image":"frame.png"}},
+        "images":{"frame_bottom":{"image":"frame.png","mode":"stretch"}}})";
+    QFile json(path + QStringLiteral("theme.json"));
+    if (!json.open(QIODevice::WriteOnly) || json.write(manifest) != manifest.size())
+        qFatal("Could not write width fixture");
+    json.close();
+
+    QSettings settings;
+    const auto widthKey = QStringLiteral("appearance/panel_width");
+    const auto referenceKey = QStringLiteral("appearance/frame_reference_width");
+    const QVariant savedWidth = settings.value(widthKey);
+    const QVariant savedReference = settings.value(referenceKey);
+    settings.setValue(widthKey, 120);
+    settings.remove(referenceKey);
+    const auto verify = [](const MainWindow &window, int width, int height) {
+        const auto *header = window.layout()->itemAt(0)->widget();
+        if (window.width() != width || window.height() != height
+            || !header || header->height() != 40 || window.layout()->contentsMargins().bottom() != 40)
+            qFatal("Width change to %d altered the established vertical geometry", width);
+    };
+    int originalHeight = 0;
+    {
+        Theme theme;
+        if (!theme.load(QStringLiteral("width-only"))) qFatal("Could not load width fixture");
+        MainWindow window(&theme, {QStringLiteral("clock")});
+        window.show();
+        QApplication::processEvents();
+        originalHeight = window.height();
+        verify(window, 120, originalHeight);
+        Chart chart(&theme);
+        const int chartHeight = chart.sizeHint().height();
+        if (!QMetaObject::invokeMethod(&window, "showSettings", Qt::DirectConnection))
+            qFatal("Could not open width settings");
+        auto *widthControl = window.findChild<QSpinBox *>(QStringLiteral("panel-width"));
+        if (!widthControl || widthControl->value() != 120) qFatal("Missing width setting");
+        for (int width : {240, 90, 320}) {
+            widthControl->setValue(width);
+            QApplication::processEvents();
+            verify(window, width, originalHeight);
+            if (chart.sizeHint().height() != chartHeight)
+                qFatal("Width was applied to the chart height");
+        }
+        if (!theme.load(QStringLiteral("width-only"))) qFatal("Could not reload width fixture");
+        QApplication::processEvents();
+        verify(window, 320, originalHeight);
+    }
+    settings.sync();
+    if (settings.value(referenceKey).toInt() != 120) qFatal("Frame sizing reference was not saved");
+    {
+        Theme theme;
+        if (!theme.load(QStringLiteral("width-only"))) qFatal("Could not load restart fixture");
+        MainWindow reopened(&theme, {QStringLiteral("clock")});
+        reopened.show();
+        QApplication::processEvents();
+        verify(reopened, 320, originalHeight);
+    }
+    if (savedWidth.isValid()) settings.setValue(widthKey, savedWidth);
+    else settings.remove(widthKey);
+    if (savedReference.isValid()) settings.setValue(referenceKey, savedReference);
+    else settings.remove(referenceKey);
+    if (!QDir::setCurrent(previous.absolutePath())) qFatal("Could not restore the working directory");
+    qInfo("PASS: changing only width preserves the header, footer, chart, and window heights after reload and restart");
+}
+
 static void verifyThemeWindowShadow()
 {
     QTemporaryDir fixture;
@@ -557,6 +633,7 @@ static void exercise()
         verifyClockScroll(existing->theme());
         verifyMailAnimationSetting(existing->theme());
         verifyFooterFrame();
+        verifyWidthOnlyResize();
         verifyThemeWindowShadow();
         verifyChassisBackground();
         DiskMonitor disk(existing->theme());

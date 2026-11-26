@@ -284,6 +284,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         auto *form = new QFormLayout(page);
 
         m_panelWidth = new QSpinBox(page);
+        m_panelWidth->setObjectName(QStringLiteral("panel-width"));
         m_panelWidth->setRange(kMinPanelWidth, kMaxPanelWidth);
         m_panelWidth->setSingleStep(10);
         m_panelWidth->setSuffix(QStringLiteral(" px"));

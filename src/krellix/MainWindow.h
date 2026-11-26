@@ -108,6 +108,7 @@ private:
     bool m_remotePanelsReady = false;
     QTimer *m_positionSaveTimer = nullptr;
     bool m_fitPending = false;
+    int m_frameReferenceWidth = 0;
 
     bool   m_dragging   = false;
     QPoint m_dragOffset;

@@ -120,8 +120,13 @@ Map of name → integer (clamped to `0..4096`).
 | `chart_series_grayscale` | 0  | Use white and light gray lines in combined charts when set to 1 |
 | `chart_overlay_right` | 0 | Put the live chart readout at the top right when set to 1 |
 | `panel_icon_size` | 16 | Maximum panel title icon width or height (8 to 32 logical pixels) |
-| `top_strip_keep_aspect` | 0 | Scale an enabled top strip proportionally to the panel width |
+| `top_strip_keep_aspect` | 0 | Derive an enabled top strip's height from its image proportions at the profile's reference width |
 | `window_shadow` | 1 | Set to `0` to suppress the desktop window shadow on supported platforms. It does not affect the artwork or panel opacity. |
+
+Proportional headers and stretched footers derive their heights from the
+profile's starting width. The app remembers that reference when the window
+width changes, so changing width stretches the artwork horizontally only,
+including after a restart.
 
 **Optional sculpted panel metrics (new):**
 
@@ -175,7 +180,7 @@ Recognized keys:
 | `krell_track`  | Tiled across the Krell strip as the unfilled track; falls back |
 | `krell`        | Indicator sprite. With `frames > 1` the image is treated as a horizontal strip of N equal-width frames; the frame painted is `frame = value * frames` |
 | `panel_icon_*` | Optional icon beside a panel title, e.g. `panel_icon_cpu` for `panel_bg_cpu` |
-| `frame_bottom` | Bottom frame strip; use `{"image":"assets/footer.png","mode":"stretch"}` for a single proportional footer between the side frames |
+| `frame_bottom` | Bottom frame strip; use `{"image":"assets/footer.png","mode":"stretch"}` for a single footer between the side frames with a height based on the profile's reference width |
 | `window_bg` | Optional chassis backing. Scales across the existing window width and tiles vertically behind the monitor stack, between the header and footer. It adds no margins and is layered below the frame strips, panels and shared Host/Clock casing. Omit it for the existing solid backing. |
 | `window_bg_cap_top`, `window_bg_cap_bottom` | Optional transparent end caps for the existing side strips. The left and right bands of each PNG must match the frame strip widths in source pixels. Only those bands are painted: rounded alpha replaces the corresponding rail ends without resizing the window or the header/footer. A missing cap leaves that end unchanged. |
 
