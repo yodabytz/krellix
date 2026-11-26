@@ -8,6 +8,7 @@
 #include "sysdep/NetStat.h"
 #include "theme/Theme.h"
 
+#include <QAbstractItemView>
 #include <QApplication>
 #include <QCheckBox>
 #include <QCloseEvent>
@@ -918,6 +919,13 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             m_krellmailIconStyle->addItem(QStringLiteral("Envelope"), QStringLiteral("envelope"));
             m_krellmailIconStyle->addItem(QStringLiteral("Envelope with Tux"), QStringLiteral("tux"));
             m_krellmailIconStyle->addItem(QStringLiteral("Follow Theme"), QStringLiteral("theme"));
+            m_krellmailIconStyle->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+            m_krellmailIconStyle->setMinimumContentsLength(22);
+            m_krellmailIconStyle->setMinimumHeight(m_krellmailIconStyle->fontMetrics().height() + 12);
+            m_krellmailIconStyle->setStyleSheet(QStringLiteral("QComboBox { combobox-popup: 0; }"));
+            auto *options = m_krellmailIconStyle->view();
+            options->setTextElideMode(Qt::ElideNone);
+            options->setMinimumWidth(m_krellmailIconStyle->minimumSizeHint().width());
             form->addRow(QStringLiteral("Mail animation:"), m_krellmailIconStyle);
             groupLayout->addLayout(form);
 

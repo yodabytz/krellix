@@ -2,16 +2,19 @@
 #include "../src/krellix/main.cpp"
 #undef main
 #include "krellix/SettingsDialog.h"
+#include <QAbstractItemView>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFile>
 #include <QImage>
 #include <QLayout>
+#include <QListWidget>
 #include <QMouseEvent>
 #include <QPushButton>
 #include <QScreen>
 #include <QSpinBox>
+#include <QStyleOptionComboBox>
 #include <QTimer>
 #include <QPointer>
 #include <QTemporaryDir>
@@ -63,6 +66,54 @@ static void verifyDragHandle(Theme *theme)
 
 static int completed = 0;
 
+static void verifyMailAnimationText(SettingsDialog &dialog, QComboBox &combo)
+{
+    for (const auto &name : {QStringLiteral("Plugins"), QStringLiteral("Krellmail")}) {
+        bool found = false;
+        for (auto *list : dialog.findChildren<QListWidget *>()) {
+            const auto matches = list->findItems(name, Qt::MatchExactly);
+            if (matches.isEmpty()) continue;
+            list->setCurrentItem(matches.first());
+            found = true;
+            break;
+        }
+        if (!found) qFatal("Could not open the KrellMail Settings page");
+    }
+    const QSize initialSize = dialog.size();
+    const int initialIndex = combo.currentIndex();
+    dialog.show();
+    for (int width : {initialSize.width(), dialog.minimumWidth()}) {
+        dialog.resize(width, initialSize.height());
+        QApplication::processEvents();
+        if (!combo.isVisible()) qFatal("Mail animation selector is not visible");
+        for (int i = 0; i < combo.count(); ++i) {
+            combo.setCurrentIndex(i);
+            QStyleOptionComboBox option;
+            option.initFrom(&combo);
+            option.subControls = QStyle::SC_All;
+            option.currentText = combo.currentText();
+            const auto rect = combo.style()->subControlRect(QStyle::CC_ComboBox, &option,
+                                                            QStyle::SC_ComboBoxEditField, &combo);
+            if (rect.width() < combo.fontMetrics().horizontalAdvance(option.currentText)
+                || rect.height() < combo.fontMetrics().height()) {
+                qFatal("Mail animation selection clips at dialog width %d: %s, field %dx%d", width,
+                       qPrintable(option.currentText), rect.width(), rect.height());
+            }
+        }
+        combo.showPopup();
+        QApplication::processEvents();
+        auto *view = combo.view();
+        if (!view->isVisible() || view->textElideMode() != Qt::ElideNone)
+            qFatal("Mail animation must open a popup that shows the complete labels");
+        for (int i = 0; i < combo.count(); ++i) {
+            if (view->viewport()->width() < view->sizeHintForIndex(combo.model()->index(i, 0)).width())
+                qFatal("Mail animation popup clips %s", qPrintable(combo.itemText(i)));
+        }
+        combo.hidePopup();
+    }
+    combo.setCurrentIndex(initialIndex);
+}
+
 static void verifyMailAnimationSetting(Theme *theme)
 {
     QTemporaryDir fixture;
@@ -84,6 +135,7 @@ static void verifyMailAnimationSetting(Theme *theme)
         if (!interval || interval->value() != 60000) qFatal("KrellMail settings show the wrong default interval");
         if (!style || style->count() != 3 || style->currentData().toString() != QLatin1String("envelope"))
             qFatal("KrellMail animation choices are missing from settings");
+        verifyMailAnimationText(dialog, *style);
         const int tux = style->findData(QStringLiteral("tux"));
         if (tux < 0) qFatal("Missing Tux animation choice");
         style->setCurrentIndex(tux);
