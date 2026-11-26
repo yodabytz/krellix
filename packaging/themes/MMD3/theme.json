@@ -1,19 +1,12 @@
 {
   "name": "MMD3",
-  "version": "1.5",
+  "version": "1.4",
   "author": "Theme designer",
   "description": "Sculpted silver and ocean-blue glass, with cyan traces and an animated footer.",
   "colors": {
-    "panel_bg": "#04131c",
-    "panel_border": "#061019",
-    "chart_bg": {
-      "gradient": "linear",
-      "angle": 90,
-      "stops": [
-        [0, "#1c506a"],
-        [1, "#0d354b"]
-      ]
-    },
+    "panel_bg": "#00000000",
+    "panel_border": "#00000000",
+    "chart_bg": "#00000000",
     "text_meter_bg": {
       "gradient": "linear",
       "angle": 90,
@@ -57,10 +50,10 @@
     "panel_padding_right": 10,
     "panel_bg_host_padding_bottom": 2,
     "panel_bg_clock_padding_top": 2,
-    "panel_spacing": 2,
+    "panel_spacing": 0,
     "panel_border": 0,
     "krell_height": 12,
-    "chart_height": 100,
+    "chart_height": 64,
     "chart_grid_lines": 4,
     "chart_glass": 1,
     "chart_corner_radius": 5,
@@ -69,10 +62,10 @@
     "host_clock_shared_casing": 1,
     "top_strip_height": 47,
     "top_strip_keep_aspect": 1,
-    "panel_icon_size": 20,
+    "panel_icon_size": 18,
     "panel_icon_offset_x": 1,
     "panel_icon_spacing": 4,
-    "panel_icon_krellhealth_heart_size": 26,
+    "panel_icon_krellhealth_heart_size": 32,
     "panel_icon_krellhealth_status_size": 40
   },
   "surfaces": {
@@ -94,8 +87,8 @@
     },
     "chart_bg": {
       "image": "assets/chart-bg.png",
-      "slice": 4,
-      "opacity": 0.12
+      "slice": 0,
+      "opacity": 0.0
     },
     "panel_bg_host_clock": {
       "image": "assets/host-panel.png",
@@ -128,8 +121,6 @@
   },
   "images": {
     "window_bg": "assets/chassis-bg.png",
-    "window_bg_cap_top": "assets/chassis-top.png",
-    "window_bg_cap_bottom": "assets/chassis-bottom.png",
     "krell_track": {
       "image": "assets/krell-track.png",
       "mode": "tile"
@@ -138,12 +129,13 @@
       "image": "assets/krell.png",
       "frames": 1
     },
+    "frame_left": "assets/frame-left.png",
+    "frame_right": "assets/frame-right.png",
+    "frame_top": "assets/frame-top.png",
     "frame_bottom": {
       "image": "assets/optional-footer.png",
       "mode": "stretch"
     },
-    "frame_left": "assets/frame-left.png",
-    "frame_right": "assets/frame-right.png",
     "panel_icon_cpu": "assets/monitor-icons/cpu.png",
     "panel_icon_proc": "assets/monitor-icons/proc.png",
     "panel_icon_mem": "assets/monitor-icons/memory.png",
