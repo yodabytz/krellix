@@ -1,6 +1,6 @@
 {
   "name": "Ubuntu-Ember",
-  "version": "1.0",
+  "version": "1.1",
   "author": "Theme designer",
   "description": "Flat Ubuntu orange and aubergine",
   "colors": {
@@ -42,7 +42,7 @@
     "panel_padding": 6,
     "panel_spacing": 2,
     "panel_border": 0,
-    "krell_height": 12,
+    "krell_height": 8,
     "chart_height": 100,
     "chart_grid_lines": 4,
     "host_clock_shared_casing": 1,

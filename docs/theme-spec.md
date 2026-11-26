@@ -112,7 +112,7 @@ Map of name → integer (clamped to `0..4096`).
 | `netports_row_spacing` | 0   | Linux Net Ports row gap; updates live   |
 | `panel_border`     | 1       | Panel border line width (0 = none)      |
 | `panel_min_width`  | 100     | Legacy metric; the current client uses the user's panel width instead |
-| `krell_height`     | 8       | Base slider track height; a themed sprite can set it instead |
+| `krell_height`     | 8       | Base track height before modern Krellix's two-thirds display scale. For the standard 5-pixel slider, use an 8-pixel track and 8-pixel indicator frames; an indicator sprite's frame height takes precedence. |
 | `meter_height`     | 0       | Base meter height; 0 falls back to Krell height for meters without text |
 | `chart_height`     | 32      | Legacy chart strip height. In the desktop app, the profile's Settings → Appearance chart height (32 if unset) always wins. |
 | `chart_grid_lines` | 5       | Number of horizontal grid divisions     |
