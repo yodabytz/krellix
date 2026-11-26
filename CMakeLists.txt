@@ -521,6 +521,17 @@ if(APPLE)
 endif()
 
 if(BUILD_TESTING)
+    qt_add_executable(krellhealth-artwork tests/krellhealth-artwork.cpp
+        src/monitors/MonitorBase.cpp src/theme/Theme.cpp src/widgets/Panel.cpp
+        src/widgets/Decal.cpp src/widgets/Krell.cpp src/widgets/Chart.cpp src/widgets/Meter.cpp
+        src/widgets/AlertBanner.cpp src/remote/RemoteSource.cpp)
+    target_include_directories(krellhealth-artwork PRIVATE src)
+    target_link_libraries(krellhealth-artwork PRIVATE Qt6::Widgets Qt6::Network)
+    set_target_properties(krellhealth-artwork PROPERTIES ENABLE_EXPORTS ON)
+    add_dependencies(krellhealth-artwork krellhealth)
+    add_test(NAME krellhealth-artwork COMMAND krellhealth-artwork "$<TARGET_FILE:krellhealth>")
+    set_tests_properties(krellhealth-artwork PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 15)
+
     qt_add_executable(remote-telemetry tests/remote-telemetry.cpp src/remote/RemoteSource.cpp src/remote/RemoteSource.h)
     qt_add_executable(remote-reconnect tests/remote-reconnect.cpp src/remote/RemoteSource.cpp src/remote/RemoteSource.h src/widgets/AlertBanner.cpp src/widgets/AlertBanner.h)
     target_include_directories(remote-reconnect PRIVATE src)

@@ -30,7 +30,9 @@ foreach ($entry in @(@{Path="$plugins\krellhealth.dll";Hash=$manifest.plugin_sha
 if ($installed -and $installed.plugin_version -ne $manifest.plugin_version) {
     $backup = Join-Path $plugins "backups\krellhealth-$($installed.plugin_version)"
     New-Item -ItemType Directory $backup -Force | Out-Null
-    Copy-Item "$plugins\krellhealth.dll",$savedManifest,"$probe\krellhealth-probe.exe" $backup
+    foreach ($file in @("$plugins\krellhealth.dll", $savedManifest, "$probe\krellhealth-probe.exe")) {
+        if (Test-Path -LiteralPath $file) { Copy-Item -LiteralPath $file -Destination $backup }
+    }
 }
 New-Item -ItemType Directory $plugins,$probe -Force | Out-Null
 Copy-Item "$PSScriptRoot\krellhealth-probe.exe" "$probe\krellhealth-probe.exe" -Force

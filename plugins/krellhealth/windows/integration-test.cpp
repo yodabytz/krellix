@@ -3,6 +3,7 @@
 #include "remote/RemoteSource.h"
 #include "theme/Theme.h"
 #include "widgets/Decal.h"
+#include "../../../tests/krellhealth-artwork-fixture.h"
 #include <QApplication>
 #include <QElapsedTimer>
 #include <QPluginLoader>
@@ -25,6 +26,8 @@ int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
     QTemporaryDir settings;
+    check(settings.isValid() && QDir::setCurrent(settings.path()), "Could not isolate test themes");
+    makeHealthThemes();
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat,QSettings::UserScope,settings.path());
     QCoreApplication::setOrganizationName("health-test");
@@ -34,6 +37,7 @@ int main(int argc, char **argv)
     auto *plugin=qobject_cast<IKrellixPlugin *>(loader.instance());
     if(!plugin) qFatal("DLL failed: %s",qPrintable(loader.errorString()));
     Theme theme; QObject parent;
+    check(theme.load(QStringLiteral("health-test-plain")), "Could not load plain theme");
     check(plugin->createMonitors(&theme,&parent).isEmpty(),"Disabled plugin appeared");
     QSettings().setValue("plugins/krellhealth/enabled",true);
     auto *monitor=plugin->createMonitors(&theme,&parent).first();
@@ -63,11 +67,24 @@ int main(int argc, char **argv)
     for(auto *decal:widget->findChildren<Decal *>()) check(!decal->text().contains(QChar(0x2665)),"Missing data showed healthy heart");
     sockets.last()->write("{\"type\":\"sample\",\"health\":{\"critical\":0,\"warnings\":0,\"findings\":[]}}\n");
     check(until([&]{return widget->toolTip().contains("No active findings");}),"Explicit healthy report missing");
-    bool heart=false;
-    for(auto *decal:widget->findChildren<Decal *>()) if(decal->text()==QStringLiteral("\u2665 OK")) heart=true;
-    check(heart,"Healthy status did not display heart");
+    Decal *heart = nullptr;
+    for (auto *decal : widget->findChildren<Decal *>())
+        if (decal->text() == QStringLiteral("\u2665 OK")) heart = decal;
+    check(heart, "Healthy status did not display heart");
+    heart->resize(100, heart->sizeHint().height());
+    const auto fallback = heart->grab().toImage();
+    const auto hint = heart->sizeHint();
+    check(theme.load(QStringLiteral("health-test-custom")), "Could not load custom theme");
+    const auto art = healthArtworkBounds(heart);
+    check(!art.isEmpty() && qAbs(art.width() - art.height() * 2) <= 2,
+          "Themed heart did not render proportionally");
+    check(heart->sizeHint() == hint, "Themed heart changed badge size");
+    check(theme.load(QStringLiteral("health-test-missing")), "Could not load missing-asset theme");
+    check(heart->grab().toImage() == fallback, "Missing artwork did not preserve the default");
+    check(theme.load(QStringLiteral("health-test-custom")), "Could not restore custom theme");
     sockets.last()->write("garbage\n");
     check(until([&]{return widget->toolTip().contains("invalid remote health message");}),"Malformed message accepted");
+    check(healthArtworkBounds(heart).isEmpty(), "Unavailable reading showed healthy artwork");
     check(until([&]{monitor->tick();return widget->toolTip().contains("REMOTE_ONLY");}),"Reconnect failed");
     sockets.last()->write(QByteArray(1024*1024+2,'x'));
     check(until([&]{return widget->toolTip().contains("too large");}),"Oversized message accepted");

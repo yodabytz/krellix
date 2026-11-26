@@ -1,4 +1,5 @@
 #include "KrellhealthPlugin.h"
+#include "HeartArtwork.h"
 
 #include "remote/RemoteSource.h"
 #include "theme/Theme.h"
@@ -163,7 +164,12 @@ protected:
         p.setFont(iconFont);
         p.setPen(fg);
         const int iconY = (r.height() + ifm.ascent() - ifm.descent()) / 2;
-        p.drawText(x, iconY, m_icon);
+        const auto artwork = m_icon == QStringLiteral("\u2665")
+            ? KrellHealthArtwork::heart(*m_theme) : QPixmap();
+        if (artwork.isNull())
+            p.drawText(x, iconY, m_icon);
+        else
+            KrellHealthArtwork::paint(p, artwork, QRect(x, 0, iconW, r.height()));
 
         p.setFont(textFont);
         p.setPen(text);

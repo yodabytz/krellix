@@ -1,6 +1,6 @@
 # KrellHealth for Windows
 
-Requires the matching Krellix 0.1.2-windows-preview.2 x86-64 host. The
+Requires the matching Krellix 0.1.2-windows-preview.11 x86-64 host. The
 installer verifies the host, DLL and helper hashes and refuses to overwrite
 an unknown/different installed build. No administrator rights are needed.
 
@@ -33,10 +33,10 @@ invalid health data, timeouts, and disconnection show an unavailable/check
 state, never a false OK or local Windows fallback. Incoming messages, finding
 counts and text sizes are bounded; tooltip text is HTML-escaped.
 
-Linux and macOS plugin implementations are unchanged.
-
 Clear health is displayed as a heart followed by OK, matching the original
 plugin. Missing data, unavailable checks and warnings never show a healthy heart.
+Themes can replace the heart with `images.panel_icon_krellhealth_heart`.
+This only changes the artwork; the OK text and detailed tooltip are unchanged.
 
 ## API References
 

@@ -162,6 +162,10 @@ in Theme mode, such as `panel_icon_krellweather_clear` and
 `panel_icon_krellweather_clear_night`. These are static assets; missing
 keys keep the built-in vector icons.
 
+KrellHealth accepts `panel_icon_krellhealth_heart` in `images` to override the
+healthy heart without changing the OK label, other states, or check details.
+See the [KrellHealth artwork example](../plugins/krellhealth/README.md).
+
 ### Optional animation manifest
 
 A theme can include `animation.json` next to `theme.json`. The original

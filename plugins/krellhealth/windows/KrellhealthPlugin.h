@@ -41,6 +41,6 @@ class KrellhealthPlugin final : public QObject, public IKrellixPlugin {
 public:
     QString pluginId() const override { return QStringLiteral("io.krellix.krellhealth"); }
     QString pluginName() const override { return QStringLiteral("KrellHealth"); }
-    QString pluginVersion() const override { return QStringLiteral("0.1.1-windows.2"); }
+    QString pluginVersion() const override { return QStringLiteral("0.1.1-windows.3"); }
     QList<MonitorBase *> createMonitors(Theme *theme, QObject *parent) override;
 };

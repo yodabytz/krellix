@@ -1,13 +1,56 @@
 #include "KrellhealthPlugin.h"
+#include "../HeartArtwork.h"
 #include "remote/RemoteSource.h"
 #include "widgets/Panel.h"
 #include "widgets/Decal.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QFontMetrics>
 #include <QJsonDocument>
 #include <QProcessEnvironment>
 #include <QSettings>
+
+class HealthSummary final : public Decal
+{
+public:
+    HealthSummary(Theme *theme, QWidget *parent)
+        : Decal(theme, QStringLiteral("value"), QStringLiteral("text_secondary"), parent),
+          m_theme(theme) {}
+
+protected:
+    void paintEvent(QPaintEvent *event) override
+    {
+        const auto artwork = text() == QStringLiteral("\u2665 OK")
+            ? KrellHealthArtwork::heart(*m_theme) : QPixmap();
+        if (artwork.isNull()) {
+            Decal::paintEvent(event);
+            return;
+        }
+
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::TextAntialiasing);
+        painter.setFont(m_theme->font(QStringLiteral("value")));
+        const auto fm = painter.fontMetrics();
+        const int width = fm.horizontalAdvance(text());
+        const int glyph = fm.horizontalAdvance(QStringLiteral("\u2665"));
+        const int left = qMax(0, (this->width() - width) / 2);
+        KrellHealthArtwork::paint(painter, artwork, QRect(left, 0, glyph, height()));
+        const auto style = m_theme->textStyle(QStringLiteral("accent_critical"));
+        const auto ok = QStringLiteral("OK");
+        const QRect label = rect().adjusted(left + width - fm.horizontalAdvance(ok), 0, 0, 0);
+        if (style.shadow.present) {
+            painter.setPen(style.shadow.color);
+            painter.drawText(label.translated(style.shadow.offsetX, style.shadow.offsetY),
+                             Qt::AlignLeft | Qt::AlignVCenter, ok);
+        }
+        painter.setPen(style.color.isValid() ? style.color : QColor(Qt::white));
+        painter.drawText(label, Qt::AlignLeft | Qt::AlignVCenter, ok);
+    }
+
+private:
+    Theme *m_theme;
+};
 
 WindowsHealthMonitor::WindowsHealthMonitor(Theme *theme, QObject *parent) : MonitorBase(theme, parent)
 {
@@ -46,7 +89,8 @@ QWidget *WindowsHealthMonitor::createWidget(QWidget *parent)
     panel->setSurfaceKey(QStringLiteral("panel_bg_krellhealth"));
     panel->setTitle(QStringLiteral("Health"));
     m_panel = panel;
-    m_summary = panel->addDecal(QStringLiteral("value"), QStringLiteral("text_secondary"));
+    m_summary = new HealthSummary(theme(), panel);
+    panel->addWidget(m_summary);
     m_detail = panel->addDecal(QStringLiteral("label"), QStringLiteral("text_secondary"));
     m_summary->setAlignment(Qt::AlignHCenter);
     m_detail->setAlignment(Qt::AlignHCenter);

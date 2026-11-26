@@ -1,0 +1,95 @@
+name: KrellHealth Windows plugin
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'plugins/krellhealth/**'
+      - 'tests/krellhealth-artwork-fixture.h'
+      - 'packaging/windows/*krellhealth.ps1'
+      - 'packaging/windows/package-health.ps1'
+      - '.github/workflows/krellhealth-windows.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Verify the published portable host
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'krellix-preview11.zip'
+          Invoke-WebRequest 'https://repo.cerberix.org/windows/krellix-0.1.2-windows-preview.11-x86_64.zip' -OutFile $archive
+          if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne 'ae5679504af1548c75ff34132e68afae2d0959f9be0360f68a0854345ff12325') {
+            throw 'Unexpected portable host archive'
+          }
+          Expand-Archive -LiteralPath $archive -DestinationPath "$env:RUNNER_TEMP\portable"
+      - uses: msys2/setup-msys2@3c51bf698df1e37b2261f53cb67797b97761185c # v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-qt6-base
+      - name: Build and test the plugin and helper
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          export QT_FORCE_STDERR_LOGGING=1
+          portable=$(cygpath -u "$RUNNER_TEMP")/portable/Krellix
+          [[ "$(pacman -Q mingw-w64-ucrt-x86_64-qt6-base)" == 'mingw-w64-ucrt-x86_64-qt6-base 6.12.0-'* ]]
+          [[ "$(g++ -dumpfullversion)" == 16.2.0 ]]
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
+            -DKRELLIX_PRERELEASE=windows-preview.11 \
+            "-DKRELLIX_SENSOR_DIR=$(cygpath -m "$portable/sensors")"
+          cmake --build build --target krellhealth-integration krellhealth-data -j 4
+          cp "$portable/"*.dll build/krellhealth-test-host/
+          offscreen=$(find /ucrt64 -path '*/platforms/qoffscreen.dll' -type f -print -quit)
+          test -n "$offscreen"
+          mkdir -p build/krellhealth-test-host/platforms
+          cp "$offscreen" build/krellhealth-test-host/platforms/
+          ctest --test-dir build -R '^krellhealth-(integration|data)$' --output-on-failure
+      - name: Test the installer with the unchanged published host
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $hostDir = "$env:RUNNER_TEMP\portable\Krellix"
+          $destination = "$env:RUNNER_TEMP\health-package"
+          ./packaging/windows/package-health.ps1 -Build "$PWD/build" -HostDirectory $hostDir -Destination $destination
+          $zip = Get-Item "$destination\*.zip"
+          Expand-Archive -LiteralPath $zip.FullName -DestinationPath "$env:RUNNER_TEMP\unpacked"
+          & "$env:RUNNER_TEMP\unpacked\krellhealth\install-krellhealth.ps1" -KrellixDirectory $hostDir
+          New-Item -ItemType Directory "$env:APPDATA\krellix" -Force | Out-Null
+          "[plugins]`nkrellhealth\enabled=true" | Set-Content "$env:APPDATA\krellix\krellix-health-package.ini" -Encoding ASCII
+          $env:QT_FORCE_STDERR_LOGGING = '1'
+          $env:QT_LOGGING_RULES = 'krellix.plugin.info=true'
+          $log = "$env:RUNNER_TEMP\health-startup.log"
+          $app = Start-Process "$hostDir\krellix.exe" -WorkingDirectory $hostDir -PassThru `
+            -ArgumentList '--instance', 'health-package', '--monitors', 'host,krellhealth' -RedirectStandardError $log
+          try {
+            $loaded = $false
+            for ($i = 0; $i -lt 24; $i++) {
+              if ($app.HasExited) { throw "Portable host exited: $($app.ExitCode)" }
+              if (Select-String -LiteralPath $log -Pattern 'io.krellix.krellhealth.*0\.1\.1-windows\.3.*factory ready' -Quiet) {
+                $loaded = $true
+                break
+              }
+              Start-Sleep -Milliseconds 500
+            }
+            Get-Content $log
+            if (!$loaded) { throw 'Public host did not load the installed plugin' }
+          } finally {
+            if (-not $app.HasExited) { Stop-Process -Id $app.Id }
+          }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: krellhealth-windows.3
+          path: ${{ runner.temp }}/health-package/*.zip
+          if-no-files-found: error
