@@ -300,6 +300,8 @@ install(TARGETS krelldacious LIBRARY DESTINATION lib/krellix/plugins)
 add_library(krellweather MODULE
     plugins/krellweather/KrellweatherPlugin.cpp
     plugins/krellweather/KrellweatherPlugin.h
+    plugins/krellweather/WeatherIcons.cpp
+    plugins/krellweather/WeatherConditions.cpp
 )
 target_include_directories(krellweather PRIVATE src)
 target_link_libraries(krellweather PRIVATE
@@ -317,6 +319,9 @@ set_target_properties(krellweather PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
 )
 install(TARGETS krellweather LIBRARY DESTINATION lib/krellix/plugins)
+if(BUILD_TESTING)
+    include(plugins/krellweather/tests.cmake)
+endif()
 
 add_library(krellmoon MODULE
     plugins/krellmoon/KrellmoonPlugin.cpp

@@ -1,4 +1,5 @@
 #include "KrellweatherPlugin.h"
+#include "WeatherIcons.h"
 
 #include "theme/Theme.h"
 #include "widgets/Panel.h"
@@ -19,7 +20,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPainter>
-#include <QPainterPath>
+#include <QPixmap>
 #include <QSettings>
 #include <QSizePolicy>
 #include <QUrl>
@@ -33,15 +34,6 @@ constexpr const char *kMetarUrl = "https://aviationweather.gov/api/data/metar";
 constexpr int kFetchTimeoutMs = 15000;
 constexpr qsizetype kMaxWeatherBytes = 256 * 1024;
 
-enum class WeatherIconKind {
-    Unknown,
-    Sun,
-    Moon,
-    PartlySun,
-    PartlyMoon,
-    Cloud
-};
-
 class WeatherIconWidget : public QWidget
 {
 public:
@@ -51,103 +43,58 @@ public:
     {
         setFixedSize(30, 24);
         setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        syncMode();
     }
 
-    void setKind(WeatherIconKind kind)
+    void setCondition(KrellWeather::Condition condition)
     {
-        if (m_kind == kind) return;
-        m_kind = kind;
+        if (m_condition.kind == condition.kind && m_condition.night == condition.night
+            && m_condition.stormPrecipitation == condition.stormPrecipitation) return;
+        m_condition = condition;
+        invalidate();
+    }
+
+    bool syncMode()
+    {
+        const QString setting = QSettings().value(QStringLiteral("plugins/krellweather/icon_mode")).toString();
+        const auto mode = KrellWeather::modeFromKey(setting);
+        if (m_mode == mode) return false;
+        m_mode = mode;
+        invalidate();
+        return true;
+    }
+
+    void invalidate()
+    {
+        m_pixmap = {};
         update();
     }
 
 protected:
     void paintEvent(QPaintEvent *) override
     {
-        QPainter p(this);
-        p.setRenderHint(QPainter::Antialiasing, true);
-
-        auto themed = [this](const QString &key, const QColor &fallback, int alpha = 255) {
-            QColor color = themeColor(key, fallback);
-            color.setAlpha(alpha);
-            return color;
-        };
-
-        const QColor primary = themed(QStringLiteral("text_primary"),
-                                      QColor(235, 246, 252), 230);
-        const QColor secondary = themed(QStringLiteral("text_secondary"),
-                                        QColor(180, 210, 222), 235);
-        const QColor accent = themed(QStringLiteral("text_accent"),
-                                     QColor(255, 220, 88), 220);
-        const QColor warning = themed(QStringLiteral("accent_warning"),
-                                      QColor(255, 202, 55), 235);
-        const QColor cutout = themed(QStringLiteral("chart_bg"),
-                                     QColor(24, 42, 55), 240);
-        const QColor border = themed(QStringLiteral("panel_border"),
-                                     primary.darker(180), 210);
-
-        if (m_kind == WeatherIconKind::Unknown) {
-            p.setPen(QPen(secondary, 1.4));
-            p.drawEllipse(QRectF(8, 5, 14, 14));
-            p.drawLine(QPointF(15, 11), QPointF(15, 15));
-            p.drawPoint(QPointF(15, 18));
-            return;
-        }
-
-        const bool cloud =
-            m_kind == WeatherIconKind::Cloud
-            || m_kind == WeatherIconKind::PartlySun
-            || m_kind == WeatherIconKind::PartlyMoon;
-        const bool moon =
-            m_kind == WeatherIconKind::Moon
-            || m_kind == WeatherIconKind::PartlyMoon;
-        const bool sun =
-            m_kind == WeatherIconKind::Sun
-            || m_kind == WeatherIconKind::PartlySun;
-
-        if (sun) {
-            p.setPen(QPen(accent, 1.3));
-            for (int i = 0; i < 8; ++i) {
-                const double a = i * M_PI / 4.0;
-                const QPointF c(11, 10);
-                p.drawLine(c + QPointF(qCos(a) * 7.0, qSin(a) * 7.0),
-                           c + QPointF(qCos(a) * 10.0, qSin(a) * 10.0));
+        const qreal dpr = devicePixelRatioF();
+        if (m_pixmap.isNull() || m_cachedSize != size() || m_pixmap.devicePixelRatio() != dpr) {
+            KrellWeather::Colors colors;
+            if (m_theme) {
+                colors.background = m_theme->color(QStringLiteral("panel_bg"), colors.background);
+                colors.primary = m_theme->color(QStringLiteral("text_primary"), colors.primary);
+                colors.secondary = m_theme->color(QStringLiteral("text_secondary"), colors.secondary);
+                colors.accent = m_theme->color(QStringLiteral("text_accent"), colors.accent);
             }
-            p.setPen(Qt::NoPen);
-            p.setBrush(warning);
-            p.drawEllipse(QRectF(5, 4, 12, 12));
+            m_pixmap = QPixmap::fromImage(KrellWeather::renderIcon(m_condition, m_mode, colors, size(), dpr));
+            m_cachedSize = size();
         }
-
-        if (moon) {
-            p.setPen(Qt::NoPen);
-            p.setBrush(primary);
-            p.drawEllipse(QRectF(5, 3, 14, 14));
-            p.setBrush(cutout);
-            p.drawEllipse(QRectF(10, 1, 13, 14));
-        }
-
-        if (cloud) {
-            const int y = m_kind == WeatherIconKind::Cloud ? 7 : 9;
-            p.setPen(QPen(border, 1.0));
-            p.setBrush(secondary);
-            QPainterPath path;
-            path.addEllipse(QRectF(6, y + 3, 9, 8));
-            path.addEllipse(QRectF(12, y, 10, 11));
-            path.addEllipse(QRectF(18, y + 4, 8, 7));
-            path.addRoundedRect(QRectF(7, y + 7, 19, 7), 3, 3);
-            p.drawPath(path.simplified());
-        }
+        QPainter painter(this);
+        painter.drawPixmap(0, 0, m_pixmap);
     }
 
 private:
-    QColor themeColor(const QString &key, const QColor &fallback) const
-    {
-        if (!m_theme) return fallback;
-        const QColor color = m_theme->color(key, fallback);
-        return color.isValid() ? color : fallback;
-    }
-
-    Theme *m_theme = nullptr;
-    WeatherIconKind m_kind = WeatherIconKind::Unknown;
+    Theme *m_theme;
+    QPixmap m_pixmap;
+    QSize m_cachedSize;
+    KrellWeather::Condition m_condition;
+    KrellWeather::Mode m_mode = KrellWeather::Mode::Color;
 };
 
 QString stationCode()
@@ -202,60 +149,6 @@ QString windText(const QJsonObject &obj)
     return QStringLiteral("%1 %2 kt").arg(wdir, 3, 10, QLatin1Char('0')).arg(wspd);
 }
 
-bool isStationDark(const QJsonObject &obj)
-{
-#ifdef Q_OS_WIN
-    QDateTime utc = KrellweatherWindows::observationTime(obj);
-#else
-    QDateTime utc = QDateTime::fromString(
-        obj.value(QStringLiteral("obsTime")).toString(), Qt::ISODate);
-#endif
-    if (!utc.isValid())
-        utc = QDateTime::currentDateTimeUtc();
-    utc = utc.toUTC();
-
-    const double lon = obj.value(QStringLiteral("lon")).toDouble(qQNaN());
-#ifdef Q_OS_WIN
-    const int offsetSecs = qIsFinite(lon) && qAbs(lon) <= 180 ? qRound(lon * 240.0) : 0;
-#else
-    const int offsetSecs = qIsNaN(lon) ? 0 : qRound(lon / 15.0 * 3600.0);
-#endif
-    const QTime local = utc.addSecs(offsetSecs).time();
-    return local.hour() < 6 || local.hour() >= 19;
-}
-
-WeatherIconKind iconKindForWeather(const QJsonObject &obj)
-{
-    const bool dark = isStationDark(obj);
-    const QString wx = obj.value(QStringLiteral("wxString")).toString().toUpper();
-    const QString cover = obj.value(QStringLiteral("cover")).toString().toUpper();
-    const QString combined = wx + QLatin1Char(' ') + cover;
-
-    if (combined.contains(QStringLiteral("OVC"))
-        || combined.contains(QStringLiteral("BKN"))
-        || combined.contains(QStringLiteral("CLOUD"))
-        || combined.contains(QStringLiteral("RA"))
-        || combined.contains(QStringLiteral("SN"))
-        || combined.contains(QStringLiteral("TS"))
-        || combined.contains(QStringLiteral("DZ"))) {
-        return WeatherIconKind::Cloud;
-    }
-
-    if (combined.contains(QStringLiteral("FEW"))
-        || combined.contains(QStringLiteral("SCT"))
-        || combined.contains(QStringLiteral("PART"))) {
-        return dark ? WeatherIconKind::PartlyMoon : WeatherIconKind::PartlySun;
-    }
-
-    if (combined.contains(QStringLiteral("CLR"))
-        || combined.contains(QStringLiteral("SKC"))
-        || combined.contains(QStringLiteral("CLEAR"))
-        || combined.trimmed().isEmpty()) {
-        return dark ? WeatherIconKind::Moon : WeatherIconKind::Sun;
-    }
-
-    return dark ? WeatherIconKind::Moon : WeatherIconKind::Sun;
-}
 
 } // namespace
 
@@ -342,7 +235,7 @@ QWidget *KrellweatherMonitor::createWidget(QWidget *parent)
     applyThemeColors();
     connect(theme(), &Theme::themeChanged, this, [this]() {
         applyThemeColors();
-        if (m_icon) m_icon->update();
+        if (auto *icon = static_cast<WeatherIconWidget *>(m_icon.data())) icon->invalidate();
     });
 #endif
 
@@ -357,6 +250,10 @@ QWidget *KrellweatherMonitor::createWidget(QWidget *parent)
 
 void KrellweatherMonitor::tick()
 {
+    if (auto *icon = static_cast<WeatherIconWidget *>(m_icon.data())) {
+        // Changing the artwork should not trigger another provider request.
+        if (icon->syncMode()) return;
+    }
     fetch();
 }
 
@@ -537,7 +434,7 @@ void KrellweatherMonitor::cancelPendingReply()
 void KrellweatherMonitor::updateTheme()
 {
     applyThemeColors();
-    if (m_icon) m_icon->update();
+    if (auto *icon = static_cast<WeatherIconWidget *>(m_icon.data())) icon->invalidate();
 }
 #endif
 
@@ -582,7 +479,7 @@ void KrellweatherMonitor::renderWeather(const QJsonObject &obj)
 
     if (m_location) m_location->setText(code);
     if (auto *icon = static_cast<WeatherIconWidget *>(m_icon.data()))
-        icon->setKind(iconKindForWeather(obj));
+        icon->setCondition(KrellWeather::classifyObservation(obj));
     if (m_primary) m_primary->setText(temp);
     if (m_detail) m_detail->setText(detail);
 }
@@ -591,7 +488,7 @@ void KrellweatherMonitor::setMessage(const QString &line1, const QString &line2)
 {
     if (m_location) m_location->setText(line1);
     if (auto *icon = static_cast<WeatherIconWidget *>(m_icon.data()))
-        icon->setKind(WeatherIconKind::Unknown);
+        icon->setCondition({});
     if (m_primary) m_primary->setText(QStringLiteral("--"));
     if (m_detail) m_detail->setText(line2);
 }
@@ -609,9 +506,9 @@ QString KrellweatherPlugin::pluginName() const
 QString KrellweatherPlugin::pluginVersion() const
 {
 #ifdef Q_OS_WIN
-    return QStringLiteral("0.1.0-windows.1");
+    return QStringLiteral("0.1.1-windows.1");
 #else
-    return QStringLiteral("0.1.0");
+    return QStringLiteral("0.1.1");
 #endif
 }
 

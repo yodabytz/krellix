@@ -138,6 +138,7 @@ private:
     QCheckBox   *m_krellweatherEnabled = nullptr;
     QLineEdit   *m_krellweatherStation = nullptr;
     QComboBox   *m_krellweatherUnits = nullptr;
+    QComboBox   *m_krellweatherIconMode = nullptr;
     QSpinBox    *m_krellweatherUpdateMs = nullptr;
     QCheckBox   *m_krellwireEnabled = nullptr;
     QSpinBox    *m_krellwireItems = nullptr;

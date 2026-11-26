@@ -66,26 +66,24 @@ static void verifyDragHandle(Theme *theme)
 
 static int completed = 0;
 
-static void verifyMailAnimationText(SettingsDialog &dialog, QComboBox &combo)
+static void verifyAppearanceSelector(SettingsDialog &dialog, QComboBox &combo, const QString &pluginName)
 {
-    for (const auto &name : {QStringLiteral("Plugins"), QStringLiteral("Krellmail")}) {
-        bool found = false;
-        for (auto *list : dialog.findChildren<QListWidget *>()) {
-            const auto matches = list->findItems(name, Qt::MatchExactly);
-            if (matches.isEmpty()) continue;
-            list->setCurrentItem(matches.first());
-            found = true;
-            break;
-        }
-        if (!found) qFatal("Could not open the KrellMail Settings page");
-    }
+    const auto select = [&](const QString &listName, const QString &label) {
+        auto *list = dialog.findChild<QListWidget *>(listName);
+        if (!list) qFatal("Settings lists missing");
+        const auto items = list->findItems(label, Qt::MatchExactly);
+        if (items.isEmpty()) qFatal("Could not open the plugin Settings page");
+        list->setCurrentItem(items.first());
+    };
+    select(QStringLiteral("settings-page-list"), QStringLiteral("Plugins"));
+    select(QStringLiteral("plugin-settings-list"), pluginName);
     const QSize initialSize = dialog.size();
     const int initialIndex = combo.currentIndex();
     dialog.show();
     for (int width : {initialSize.width(), dialog.minimumWidth()}) {
         dialog.resize(width, initialSize.height());
         QApplication::processEvents();
-        if (!combo.isVisible()) qFatal("Mail animation selector is not visible");
+        if (!combo.isVisible()) qFatal("Appearance selector is not visible");
         for (int i = 0; i < combo.count(); ++i) {
             combo.setCurrentIndex(i);
             QStyleOptionComboBox option;
@@ -96,7 +94,7 @@ static void verifyMailAnimationText(SettingsDialog &dialog, QComboBox &combo)
                                                             QStyle::SC_ComboBoxEditField, &combo);
             if (rect.width() < combo.fontMetrics().horizontalAdvance(option.currentText)
                 || rect.height() < combo.fontMetrics().height()) {
-                qFatal("Mail animation selection clips at dialog width %d: %s, field %dx%d", width,
+                qFatal("Appearance selection clips at dialog width %d: %s, field %dx%d", width,
                        qPrintable(option.currentText), rect.width(), rect.height());
             }
         }
@@ -104,10 +102,10 @@ static void verifyMailAnimationText(SettingsDialog &dialog, QComboBox &combo)
         QApplication::processEvents();
         auto *view = combo.view();
         if (!view->isVisible() || view->textElideMode() != Qt::ElideNone)
-            qFatal("Mail animation must open a popup that shows the complete labels");
+            qFatal("Appearance selector must open a popup that shows the complete labels");
         for (int i = 0; i < combo.count(); ++i) {
             if (view->viewport()->width() < view->sizeHintForIndex(combo.model()->index(i, 0)).width())
-                qFatal("Mail animation popup clips %s", qPrintable(combo.itemText(i)));
+                qFatal("Appearance popup clips %s", qPrintable(combo.itemText(i)));
         }
         combo.hidePopup();
     }
@@ -124,8 +122,12 @@ static void verifyMailAnimationSetting(Theme *theme)
     QFile installed(QStringLiteral("plugins/krellmail.so"));
     if (!installed.open(QIODevice::WriteOnly)) qFatal("Cannot mark KrellMail installed");
     installed.close();
+    QFile weather(QStringLiteral("plugins/krellweather.so"));
+    if (!weather.open(QIODevice::WriteOnly)) qFatal("Cannot mark KrellWeather installed");
+    weather.close();
     qputenv("KRELLIX_DEV_PLUGINS", "1");
     const auto key = QStringLiteral("plugins/krellmail/icon_style");
+    const auto weatherKey = QStringLiteral("plugins/krellweather/icon_mode");
     QSettings settings;
     settings.remove(key);
     {
@@ -135,7 +137,7 @@ static void verifyMailAnimationSetting(Theme *theme)
         if (!interval || interval->value() != 60000) qFatal("KrellMail settings show the wrong default interval");
         if (!style || style->count() != 3 || style->currentData().toString() != QLatin1String("envelope"))
             qFatal("KrellMail animation choices are missing from settings");
-        verifyMailAnimationText(dialog, *style);
+        verifyAppearanceSelector(dialog, *style, QStringLiteral("Krellmail"));
         const int tux = style->findData(QStringLiteral("tux"));
         if (tux < 0) qFatal("Missing Tux animation choice");
         style->setCurrentIndex(tux);
@@ -150,8 +152,26 @@ static void verifyMailAnimationSetting(Theme *theme)
         auto *style = dialog.findChild<QComboBox *>(QStringLiteral("krellmail-icon-style"));
         if (!style || style->currentData().toString() != QLatin1String("tux"))
             qFatal("KrellMail animation choice was lost when reopening settings");
+
+        auto *mode = dialog.findChild<QComboBox *>(QStringLiteral("krellweather-icon-mode"));
+        if (!mode || mode->count() != 3 || mode->currentData().toString() != QLatin1String("color"))
+            qFatal("Weather icon modes or default are missing");
+        verifyAppearanceSelector(dialog, *mode, QStringLiteral("Krellweather"));
+        for (const auto &value : {QStringLiteral("theme"), QStringLiteral("mono")}) {
+            const int index = mode->findData(value);
+            if (index < 0 || !QMetaObject::invokeMethod(mode, "activated", Qt::DirectConnection, Q_ARG(int, index))
+                || settings.value(weatherKey).toString() != value)
+                qFatal("Weather icon mode did not persist");
+        }
+    }
+    {
+        SettingsDialog dialog(theme, nullptr);
+        const auto *mode = dialog.findChild<QComboBox *>(QStringLiteral("krellweather-icon-mode"));
+        if (!mode || mode->currentData().toString() != QLatin1String("mono"))
+            qFatal("Weather icon mode was lost when reopening settings");
     }
     settings.remove(key);
+    settings.remove(weatherKey);
     if (devPlugins.isNull()) qunsetenv("KRELLIX_DEV_PLUGINS");
     else qputenv("KRELLIX_DEV_PLUGINS", devPlugins);
     if (!QDir::setCurrent(previous)) qFatal("Cannot restore working directory");

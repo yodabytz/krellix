@@ -37,6 +37,7 @@ private slots:
 #endif
 
 private:
+    friend class KrellweatherLayoutFixture;
     void fetch();
     void handleReply(QNetworkReply *reply);
     void cancelPendingReply();

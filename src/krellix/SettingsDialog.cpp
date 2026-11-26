@@ -140,6 +140,17 @@ int defaultMailPort(const QString &protocol, bool ssl)
     return ssl ? 993 : 143;
 }
 
+void sizeAppearanceSelector(QComboBox *combo, int characters)
+{
+    combo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    combo->setMinimumContentsLength(characters);
+    combo->setMinimumHeight(combo->fontMetrics().height() + 12);
+    combo->setStyleSheet(QStringLiteral("QComboBox { combobox-popup: 0; }"));
+    auto *options = combo->view();
+    options->setTextElideMode(Qt::ElideNone);
+    options->setMinimumWidth(combo->minimumSizeHint().width());
+}
+
 } // namespace
 
 // Build a category page that's a QWidget the caller adds to the stack.
@@ -201,6 +212,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
     auto *splitRow = new QHBoxLayout;
     splitRow->setSpacing(8);
     auto *sidebar = new QListWidget(this);
+    sidebar->setObjectName(QStringLiteral("settings-page-list"));
     // Page names are short ("Appearance" is the longest at 10 chars).
     sidebar->setMaximumWidth(110);
     sidebar->setMinimumWidth(90);
@@ -591,6 +603,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         auto *layout = new QVBoxLayout(page);
         auto *split = new QHBoxLayout;
         m_pluginList = new QListWidget(page);
+        m_pluginList->setObjectName(QStringLiteral("plugin-settings-list"));
         // Long plugin names ("Krellweather", "Krelldacious", "KrellSpectrum",
         // 12-13 chars) fit comfortably under 125 px; keep the right pane
         // wide enough that its forms don't need horizontal scrolling.
@@ -771,6 +784,14 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             m_krellweatherUnits->addItem(QStringLiteral("Celsius"), QStringLiteral("C"));
             form->addRow(QStringLiteral("Temperature:"), m_krellweatherUnits);
 
+            m_krellweatherIconMode = new QComboBox(group);
+            m_krellweatherIconMode->setObjectName(QStringLiteral("krellweather-icon-mode"));
+            m_krellweatherIconMode->addItem(QStringLiteral("Color"), QStringLiteral("color"));
+            m_krellweatherIconMode->addItem(QStringLiteral("Theme"), QStringLiteral("theme"));
+            m_krellweatherIconMode->addItem(QStringLiteral("Monochrome"), QStringLiteral("mono"));
+            sizeAppearanceSelector(m_krellweatherIconMode, 14);
+            form->addRow(QStringLiteral("Weather icons:"), m_krellweatherIconMode);
+
             m_krellweatherUpdateMs = new QSpinBox(group);
             m_krellweatherUpdateMs->setRange(60000, 3600000);
             m_krellweatherUpdateMs->setSingleStep(60000);
@@ -919,13 +940,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             m_krellmailIconStyle->addItem(QStringLiteral("Envelope"), QStringLiteral("envelope"));
             m_krellmailIconStyle->addItem(QStringLiteral("Envelope with Tux"), QStringLiteral("tux"));
             m_krellmailIconStyle->addItem(QStringLiteral("Follow Theme"), QStringLiteral("theme"));
-            m_krellmailIconStyle->setSizeAdjustPolicy(QComboBox::AdjustToContents);
-            m_krellmailIconStyle->setMinimumContentsLength(22);
-            m_krellmailIconStyle->setMinimumHeight(m_krellmailIconStyle->fontMetrics().height() + 12);
-            m_krellmailIconStyle->setStyleSheet(QStringLiteral("QComboBox { combobox-popup: 0; }"));
-            auto *options = m_krellmailIconStyle->view();
-            options->setTextElideMode(Qt::ElideNone);
-            options->setMinimumWidth(m_krellmailIconStyle->minimumSizeHint().width());
+            sizeAppearanceSelector(m_krellmailIconStyle, 22);
             form->addRow(QStringLiteral("Mail animation:"), m_krellmailIconStyle);
             groupLayout->addLayout(form);
 
@@ -1573,6 +1588,16 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
                     emit settingsApplied();
                 });
     }
+    if (m_krellweatherIconMode) {
+        connect(m_krellweatherIconMode, &QComboBox::activated, this, [this](int i) {
+            QSettings settings;
+            const auto key = QStringLiteral("plugins/krellweather/icon_mode");
+            const auto mode = m_krellweatherIconMode->itemData(i);
+            if (settings.value(key, QStringLiteral("color")) == mode) return;
+            settings.setValue(key, mode);
+            emit settingsApplied();
+        });
+    }
     if (m_krellweatherUpdateMs) {
         connect(m_krellweatherUpdateMs, QOverload<int>::of(&QSpinBox::valueChanged),
                 this, [this](int v) {
@@ -1943,6 +1968,10 @@ void SettingsDialog::loadFromSettings()
                                       QStringLiteral("F")).toString().toUpper();
         const int idx = m_krellweatherUnits->findData(units);
         m_krellweatherUnits->setCurrentIndex(idx >= 0 ? idx : 0);
+    }
+    if (m_krellweatherIconMode) {
+        const auto mode = s.value(QStringLiteral("plugins/krellweather/icon_mode")).toString();
+        m_krellweatherIconMode->setCurrentIndex(qMax(0, m_krellweatherIconMode->findData(mode)));
     }
     if (m_krellweatherUpdateMs) {
         m_krellweatherUpdateMs->setValue(

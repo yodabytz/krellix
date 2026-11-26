@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $manifest = Get-Content "$PSScriptRoot\manifest.json" -Raw | ConvertFrom-Json
 $hostFile = Join-Path $KrellixDirectory 'krellix.exe'
 if ((Get-FileHash -LiteralPath $hostFile -Algorithm SHA256).Hash -ne $manifest.host_sha256) {
-    throw 'Use the published Windows Krellix preview.6 directory for verification.'
+    throw "Use the matching Windows Krellix directory for $($manifest.host_version)."
 }
 $dll = Join-Path $PSScriptRoot 'krellweather.dll'
 if ((Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash -ne $manifest.plugin_sha256) {
