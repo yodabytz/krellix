@@ -149,6 +149,37 @@ void checkCombinedCpuFill(const QString &configPath)
         qFatal("CPU fill hid an outline or changed another monitor");
     if (!theme.load(QStringLiteral("combined-default-fill")) || cpu.grab().toImage() != defaultFill)
         qFatal("Switching fill removed combined chart history");
+
+    if (!theme.load(QStringLiteral("combined-filled"))) qFatal("Could not restore CPU fill theme");
+    theme.setMetric(QStringLiteral("chart_grid_lines"), 5);
+    Chart aggregate(&theme, QStringLiteral("chart_line_cpu"));
+    aggregate.resize(120, 80);
+    cpu.setRainbowSeries(4);
+    for (int i = 0; i < 200; ++i) {
+        aggregate.appendSample(.23);
+        cpu.appendSampleAt(0, .80);
+        cpu.appendSampleAt(1, .08);
+        cpu.appendSampleAt(2, .04);
+        cpu.appendSampleAt(3, .00);
+    }
+    const auto aggregateImage = aggregate.grab().toImage();
+    const auto combinedImage = cpu.grab().toImage();
+    const auto pixel = [x](const QImage &image, double fromBottom) {
+        return image.pixelColor(x, qRound((1.0 - fromBottom) * (image.height() - 1)));
+    };
+    if (pixel(aggregateImage, .30) != QColor("#121416")
+        || pixel(aggregateImage, .15) == QColor("#121416")
+        || pixel(aggregateImage, .60) != theme.color(QStringLiteral("chart_grid")))
+        qFatal("A 23%% CPU load should stay low under a fixed 0-100%% grid");
+    if (pixel(combinedImage, .15) != QColor("#aa2248")
+        || pixel(combinedImage, .30) != QColor("#121416"))
+        qFatal("The combined fill should follow the 23%% average, not the busiest core");
+    const int busyY = qRound(.20 * (combinedImage.height() - 1));
+    bool busyCoreVisible = false;
+    for (int y = busyY - 2; y <= busyY + 2; ++y)
+        busyCoreVisible |= combinedImage.pixel(x, y) == base.lighter(85).rgb();
+    if (!busyCoreVisible) qFatal("The 80%% core should still be drawn above the average");
+
     if (!QDir::setCurrent(originalPath)) qFatal("Could not restore the working directory");
 }
 

@@ -340,18 +340,16 @@ void Chart::paintEvent(QPaintEvent *)
 
     const int maxGridLines = qMax(0, m_theme->metric(QStringLiteral("chart_grid_lines"), 5));
     const double fullScale = (m_max > 0.0) ? m_max : 1.0;
-    const double gridStep = maxGridLines > 0
-        ? fullScale / static_cast<double>(maxGridLines)
-        : fullScale;
-    const double peak = std::clamp(visiblePeak(), 0.0, fullScale);
-    const int gridLines = (maxGridLines > 0)
-        ? qBound(1,
-                 static_cast<int>(std::ceil(peak / gridStep)),
-                 maxGridLines)
-        : 0;
-    const double displayMax = (gridLines > 0)
-        ? gridStep * static_cast<double>(gridLines)
-        : fullScale;
+    const bool cpuChart = m_colorKey == QStringLiteral("chart_line_cpu");
+    int gridLines = maxGridLines;
+    double displayMax = fullScale;
+    // CPU percentages already have a meaningful zero and ceiling.
+    if (!cpuChart && maxGridLines > 0) {
+        const double gridStep = fullScale / static_cast<double>(maxGridLines);
+        const double peak = std::clamp(visiblePeak(), 0.0, fullScale);
+        gridLines = qBound(1, static_cast<int>(std::ceil(peak / gridStep)), maxGridLines);
+        displayMax = gridStep * static_cast<double>(gridLines);
+    }
     if (gridLines > 0 && graphRect.height() > 1) {
         const int gridWidth = qBound(1, m_theme->metric(QStringLiteral("chart_grid_width"), 1), 4);
         p.setPen(QPen(grid, gridWidth));
@@ -417,12 +415,7 @@ void Chart::paintEvent(QPaintEvent *)
         fill.setAlpha(110);
         drawSeries(m_samples, lineBrush, QBrush(fill));
     } else {
-        // Fill the upper envelope once so separate core outlines stay legible.
-        if (m_colorKey == QStringLiteral("chart_line_cpu")) {
-            std::vector<double> envelope(m_multiSamples.front().size(), 0.0);
-            for (const auto &series : m_multiSamples)
-                for (std::size_t i = 0; i < qMin(envelope.size(), series.size()); ++i)
-                    envelope[i] = qMax(envelope[i], series[i]);
+        if (cpuChart) {
             QBrush fill = m_theme->brush(QStringLiteral("chart_fill_cpu_series"), r);
             if (fill.style() == Qt::NoBrush) {
                 QLinearGradient gradient(0, graphRect.top(), 0, graphRect.bottom() + 1);
@@ -433,7 +426,16 @@ void Chart::paintEvent(QPaintEvent *)
                 gradient.setColorAt(1, accent);
                 fill = QBrush(gradient);
             }
-            drawSeries(envelope, QBrush(), fill, /*drawStroke=*/false);
+            if (fill.style() != Qt::SolidPattern || fill.color().alpha() != 0) {
+                // All core rings have the same capacity and write index.
+                std::vector<double> averages(m_multiSamples.front().size(), 0.0);
+                for (const auto &series : m_multiSamples)
+                    for (std::size_t i = 0; i < averages.size(); ++i)
+                        averages[i] += series[i];
+                for (double &sample : averages)
+                    sample /= static_cast<double>(m_multiSamples.size());
+                drawSeries(averages, QBrush(), fill, /*drawStroke=*/false);
+            }
         }
         const bool grayscale = m_theme->metric(QStringLiteral("chart_series_grayscale"), 0) != 0;
         const QColor seriesColor = m_theme->color(m_colorKey + QStringLiteral("_series"));

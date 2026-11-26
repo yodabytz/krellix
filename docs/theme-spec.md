@@ -125,8 +125,8 @@ Map of name → integer (clamped to `0..4096`).
 For combined charts, a color such as `chart_line_cpu_series` or
 `chart_line_net_rx_series` opts into several shades of that color. A grayscale
 series palette takes precedence if both options are configured.
-Combined CPU charts fill from the bottom to the highest core trace at each
-sample, using a translucent gradient derived from `colors.chart_line_cpu`.
+CPU charts always use a fixed 0-100% scale. In combined mode, the fill follows
+average core usage using a translucent gradient derived from `colors.chart_line_cpu`.
 Override it with a color or gradient in `colors.chart_fill_cpu_series`.
 Use `"#00000000"` (transparent ARGB) to keep only the individual core lines.
 Individual core lines remain visible, and other multi-series charts stay outline-only.
