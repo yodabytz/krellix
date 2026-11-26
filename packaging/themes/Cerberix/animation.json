@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "animations": {
+    "footer-lights": {
+      "target": "images.frame_bottom",
+      "trigger": "continuous",
+      "sheet": "assets/animation/footer-strip.png",
+      "fallback": "assets/optional-footer.png",
+      "frame_width": 240,
+      "frame_height": 128,
+      "frames": 24,
+      "fps": 12,
+      "layout": "horizontal",
+      "loop": true
+    }
+  }
+}

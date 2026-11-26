@@ -1,0 +1,107 @@
+{
+  "name": "Cerberix",
+  "version": "1.0",
+  "author": "Theme designer",
+  "description": "Tokyo Night inspired violet panels and pulsing lime footer LEDs",
+  "colors": {
+    "panel_bg": "#00000000",
+    "panel_border": "#00000000",
+    "chart_bg": "#00000000",
+    "chart_grid": "#302951",
+    "text_primary": "#f1efff",
+    "text_secondary": "#b9b4d7",
+    "text_accent": "#bdf584",
+    "krell_track": "#413c69",
+    "krell_indicator": "#bdf584",
+    "chart_line_default": "#bdf584",
+    "chart_line_cpu": "#bdf584",
+    "chart_line_mem": "#bdf584",
+    "chart_line_swap": "#a99af7",
+    "chart_line_net_rx": "#bdf584",
+    "chart_line_net_tx": "#82aaff",
+    "chart_line_disk": "#a99af7",
+    "accent_ok": "#bdf584",
+    "accent_warning": "#ffc45b",
+    "accent_critical": "#ff6262"
+  },
+  "fonts": {
+    "label": {
+      "family": "Sans Serif",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Sans Serif",
+      "size": 10,
+      "bold": true
+    }
+  },
+  "metrics": {
+    "panel_padding": 5,
+    "panel_spacing": 2,
+    "panel_border": 0,
+    "krell_height": 8,
+    "chart_height": 64,
+    "chart_grid_lines": 4,
+    "top_strip_height": 117,
+    "top_strip_keep_aspect": 1,
+    "panel_icon_size": 16,
+    "panel_icon_krellhealth_heart_size": 32
+  },
+  "surfaces": {
+    "panel_bg": {
+      "image": "assets/panel.png",
+      "slice": 9,
+      "opacity": 1.0
+    },
+    "panel_bg_host": {
+      "image": "assets/host-panel.png",
+      "slice": 9,
+      "opacity": 1.0
+    },
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "slice": 0,
+      "opacity": 0
+    },
+    "panel_bg_top": {
+      "image": "assets/optional-header.png",
+      "slice": 0
+    }
+  },
+  "images": {
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "mode": "stretch"
+    },
+    "krell_track": {
+      "image": "assets/krell-track.png",
+      "mode": "tile"
+    },
+    "krell": {
+      "image": "assets/krell.png",
+      "frames": 1
+    },
+    "frame_top": "assets/frame-top.png",
+    "frame_bottom": {
+      "image": "assets/optional-footer.png",
+      "mode": "stretch"
+    },
+    "frame_left": "assets/frame-left.png",
+    "frame_right": "assets/frame-right.png",
+    "panel_icon_cpu": "assets/monitor-icons/cpu.png",
+    "panel_icon_proc": "assets/monitor-icons/proc.png",
+    "panel_icon_mem": "assets/monitor-icons/memory.png",
+    "panel_icon_disk": "assets/monitor-icons/disk.png",
+    "panel_icon_net": "assets/monitor-icons/network.png",
+    "panel_icon_sensors": "assets/monitor-icons/sensors.png",
+    "panel_icon_netports": "assets/monitor-icons/ports.png",
+    "panel_icon_uptime": "assets/monitor-icons/uptime.png",
+    "panel_icon_krellhealth": "assets/monitor-icons/health.png",
+    "panel_icon_krellweather": "assets/monitor-icons/weather.png",
+    "panel_icon_krellstock": "assets/monitor-icons/stocks.png",
+    "panel_icon_krellpkg": "assets/monitor-icons/packages.png",
+    "panel_icon_krelltop": "assets/monitor-icons/top.png",
+    "panel_icon_krellhealth_heart": "assets/health/ok.png"
+  }
+}
