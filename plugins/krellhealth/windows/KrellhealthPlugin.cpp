@@ -21,10 +21,10 @@ public:
     QSize sizeHint() const override
     {
         auto hint = Decal::sizeHint();
-        const auto size = KrellHealthArtwork::requestedSize(*m_theme, artwork());
+        const auto size = KrellHealthArtwork::requestedSize(*m_theme, artwork(), healthy());
         if (size.isEmpty()) return hint;
         const QFontMetrics fm(m_theme->font(QStringLiteral("value")));
-        hint.rwidth() += size.width() - fm.horizontalAdvance(QStringLiteral("\u2665"));
+        hint.rwidth() += size.width() + (healthy() ? -fm.horizontalAdvance(QStringLiteral("\u2665")) : 5);
         hint.rheight() = qMax(hint.height(), size.height() + 2);
         return hint;
     }
@@ -45,27 +45,41 @@ protected:
         painter.setFont(m_theme->font(QStringLiteral("value")));
         const auto fm = painter.fontMetrics();
         const int glyph = fm.horizontalAdvance(QStringLiteral("\u2665"));
-        const auto size = KrellHealthArtwork::requestedSize(*m_theme, icon);
+        const auto labelText = healthy() ? QStringLiteral("OK") : text();
+        const int textWidth = healthy() ? fm.horizontalAdvance(text()) - glyph : fm.horizontalAdvance(labelText) + 5;
+        const bool explicitSize = KrellHealthArtwork::hasExplicitStatusSize(*m_theme);
+        const auto size = KrellHealthArtwork::requestedSize(*m_theme, icon, healthy(),
+                                                           explicitSize ? this->width() - textWidth : 4096);
+        if (explicitSize && size.isEmpty()) {
+            painter.end();
+            Decal::paintEvent(event);
+            return;
+        }
         const int iconWidth = size.isEmpty() ? glyph : size.width();
-        const int width = fm.horizontalAdvance(text()) - glyph + iconWidth;
+        const int width = textWidth + iconWidth;
         const int left = qMax(0, (this->width() - width) / 2);
         KrellHealthArtwork::paint(painter, icon, QRect(left, 0, iconWidth, height()));
-        const auto style = m_theme->textStyle(QStringLiteral("accent_critical"));
-        const auto ok = QStringLiteral("OK");
-        const QRect label = rect().adjusted(left + width - fm.horizontalAdvance(ok), 0, 0, 0);
+        const auto key = healthy() || text().endsWith(QLatin1String(" CRIT")) ? QStringLiteral("accent_critical")
+            : text().endsWith(QLatin1String(" WARN")) ? QStringLiteral("accent_warning")
+            : text().endsWith(QLatin1String(" INFO")) ? QStringLiteral("text_primary")
+            : QStringLiteral("text_secondary");
+        const auto style = m_theme->textStyle(key);
+        const QRect label = rect().adjusted(left + width - fm.horizontalAdvance(labelText), 0, 0, 0);
         if (style.shadow.present) {
             painter.setPen(style.shadow.color);
             painter.drawText(label.translated(style.shadow.offsetX, style.shadow.offsetY),
-                             Qt::AlignLeft | Qt::AlignVCenter, ok);
+                             Qt::AlignLeft | Qt::AlignVCenter, labelText);
         }
         painter.setPen(style.color.isValid() ? style.color : QColor(Qt::white));
-        painter.drawText(label, Qt::AlignLeft | Qt::AlignVCenter, ok);
+        painter.drawText(label, Qt::AlignLeft | Qt::AlignVCenter, labelText);
     }
 
 private:
+    bool healthy() const { return text() == QStringLiteral("\u2665 OK"); }
+
     QPixmap artwork() const
     {
-        return text() == QStringLiteral("\u2665 OK") ? KrellHealthArtwork::heart(*m_theme) : QPixmap();
+        return KrellHealthArtwork::status(*m_theme, healthy() ? QStringLiteral("OK") : text());
     }
 
     Theme *m_theme;

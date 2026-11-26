@@ -16,6 +16,7 @@
 #include <QFontMetrics>
 #include <QImage>
 #include <QLayout>
+#include <QPainter>
 #include <QSet>
 #include <QSettings>
 #include <QTemporaryDir>
@@ -39,6 +40,116 @@ QList<NetSample> netSamples()
 QList<DiskSample> diskSamples()
 {
     return {{QStringLiteral("testdisk"), ticks, ticks * 2}};
+}
+
+void checkOptInSurfaces(const QString &configPath)
+{
+    const QString original = QDir::currentPath();
+    if (!QDir::setCurrent(configPath)) qFatal("Could not enter theme fixture");
+    const QByteArray common = R"("colors":{"panel_bg":"#101010","chart_bg":"#ff00ff","chart_line_default":"#101010"},
+                "images":{"panel_icon_cpu":"icon.png"},)";
+    const auto make = [&](const QString &name, const QByteArray &settings) {
+        const auto dir = QStringLiteral("themes/") + name;
+        if (!QDir().mkpath(dir)) qFatal("Could not create surface fixture");
+        QFile json(dir + QStringLiteral("/theme.json"));
+        if (!json.open(QIODevice::WriteOnly) || json.write("{" + common + settings + "}") < 0)
+            qFatal("Could not write surface fixture");
+        QImage blocks(40, 30, QImage::Format_RGB32);
+        QPainter paint(&blocks);
+        paint.fillRect(blocks.rect(), QColor("#403040"));
+        paint.fillRect(0, 0, 40, 7, Qt::green);
+        paint.fillRect(0, 0, 5, 7, Qt::red);
+        paint.fillRect(28, 0, 12, 7, Qt::blue);
+        paint.fillRect(0, 24, 40, 6, Qt::yellow);
+        paint.end();
+        QImage icon(32, 32, QImage::Format_ARGB32);
+        icon.fill(Qt::transparent);
+        QPainter dot(&icon);
+        dot.setPen(Qt::NoPen);
+        dot.setBrush(Qt::cyan);
+        dot.drawEllipse(icon.rect().adjusted(1, 1, -1, -1));
+        dot.end();
+        if (!blocks.save(dir + QStringLiteral("/panel.png")) || !icon.save(dir + QStringLiteral("/icon.png")))
+            qFatal("Could not save surface artwork");
+    };
+    make(QStringLiteral("surface-legacy"), R"("metrics":{"panel_border":0},
+         "surfaces":{"panel_bg":{"image":"panel.png","slice":5}})");
+    make(QStringLiteral("surface-insets"), R"("metrics":{"panel_border":0},
+         "surfaces":{"panel_bg":{"image":"panel.png","mode":"nine-slice-insets",
+         "slice_insets":{"left":5,"right":12,"top":7,"bottom":6},
+         "destination_insets":{"left":10,"right":4,"top":8,"bottom":6}}})");
+    make(QStringLiteral("surface-caps"), R"("metrics":{"panel_border":0},
+         "surfaces":{"panel_bg":{"image":"panel.png","mode":"vertical-caps","cap_top":7,"cap_bottom":6}})");
+    make(QStringLiteral("surface-chart"), R"("metrics":{"panel_border":0,"panel_padding":6,
+        "panel_padding_left":9,"panel_padding_right":11,"panel_bg_cpu_padding_top":4,
+        "panel_spacing":2,"chart_corner_radius":7,"chart_padding_left":3,
+        "chart_glass":0,"chart_grid_lines":0,"panel_icon_size":20,"panel_icon_spacing":6,
+        "panel_icon_offset_x":3,"panel_icon_offset_y":4})");
+
+    const auto pixel = [](const QImage &image, int x, int y) {
+        const double scale = image.devicePixelRatio();
+        return image.pixelColor(qFloor((x + .5) * scale), qFloor((y + .5) * scale));
+    };
+    Theme theme;
+    Panel sample(&theme);
+    sample.layout()->setSizeConstraint(QLayout::SetNoConstraint);
+    sample.setSurfaceKey(QStringLiteral("panel_bg_cpu"));
+    sample.resize(80, 55);
+    if (!theme.load(QStringLiteral("surface-legacy"))) qFatal("Could not load legacy surface");
+    const auto legacy = sample.grab().toImage();
+    if (pixel(legacy, 2, 2) != Qt::red || pixel(legacy, 7, 2) != Qt::green)
+        qFatal("Legacy numeric slices changed");
+    if (!theme.load(QStringLiteral("surface-insets"))) qFatal("Could not load inset surface");
+    const auto insets = sample.grab().toImage();
+    if (pixel(insets, 8, 3) != Qt::red || pixel(insets, 15, 3) != Qt::green
+        || pixel(insets, 78, 3) != Qt::blue || pixel(insets, 41, 53) != Qt::yellow)
+        qFatal("Independent source and destination insets did not render");
+    sample.resize(7, 5);
+    const auto tiny = sample.grab().toImage();
+    if (pixel(tiny, 0, 0) != Qt::red || pixel(tiny, 6, 0) != Qt::blue
+        || pixel(tiny, 3, 4) != Qt::yellow)
+        qFatal("Small inset panel lost its proportional caps");
+    if (!theme.load(QStringLiteral("surface-caps"))) qFatal("Could not load cap surface");
+    sample.resize(80, 55);
+    const auto caps = sample.grab().toImage();
+    if (pixel(caps, 8, 10) != Qt::red || pixel(caps, 14, 10) != Qt::green
+        || pixel(caps, 71, 10) != Qt::blue || pixel(caps, 41, 53) != Qt::yellow)
+        qFatal("Vertical caps did not scale together across the panel");
+    sample.resize(80, 5);
+    const auto shortCaps = sample.grab().toImage();
+    if (pixel(shortCaps, 5, 1) != Qt::red || pixel(shortCaps, 40, 4) != Qt::yellow)
+        qFatal("Short vertical caps overlapped or disappeared");
+    sample.resize(80, 55);
+    if (!theme.load(QStringLiteral("surface-legacy")) || sample.grab().toImage() != legacy)
+        qFatal("Switching to and from optional surfaces altered legacy rendering");
+
+    if (!theme.load(QStringLiteral("surface-chart"))) qFatal("Could not load chart fixture");
+    sample.setTitle(QStringLiteral("CPU"));
+    auto *chart = sample.addChart();
+    auto *track = sample.addKrell();
+    sample.resize(120, sample.sizeHint().height());
+    sample.show();
+    QApplication::processEvents();
+    if (sample.layout()->contentsMargins() != QMargins(9, 4, 11, 6)
+        || track->y() - chart->geometry().bottom() != 3)
+        qFatal("Optional padding failed to inherit or chart and track overlap");
+    const auto at = chart->pos();
+    const auto chartImage = sample.grab().toImage();
+    if (pixel(chartImage, at.x(), at.y() + 3) != QColor("#101010")
+        || pixel(chartImage, at.x() + 3, at.y()) != QColor("#101010")
+        || pixel(chartImage, at.x() + 12, at.y() + 6) != Qt::magenta)
+        qFatal("Rounded chart clip or independent plot padding did not render");
+    theme.setMetric(QStringLiteral("chart_glass"), 1);
+    if (pixel(sample.grab().toImage(), at.x() + 12, at.y() + 6) != QColor("#101010"))
+        qFatal("Glass mode obscured the parent artwork");
+    const auto *header = qobject_cast<Decal *>(sample.layout()->itemAt(0)->widget());
+    const auto head = header->pos();
+    const auto iconImage = sample.grab().toImage();
+    if (header->height() < 26
+        || pixel(iconImage, head.x() + 1, head.y() + 13) != QColor("#101010")
+        || pixel(iconImage, head.x() + 12, head.y() + 13) != Qt::cyan)
+        qFatal("Offset icon clipped or did not reserve heading space");
+    if (!QDir::setCurrent(original)) qFatal("Could not restore working directory");
 }
 
 void checkMemoryMeters()
@@ -406,5 +517,6 @@ int main(int argc, char **argv)
     checkTitleFont(theme, config.path());
     checkMemoryMeters();
     checkCombinedCpuFill(config.path());
+    checkOptInSurfaces(config.path());
     qInfo("PASS: chart layout, live readouts, moving tracks, and compact Memory and Swap meters");
 }

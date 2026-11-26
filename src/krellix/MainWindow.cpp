@@ -737,6 +737,7 @@ void MainWindow::applyFrameMargins()
 void MainWindow::fitToPanelStack()
 {
     if (!m_layout) return;
+    syncHostClockCasing(true);
     setMinimumHeight(0);
     setMaximumHeight(QWIDGETSIZE_MAX);
     invalidateWidgetTree(this);
@@ -745,6 +746,35 @@ void MainWindow::fitToPanelStack()
     const int h = m_layout->sizeHint().height();
     if (h > 0 && height() != h)
         resize(width(), h);
+}
+
+QRect MainWindow::syncHostClockCasing(bool apply)
+{
+    const bool enabled = m_theme->metric(QStringLiteral("host_clock_shared_casing"), 0) != 0;
+    if (!enabled && !apply) return {};
+    const auto *host = findLiveMonitor(QStringLiteral("host"));
+    const auto *clock = findLiveMonitor(QStringLiteral("clock"));
+    auto *hostPanel = host ? qobject_cast<Panel *>(host->widget) : nullptr;
+    auto *clockPanel = clock ? qobject_cast<Panel *>(clock->widget) : nullptr;
+    const int index = hostPanel ? m_layout->indexOf(hostPanel) : -1;
+    const bool shared = enabled && index >= 0 && clockPanel
+        && !hostPanel->isHidden() && !clockPanel->isHidden()
+        && m_layout->indexOf(clockPanel) == index + 1;
+    if (apply) {
+        for (auto *panel : {hostPanel, clockPanel}) {
+            if (panel && panel->property("krellSharedPanelCasing").toBool() != shared) {
+                panel->setProperty("krellSharedPanelCasing", shared ? QVariant(true) : QVariant());
+                if (shared) {
+                    m_theme->stopAnimation(panel == hostPanel ? QStringLiteral("surfaces.panel_bg_host")
+                                                             : QStringLiteral("surfaces.panel_bg_clock"), panel);
+                    m_theme->stopAnimation(QStringLiteral("surfaces.panel_bg"), panel);
+                }
+                panel->update();
+            }
+        }
+        if (!shared) m_theme->stopAnimation(QStringLiteral("surfaces.panel_bg_host_clock"), this);
+    }
+    return shared ? hostPanel->geometry().united(clockPanel->geometry()) : QRect();
 }
 
 void MainWindow::scheduleFitToPanelStack()
@@ -882,6 +912,9 @@ void MainWindow::paintEvent(QPaintEvent *)
 
     p.fillRect(rect(), m_theme->color(QStringLiteral("panel_bg"),
                                       QColor(0, 0, 0)));
+    const QRect sharedCasing = syncHostClockCasing(false);
+    if (!sharedCasing.isEmpty())
+        Panel::paintCasing(p, *m_theme, QStringLiteral("panel_bg_host_clock"), this, sharedCasing);
 
     if (!topPix.isNull())
         p.drawTiledPixmap(QRect(0, 0, width(), topH), topPix);

@@ -87,6 +87,7 @@ private:
     void applyFixedWidth();
     void applyFrameMargins();
     void fitToPanelStack();
+    QRect syncHostClockCasing(bool apply);
     void scheduleFitToPanelStack();
     void applySettingsOverridesToTheme();
     void restorePosition();

@@ -5,6 +5,7 @@
 #include "widgets/Decal.h"
 #include "widgets/Krell.h"
 #include "widgets/Meter.h"
+#include "widgets/SurfaceGeometry.h"
 
 #include <QMouseEvent>
 #include <QPaintEvent>
@@ -100,13 +101,7 @@ Panel::Panel(Theme *theme, QWidget *parent)
     // themes paint over the erased buffer identically to before.
 
     m_layout = new QVBoxLayout(this);
-    m_layout->setContentsMargins(
-        m_theme->metric(QStringLiteral("panel_padding"), 4),
-        m_theme->metric(QStringLiteral("panel_padding"), 4),
-        m_theme->metric(QStringLiteral("panel_padding"), 4),
-        m_theme->metric(QStringLiteral("panel_padding"), 4));
-    m_layout->setSpacing(m_theme->metric(QStringLiteral("panel_spacing"), 2));
-
+    onThemeChanged();
     connect(m_theme, &Theme::themeChanged, this, &Panel::onThemeChanged);
 }
 
@@ -117,7 +112,7 @@ void Panel::setSurfaceKey(const QString &key)
     if (m_surfaceKey == key || key.isEmpty()) return;
     m_surfaceKey = key;
     if (m_titleDecal) m_titleDecal->setThemeIcon(titleIconKey(key));
-    update();
+    onThemeChanged();
 }
 
 void Panel::setTitle(const QString &title)
@@ -172,7 +167,14 @@ void Panel::addWidget(QWidget *widget)
 void Panel::onThemeChanged()
 {
     const int pad = m_theme->metric(QStringLiteral("panel_padding"), 4);
-    m_layout->setContentsMargins(pad, pad, pad, pad);
+    const auto scope = m_surfaceKey + QStringLiteral("_padding");
+    const int scoped = m_theme->metric(scope, -1);
+    const auto edge = [&](const QString &side) {
+        return m_theme->metric(scope + side, scoped >= 0 ? scoped
+            : m_theme->metric(QStringLiteral("panel_padding") + side, pad));
+    };
+    m_layout->setContentsMargins(edge(QStringLiteral("_left")), edge(QStringLiteral("_top")),
+                                 edge(QStringLiteral("_right")), edge(QStringLiteral("_bottom")));
     m_layout->setSpacing(m_theme->metric(QStringLiteral("panel_spacing"), 2));
     update();
 }
@@ -194,23 +196,28 @@ void Panel::mouseReleaseEvent(QMouseEvent *event)
 
 void Panel::paintEvent(QPaintEvent *)
 {
+    if (property("krellSharedPanelCasing").toBool()) return;
     QPainter p(this);
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-    const QRect r = rect();
+    paintCasing(p, *m_theme, m_surfaceKey, this, rect());
+}
 
+void Panel::paintCasing(QPainter &p, Theme &theme, const QString &key, QWidget *owner, const QRect &r)
+{
     // Background via the v2 Surface API — image, 9-slice border, opacity,
     // and tint all in one lookup. Lookup chain: m_surfaceKey (e.g.
     // "panel_bg_cpu" for the CPU monitor) → "panel_bg" → empty. When
     // there's no image, fall back to the panel_bg color.
-    const Theme::Surface surf =
-        m_theme->paintedSurface(m_surfaceKey, QStringLiteral("panel_bg"), this);
+    Theme::SurfaceGeometry geometry;
+    const auto surf = theme.paintedSurface(key, QStringLiteral("panel_bg"), owner, geometry, r);
     if (!surf.image.isNull() && r.width() > 0 && r.height() > 0) {
         const qreal prevOpacity = p.opacity();
         if (surf.opacity < 1.0) p.setOpacity(prevOpacity * surf.opacity);
-        const QString mode = m_theme->imageMode(m_surfaceKey,
-                                                m_theme->imageMode(QStringLiteral("panel_bg"),
-                                                                   QStringLiteral("nine-slice")));
-        if (mode == QStringLiteral("stretch"))
+        const QString mode = theme.imageMode(key, theme.imageMode(QStringLiteral("panel_bg"),
+                                                                 QStringLiteral("nine-slice")));
+        if (geometry.mode != Theme::SurfaceGeometry::Legacy)
+            SurfaceRendering::drawSliced(p, surf.image, r, geometry);
+        else if (mode == QStringLiteral("stretch"))
             p.drawPixmap(r, surf.image);
         else
             drawNineSlice(p, surf.image, r, surf.slice);
@@ -235,15 +242,13 @@ void Panel::paintEvent(QPaintEvent *)
         // the 3-arg one that plugin .so files link against; this
         // change compiles the new krellix binary against the new
         // overload without disturbing the old symbol.
-        p.fillRect(r, m_theme->brush(m_surfaceKey, r,
-                                     m_theme->color(QStringLiteral("panel_bg")),
-                                     QStringLiteral("panel_bg")));
+        p.fillRect(r, theme.brush(key, r, theme.color(QStringLiteral("panel_bg")), QStringLiteral("panel_bg")));
     }
 
-    const int bw = m_theme->metric(QStringLiteral("panel_border"), 1);
+    const int bw = theme.metric(QStringLiteral("panel_border"), 1);
     if (bw <= 0) return;
 
-    QPen pen(m_theme->color(QStringLiteral("panel_border")));
+    QPen pen(theme.color(QStringLiteral("panel_border")));
     pen.setWidth(bw);
     p.setPen(pen);
     // Inset so the line is fully inside the widget.

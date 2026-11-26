@@ -91,5 +91,12 @@ int main(int argc, char **argv)
     monitor->tick();
     require(healthArtworkBounds(widget.get()).isEmpty(), "Warning showed the healthy artwork");
     require(widget->toolTip().contains(QStringLiteral("Full detail kept")), "Warning lost detail");
+    require(theme.load(QStringLiteral("health-test-status")), "Could not load status artwork");
+    const auto warningArt = healthArtworkBounds(widget.get());
+    require(warningArt.width() > 32 && qAbs(warningArt.width() - warningArt.height() * 2) <= 2,
+            "128px source or larger warning art did not render proportionally");
+    send(R"({"type":"sample","health":{"findings":[{"severity":"info","title":"Fixture info","detail":"Unthemed state"}]}})");
+    monitor->tick();
+    require(healthArtworkBounds(widget.get()).isEmpty(), "Missing info artwork did not fall back");
     qInfo("KrellHealth: themed and fallback heart, live switching, layout and warning checks passed");
 }

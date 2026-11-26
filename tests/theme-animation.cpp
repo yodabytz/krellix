@@ -101,6 +101,14 @@ int main(int argc, char **argv)
           "Static surface geometry uses animated assets");
     check(center(theme.paintedSurface(QStringLiteral("panel_bg"), {}, &window).image) == Qt::red,
           "Painting did not extract a frame before slicing");
+    write(dir + QStringLiteral("theme.json"),
+          R"({"images":{"frame_left":"static.png"},"surfaces":{"panel_bg":{"image":"static.png",
+                "mode":"vertical-caps","cap_top":3,"cap_bottom":2}}})");
+    check(theme.load(name), "Cannot load capped animation fixture");
+    Theme::SurfaceGeometry caps;
+    const auto animated = theme.paintedSurface(QStringLiteral("panel_bg"), {}, &window, caps, QRect(5, 6, 16, 12));
+    check(caps.mode == Theme::SurfaceGeometry::VerticalCaps && caps.source == QMargins(0, 3, 0, 2)
+          && center(animated.image) == Qt::red, "Cap geometry did not survive frame selection");
     check(QFile::remove(dir + QStringLiteral("sheet.png")), "Cannot remove original fixture sheet");
     check(until([&] { return center(frame()) == Qt::blue; }), "Painting reread the atlas");
     window.hide();

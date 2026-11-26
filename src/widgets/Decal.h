@@ -51,6 +51,8 @@ private:
     int  textPixelWidth() const;
     QPixmap themeIcon() const;
     QSize themeIconSize(const QPixmap &icon) const;
+    int themeIconLead(int width) const;
+    int themeIconYOffset() const;
     void updateScrollState();
 
     Theme  *m_theme;

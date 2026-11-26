@@ -1,6 +1,7 @@
 #include "Chart.h"
 
 #include "theme/Theme.h"
+#include "widgets/SurfaceGeometry.h"
 
 #include <QFontMetrics>
 #include <QLinearGradient>
@@ -229,7 +230,27 @@ void Chart::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
 
-    const QRect r = rect();
+    const auto inset = [&](const QString &key, int available) {
+        return qBound(0, m_theme->metric(key, 0), qMax(0, available - 1));
+    };
+    const int left = inset(QStringLiteral("chart_padding_left"), width());
+    const int right = inset(QStringLiteral("chart_padding_right"), width() - left);
+    const int top = inset(QStringLiteral("chart_padding_top"), height());
+    const int bottomPad = inset(QStringLiteral("chart_padding_bottom"), height() - top);
+    const QRect r = rect().adjusted(left, top, -right, -bottomPad);
+    if (r.isEmpty()) return;
+    const int radius = qBound(0, m_theme->metric(QStringLiteral("chart_corner_radius"), 0),
+                             qMin(r.width(), r.height()) / 2);
+    if (radius > 0) {
+        QPainterPath path;
+        path.addRoundedRect(QRectF(r), radius, radius);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setClipPath(path);
+        p.setRenderHint(QPainter::Antialiasing, false);
+    } else if (r != rect()) {
+        p.setClipRect(r);
+    }
+    const bool glass = m_theme->metric(QStringLiteral("chart_glass"), 0) != 0;
     const QColor bg   = m_theme->color(QStringLiteral("chart_bg"));
     const QColor grid = m_theme->color(QStringLiteral("chart_grid"));
     const QColor line = m_theme->color(m_colorKey,
@@ -244,8 +265,10 @@ void Chart::paintEvent(QPaintEvent *)
     // unrendered before because Chart was only reading the v1 "images"
     // map. Falls back to the legacy v1 pixmap path, then to the
     // colour/gradient brush, in that order.
-    Theme::Surface surf = m_theme->surface(QStringLiteral("chart_bg"));
-    if (surf.image.isNull()) {
+    Theme::SurfaceGeometry geometry;
+    Theme::Surface surf;
+    if (!glass) surf = m_theme->paintedSurface(QStringLiteral("chart_bg"), {}, nullptr, geometry, r);
+    if (!glass && surf.image.isNull()) {
         // v1 fallback — old themes only wrote "images" not "surfaces".
         const QPixmap legacy = m_theme->pixmap(QStringLiteral("chart_bg"));
         if (!legacy.isNull()) {
@@ -260,7 +283,9 @@ void Chart::paintEvent(QPaintEvent *)
                                                 QStringLiteral("tile"));
         const qreal prevOpacity = p.opacity();
         if (surf.opacity < 1.0) p.setOpacity(prevOpacity * surf.opacity);
-        if (surf.slice > 0
+        if (geometry.mode != Theme::SurfaceGeometry::Legacy) {
+            SurfaceRendering::drawSliced(p, surf.image, r, geometry);
+        } else if (surf.slice > 0
             && surf.image.width()  >= 2 * surf.slice
             && surf.image.height() >= 2 * surf.slice
             && r.width()           >= 2 * surf.slice
@@ -307,7 +332,7 @@ void Chart::paintEvent(QPaintEvent *)
         }
         if (surf.tint.isValid()) p.fillRect(r, surf.tint);
         if (surf.opacity < 1.0) p.setOpacity(prevOpacity);
-    } else {
+    } else if (!glass) {
         // No image anywhere — fill with the chart_bg solid or gradient.
         const QBrush bgBrush =
             m_theme->brush(QStringLiteral("chart_bg"), r, bg);

@@ -97,6 +97,18 @@ QSize Decal::themeIconSize(const QPixmap &icon) const
     return icon.size().scaled(limit, limit, Qt::KeepAspectRatio);
 }
 
+int Decal::themeIconLead(int width) const
+{
+    if (width <= 0) return 0;
+    return width + qBound(0, m_theme->metric(QStringLiteral("panel_icon_offset_x"), 0), 32)
+                 + qBound(0, m_theme->metric(QStringLiteral("panel_icon_spacing"), kIconGapPx), 32);
+}
+
+int Decal::themeIconYOffset() const
+{
+    return qBound(0, m_theme->metric(QStringLiteral("panel_icon_offset_y"), 0), 32);
+}
+
 void Decal::setAlwaysScroll(bool alwaysScroll)
 {
     if (m_alwaysScroll == alwaysScroll) return;
@@ -162,7 +174,7 @@ void Decal::updateScrollState()
 {
     const int tw = textPixelWidth();
     const int iconWidth = themeIconSize(themeIcon()).width();
-    const int available = width() - (iconWidth > 0 ? iconWidth + kIconGapPx : 0);
+    const int available = width() - themeIconLead(iconWidth);
     const bool shouldScroll = available > 0 && ((tw > available) || m_alwaysScroll)
         && isVisible()
         && !m_text.isEmpty();
@@ -188,15 +200,16 @@ QSize Decal::sizeHint() const
     const int w = fm.horizontalAdvance(m_text.isEmpty()
                                        ? QStringLiteral("M") : QStringLiteral("M"));
     const auto icon = themeIconSize(themeIcon());
-    return QSize(w + 4 + (icon.width() > 0 ? icon.width() + kIconGapPx : 0),
-                 qMax(fm.height(), icon.height()) + 2);
+    return QSize(w + 4 + themeIconLead(icon.width()),
+                 qMax(fm.height(), icon.height() + (icon.isEmpty() ? 0 : themeIconYOffset())) + 2);
 }
 
 QSize Decal::minimumSizeHint() const
 {
     const QFont f = m_theme->font(m_fontKey);
     const QFontMetrics fm(f);
-    return QSize(0, qMax(fm.height(), themeIconSize(themeIcon()).height()) + 2);
+    const auto icon = themeIconSize(themeIcon());
+    return QSize(0, qMax(fm.height(), icon.height() + (icon.isEmpty() ? 0 : themeIconYOffset())) + 2);
 }
 
 void Decal::resizeEvent(QResizeEvent *event)
@@ -240,8 +253,10 @@ void Decal::paintEvent(QPaintEvent *)
     if (!icon.isNull()) {
         const auto size = themeIconSize(icon);
         p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-        p.drawPixmap(QRect(QPoint(0, (r.height() - size.height()) / 2), size), icon);
-        textRect.adjust(size.width() + kIconGapPx, 0, 0, 0);
+        const int x = qBound(0, m_theme->metric(QStringLiteral("panel_icon_offset_x"), 0), 32);
+        const int off = themeIconYOffset();
+        p.drawPixmap(QRect(QPoint(x, (r.height() - size.height() + off) / 2), size), icon);
+        textRect.adjust(themeIconLead(size.width()), 0, 0, 0);
         if (textRect.isEmpty()) return;
         p.setClipRect(textRect);
         alignment = Qt::AlignLeft;

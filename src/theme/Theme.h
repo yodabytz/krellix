@@ -5,6 +5,7 @@
 #include <QFont>
 #include <QHash>
 #include <QList>
+#include <QMargins>
 #include <QObject>
 #include <QPair>
 #include <QPixmap>
@@ -79,6 +80,12 @@ public:
         int     slice   = 4;    // 9-slice corner; 0 = plain stretch
         qreal   opacity = 1.0;  // 0..1
         QColor  tint;            // invalid = no tint overlay
+    };
+
+    struct SurfaceGeometry {
+        enum Mode { Legacy, InsetSlices, VerticalCaps } mode = Legacy;
+        QMargins source;
+        QMargins destination;
     };
 
     // A "color" key can be either a flat string (parsed to QColor) or a
@@ -178,6 +185,8 @@ public:
     QPixmap animationFrame(const QString &target, QWidget *widget, const QRect &region, QSize size) const;
     void stopAnimation(const QString &target, QWidget *widget) const;
     Surface paintedSurface(const QString &key, const QString &fallbackKey, QWidget *widget) const;
+    Surface paintedSurface(const QString &key, const QString &fallbackKey, QWidget *widget,
+                           SurfaceGeometry &geometry, const QRect &region) const;
 
     // Runtime override of a theme metric (e.g. user-set krell_height from
     // SettingsDialog). Triggers themeChanged() so widgets refresh.
@@ -212,7 +221,11 @@ private:
     bool parseJsonFile(const QString &path);
     void loadAnimation();
     QPixmap surfaceImage(const QString &relativePath) const;
+    QPixmap surfaceImage(const QString &relativePath, bool cache) const;
     Surface resolveSurface(const QString &key, const QString &fallbackKey, QWidget *widget) const;
+    Surface resolveSurface(const QString &key, const QString &fallbackKey, QWidget *widget,
+                           SurfaceGeometry *geometry, const QRect &region) const;
+    SurfaceGeometry surfaceGeometry(const QString &key) const;
 
     // v2 parse helpers
     void parseSurfaces  (const class QJsonObject &obj);

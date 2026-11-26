@@ -12,7 +12,7 @@ inline void makeHealthTheme(const QString &name, const QByteArray &manifest)
     QFile file(root + QStringLiteral("/theme.json"));
     if (!file.open(QIODevice::WriteOnly) || file.write(manifest) != manifest.size())
         qFatal("Could not create health theme manifest");
-    QImage image(48, 24, QImage::Format_ARGB32);
+    QImage image(128, 64, QImage::Format_ARGB32);
     image.fill(Qt::magenta);
     if (!image.save(root + QStringLiteral("/heart.png"))) qFatal("Could not write health artwork");
 }
@@ -39,4 +39,9 @@ inline void makeHealthThemes()
     makeHealthTheme(QStringLiteral("health-test-missing"),
                     R"({"metrics":{"panel_icon_krellhealth_heart_size":28},
                         "images":{"panel_icon_krellhealth_heart":"not-found.png"}})");
+    makeHealthTheme(QStringLiteral("health-test-status"),
+                    R"({"metrics":{"panel_icon_krellhealth_status_size":64},
+                        "images":{"panel_icon_krellhealth_status_healthy":"heart.png",
+                                  "panel_icon_krellhealth_status_warning":"heart.png",
+                                  "panel_icon_krellhealth_status_critical":"heart.png"}})");
 }

@@ -122,6 +122,23 @@ Map of name → integer (clamped to `0..4096`).
 | `panel_icon_size` | 16 | Maximum panel title icon width or height (8 to 32 logical pixels) |
 | `top_strip_keep_aspect` | 0 | Scale an enabled top strip proportionally to the panel width |
 
+**Optional sculpted panel metrics (new):**
+
+| Key | Default | Effect |
+| --- | --- | --- |
+| `panel_padding_left`, `panel_padding_top`, `panel_padding_right`, `panel_padding_bottom` | `panel_padding` | Content margins in logical pixels. |
+| `panel_bg_<monitor>_padding`, `panel_bg_<monitor>_padding_<edge>` | Inherited | A panel can override all margins or one edge, e.g. `panel_bg_cpu_padding_top`. Resolution is scoped edge, scoped uniform, global edge, global uniform. |
+| `chart_glass` | 0 | At 1, skip the chart's independent backdrop and overlays; show the parent panel behind the traces, grid and readout. |
+| `chart_corner_radius` | 0 | Clip the complete plot to a rounded rectangle. Clamped to half the shorter plot dimension. |
+| `chart_padding_left`, `chart_padding_top`, `chart_padding_right`, `chart_padding_bottom` | 0 | Inset the plot within its existing widget. Excess insets leave at least one logical pixel. No change to chart height or samples. |
+| `panel_icon_offset_x`, `panel_icon_offset_y` | 0 | Offset the heading icon rightward and bias it downward; 0–32 logical pixels. The label reserves the horizontal offset and the row reserves vertical space. |
+| `panel_icon_spacing` | 4 | Gap in logical pixels between icon and title, 0–32. |
+| `host_clock_shared_casing` | 0 | At 1, adjacent Host and Clock panels (in that order) share `surfaces.panel_bg_host_clock` or the base panel surface. Both monitors keep their own rows, data, settings and order. If one is disabled or another panel separates them, use the normal independent surfaces. |
+
+Charts and Krells are already separate widgets. Use the existing
+`panel_spacing` to keep a gap between them; the opt-in chart clip does not
+change a track's size, position, sprite frame or animation.
+
 For combined charts, a color such as `chart_line_cpu_series` or
 `chart_line_net_rx_series` opts into several shades of that color. A grayscale
 series palette takes precedence if both options are configured.
@@ -173,6 +190,17 @@ An optional `metrics.panel_icon_krellhealth_heart_size` sets the longest edge
 of the custom artwork in logical pixels (8 to 32). Omit it for the old slot.
 See the [KrellHealth artwork example](../plugins/krellhealth/README.md).
 
+The updated KrellHealth plugin also accepts
+`panel_icon_krellhealth_status_healthy`, `_status_info`, `_status_warning`,
+`_status_critical` and `_status_check` (with the same full prefix). These
+map only to OK, INFO, WARN, CRIT and CHECK when the platform reports them.
+Missing art falls back to the built-in indicator, or to the original
+`panel_icon_krellhealth_heart` for OK. The opt-in
+`panel_icon_krellhealth_status_size` takes precedence over the old size
+metric, accepts 8–80 logical pixels, and shrinks the artwork if the label
+needs room. Use a tightly trimmed, transparent PNG, such as 128 × 128
+pixels or larger, and preserve the state label and tooltip.
+
 ### Optional animation manifest
 
 A theme can include `animation.json` next to `theme.json`. The original
@@ -184,7 +212,7 @@ must match the static asset; the full PNG must be exactly
 the theme directory. Invalid entries do not replace the static artwork.
 
 Supported targets: `surfaces.panel_bg_top`, `surfaces.panel_bg`,
-`surfaces.panel_bg_host`, `images.frame_left`, `images.frame_right`,
+`surfaces.panel_bg_host`, `surfaces.panel_bg_host_clock`, `images.frame_left`, `images.frame_right`,
 `images.frame_bottom`, `images.krell`, and `mail.new`. Mail uses
 `panel_icon_krellmail_new` as its static counterpart and only runs with
 unread mail and Follow Theme. The `images.krell` animation replaces only
@@ -211,6 +239,40 @@ support scalable base art plus optional decorative overlay images:
 top without 9-slice scaling, so logos or badges do not stretch with the panel.
 Qt eight-digit colors use `#AARRGGBB` (alpha first). For a hands-on walkthrough,
 see the [theme author's guide](https://cerberix.org/extras/krellix/themes/#build-a-theme).
+
+#### Opt-in slice geometry
+
+`surfaces.<key>.mode` accepts two new values:
+
+- `nine-slice-insets`: Set `slice_insets` in source PNG pixels and optional
+  `destination_insets` in logical pixels, with `left`, `top`, `right` and
+  `bottom` keys. Source edges default to zero. Each destination edge
+  defaults to the corresponding source edge.
+- `vertical-caps`: Set `cap_top` and `cap_bottom` in source PNG pixels.
+  Omitted caps default to zero. The full-width top, middle and bottom use
+  one horizontal scale; the middle takes the variable vertical space.
+
+```json
+{
+  "surfaces": {
+    "panel_bg": {"image":"assets/framed.png","mode":"nine-slice-insets",
+      "slice_insets":{"left":12,"right":10,"top":18,"bottom":20},
+      "destination_insets":{"left":6,"right":6,"top":12,"bottom":12}},
+    "panel_bg_host": {"image":"assets/gloss.png","mode":"vertical-caps",
+      "cap_top":20,"cap_bottom":20}
+  }
+}
+```
+
+Keep at least one source pixel between opposite caps. Overlarge values
+are reduced proportionally, preserving a center pixel. Short or narrow
+destinations compress the destination caps proportionally without
+stretching the entire image as a fallback. An absent mode, an unknown
+mode, or no positive source edges keeps legacy rendering and the numeric
+`slice` fallback exactly as before. Geometry follows the resolved image,
+not a missing override. Older Krellix builds ignore these optional fields;
+keep a numeric `slice` as a fallback for them. Use full-width, alpha
+transparent artwork for sculpted caps, not crops of a single middle column.
 
 ## Limits
 

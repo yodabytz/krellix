@@ -88,6 +88,14 @@ int main(int argc, char **argv)
     heart->resize(100, heart->sizeHint().height());
     check(heart->grab().toImage() == fallback, "Missing artwork did not preserve the default");
     check(theme.load(QStringLiteral("health-test-large")), "Could not restore custom theme");
+    sockets.last()->write(sample + '\n');
+    check(until([&]{return widget->toolTip().contains("REMOTE_ONLY");}),"Critical fixture did not arrive");
+    check(healthArtworkBounds(heart).isEmpty(), "Critical state painted the healthy heart");
+    check(theme.load(QStringLiteral("health-test-status")), "Could not load custom status artwork");
+    heart->resize(100, heart->sizeHint().height());
+    const auto criticalArt = healthArtworkBounds(heart);
+    check(criticalArt.width() > 32 && qAbs(criticalArt.width() - criticalArt.height() * 2) <= 2,
+          "Larger critical artwork was missing or distorted");
     sockets.last()->write("garbage\n");
     check(until([&]{return widget->toolTip().contains("invalid remote health message");}),"Malformed message accepted");
     check(healthArtworkBounds(heart).isEmpty(), "Unavailable reading showed healthy artwork");

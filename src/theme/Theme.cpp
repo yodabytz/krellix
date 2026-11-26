@@ -593,7 +593,49 @@ void Theme::parseSurfaces(const QJsonObject &obj)
         const QJsonValue tnVal = s.value(QStringLiteral("tint"));
         if (tnVal.isString()) spec.tint = QColor(tnVal.toString());
         m_surfaces.insert(it.key(), spec);
+        const auto mode = s.value(QStringLiteral("mode")).toString();
+        if (mode != QStringLiteral("vertical-caps") && mode != QStringLiteral("nine-slice-insets")) continue;
+        // Reuse the existing metadata stores without changing the plugin ABI.
+        const auto prefix = QStringLiteral(":surface-geometry/") + it.key() + QLatin1Char('/');
+        m_imageStrings.insert(prefix, mode);
+        const auto store = [&](const QString &name, const QJsonValue &value) {
+            if (value.isDouble())
+                m_imageInts.insert(prefix + name, static_cast<int>(qBound(0.0, value.toDouble(), 4096.0)));
+        };
+        for (const auto &group : {QStringLiteral("slice_insets"), QStringLiteral("destination_insets")}) {
+            const auto insets = s.value(group).toObject();
+            for (const auto &side : {QStringLiteral("left"), QStringLiteral("top"),
+                                     QStringLiteral("right"), QStringLiteral("bottom")})
+                store(group + QLatin1Char('/') + side, insets.value(side));
+        }
+        store(QStringLiteral("cap_top"), s.value(QStringLiteral("cap_top")));
+        store(QStringLiteral("cap_bottom"), s.value(QStringLiteral("cap_bottom")));
     }
+}
+
+Theme::SurfaceGeometry Theme::surfaceGeometry(const QString &key) const
+{
+    SurfaceGeometry geometry;
+    const auto prefix = QStringLiteral(":surface-geometry/") + key + QLatin1Char('/');
+    const auto mode = m_imageStrings.constFind(prefix);
+    if (mode == m_imageStrings.cend()) return geometry;
+    if (*mode == QStringLiteral("vertical-caps")) {
+        geometry.mode = SurfaceGeometry::VerticalCaps;
+        geometry.source = QMargins(0, m_imageInts.value(prefix + QStringLiteral("cap_top")),
+                                   0, m_imageInts.value(prefix + QStringLiteral("cap_bottom")));
+        return geometry.source.isNull() ? SurfaceGeometry{} : geometry;
+    }
+    geometry.mode = SurfaceGeometry::InsetSlices;
+    const auto margins = [&](const QString &name, const QMargins &fallback) {
+        const auto group = prefix + name + QLatin1Char('/');
+        return QMargins(m_imageInts.value(group + QStringLiteral("left"), fallback.left()),
+                        m_imageInts.value(group + QStringLiteral("top"), fallback.top()),
+                        m_imageInts.value(group + QStringLiteral("right"), fallback.right()),
+                        m_imageInts.value(group + QStringLiteral("bottom"), fallback.bottom()));
+    };
+    geometry.source = margins(QStringLiteral("slice_insets"), {});
+    geometry.destination = margins(QStringLiteral("destination_insets"), geometry.source);
+    return geometry.source.isNull() ? SurfaceGeometry{} : geometry;
 }
 
 void Theme::parseTextStyles(const QJsonObject &obj)
@@ -704,13 +746,18 @@ void Theme::stopAnimation(const QString &target, QWidget *widget) const
 
 QPixmap Theme::surfaceImage(const QString &relativePath) const
 {
-    if (m_animation) {
+    return surfaceImage(relativePath, bool(m_animation));
+}
+
+QPixmap Theme::surfaceImage(const QString &relativePath, bool cache) const
+{
+    if (cache) {
         const auto cached = m_surfaceImages.constFind(relativePath);
         if (cached != m_surfaceImages.cend()) return cached.value();
     }
     const auto full = assetPath(relativePath);
     const auto image = full.isEmpty() ? QPixmap() : loadBoundedPixmap(full);
-    if (m_animation) m_surfaceImages.insert(relativePath, image);
+    if (cache) m_surfaceImages.insert(relativePath, image);
     return image;
 }
 
@@ -720,6 +767,19 @@ Theme::Surface Theme::paintedSurface(const QString &key, const QString &fallback
 }
 
 Theme::Surface Theme::resolveSurface(const QString &key, const QString &fallbackKey, QWidget *widget) const
+{
+    return resolveSurface(key, fallbackKey, widget, nullptr, widget ? widget->rect() : QRect());
+}
+
+Theme::Surface Theme::paintedSurface(const QString &key, const QString &fallbackKey, QWidget *widget,
+                                     SurfaceGeometry &geometry, const QRect &region) const
+{
+    geometry = {};
+    return resolveSurface(key, fallbackKey, widget, &geometry, region);
+}
+
+Theme::Surface Theme::resolveSurface(const QString &key, const QString &fallbackKey, QWidget *widget,
+                                     SurfaceGeometry *geometry, const QRect &region) const
 {
     // Lookup chain: requested key, then caller-supplied fallback, then
     // the universal "panel_bg" base. First match wins; missing image
@@ -750,11 +810,13 @@ Theme::Surface Theme::resolveSurface(const QString &key, const QString &fallback
                 // Inline-resolve through the same hardened path-loader
                 // that pixmap() uses so the v2 entry doesn't bypass
                 // sandboxing.
-                out.image = surfaceImage(sp.relImage);
+                const auto configured = geometry ? surfaceGeometry(k) : SurfaceGeometry{};
+                out.image = surfaceImage(sp.relImage, bool(m_animation) || configured.mode != SurfaceGeometry::Legacy);
                 if (!out.image.isNull()) {
+                    if (geometry) *geometry = configured;
                     if (widget && m_animation) {
                         const auto frame = animationFrame(QStringLiteral("surfaces.") + k, widget,
-                                                          widget->rect(), out.image.size());
+                                                          region, out.image.size());
                         if (!frame.isNull()) out.image = frame;
                     }
                     foundSpec = true;

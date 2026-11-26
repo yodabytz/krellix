@@ -1,0 +1,57 @@
+name: Theme rendering checks
+on:
+  workflow_dispatch:
+  push:
+    branches: [work/mmd3-opt-in-rendering]
+  pull_request:
+    paths:
+      - 'src/theme/**'
+      - 'src/widgets/**'
+      - 'packaging/themes/MMD3/**'
+      - 'plugins/krellhealth/**'
+      - 'tests/*'
+      - '.github/workflows/theme-rendering.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - name: Verify the existing portable runtime
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP 'krellix-preview13.zip'
+          Invoke-WebRequest 'https://repo.cerberix.org/windows/krellix-0.1.2-windows-preview.13-x86_64.zip' -OutFile $archive
+          if ((Get-FileHash -LiteralPath $archive).Hash -ne '3a83f8e35b265a73bc78ccbf055d9f56b6825e3e23023351eb5a11e63bd57faa') {
+            throw 'Unexpected portable runtime'
+          }
+          Expand-Archive -LiteralPath $archive -DestinationPath "$env:RUNNER_TEMP\portable"
+      - uses: msys2/setup-msys2@3c51bf698df1e37b2261f53cb67797b97761185c
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-qt6-base
+      - name: Build and test without packaging a release
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          export QT_FORCE_STDERR_LOGGING=1
+          portable=$(cygpath -u "$RUNNER_TEMP")/portable/Krellix
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
+            "-DKRELLIX_SENSOR_DIR=$(cygpath -m "$portable/sensors")"
+          cmake --build build --target krellix chart-panel-layout settings-lifecycle theme-animation krellhealth-integration krellhealth-data -j 4
+          cp "$portable/"*.dll build/krellhealth-test-host/
+          mkdir -p build/krellhealth-test-host/platforms
+          cp /ucrt64/share/qt6/plugins/platforms/qoffscreen.dll build/krellhealth-test-host/platforms/ || \
+            cp "$(find /ucrt64 -path '*/platforms/qoffscreen.dll' -type f -print -quit)" build/krellhealth-test-host/platforms/
+          ctest --test-dir build -R '^(chart-panel-layout-.+|settings-lifecycle|theme-animation|krellhealth-(integration|data))$' --output-on-failure

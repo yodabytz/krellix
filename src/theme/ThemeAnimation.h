@@ -196,7 +196,8 @@ private:
     static bool supportedTarget(const QString &target)
     {
         return target == QLatin1String("surfaces.panel_bg_top") || target == QLatin1String("surfaces.panel_bg")
-            || target == QLatin1String("surfaces.panel_bg_host") || target == QLatin1String("images.frame_left")
+            || target == QLatin1String("surfaces.panel_bg_host")
+            || target == QLatin1String("surfaces.panel_bg_host_clock") || target == QLatin1String("images.frame_left")
             || target == QLatin1String("images.frame_right") || target == QLatin1String("images.frame_bottom")
             || target == QLatin1String("images.krell") || target == QLatin1String("mail.new");
     }

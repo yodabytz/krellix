@@ -66,6 +66,38 @@ static void verifyDragHandle(Theme *theme)
 
 static int completed = 0;
 
+static void verifySharedHostClockCasing()
+{
+    Theme theme;
+    MainWindow window(&theme, {QStringLiteral("host"), QStringLiteral("clock")});
+    window.show();
+    QApplication::processEvents();
+    const auto panels = window.findChildren<Panel *>(QString(), Qt::FindDirectChildrenOnly);
+    const auto shared = [&] {
+        int count = 0;
+        for (const auto *panel : panels)
+            if (panel->property("krellSharedPanelCasing").toBool()) ++count;
+        return count;
+    };
+    const int height = window.height();
+    if (shared() != 0) qFatal("Legacy theme grouped the host and clock");
+    theme.setMetric(QStringLiteral("host_clock_shared_casing"), 1);
+    QApplication::processEvents();
+    if (shared() != 2 || window.height() != height)
+        qFatal("Shared casing did not preserve both monitor layouts");
+    theme.setMetric(QStringLiteral("host_clock_shared_casing"), 0);
+    QApplication::processEvents();
+    if (shared() != 0 || window.height() != height)
+        qFatal("Switching off shared casing did not restore the separate panels");
+    theme.setMetric(QStringLiteral("host_clock_shared_casing"), 1);
+    MainWindow clockOnly(&theme, {QStringLiteral("clock")});
+    clockOnly.show();
+    QApplication::processEvents();
+    for (const auto *panel : clockOnly.findChildren<Panel *>())
+        if (panel->property("krellSharedPanelCasing").toBool())
+            qFatal("A standalone clock was stripped of its casing");
+}
+
 static void verifyAppearanceSelector(SettingsDialog &dialog, QComboBox &combo, const QString &pluginName)
 {
     const auto select = [&](const QString &listName, const QString &label) {
@@ -266,6 +298,7 @@ static void exercise()
         auto *existing = window->findChild<MonitorBase *>();
         if (!existing) qFatal("No monitor for disk test theme");
         verifyDragHandle(existing->theme());
+        verifySharedHostClockCasing();
         verifyClockScroll(existing->theme());
         verifyMailAnimationSetting(existing->theme());
         verifyFooterFrame();

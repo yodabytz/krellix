@@ -11,6 +11,7 @@ class Chart;
 class Meter;
 class QVBoxLayout;
 class QMouseEvent;
+class QPainter;
 
 // Container for one monitor's UI: optional title, optional krell, optional
 // chart, and any number of decals. Paints its themed border and background.
@@ -38,6 +39,8 @@ public:
     void addWidget(QWidget *widget);
 
     Theme *theme() const { return m_theme; }
+    static void paintCasing(QPainter &paint, Theme &theme, const QString &surfaceKey,
+                            QWidget *animationOwner, const QRect &rect);
 
 protected:
     void paintEvent(QPaintEvent *event) override;

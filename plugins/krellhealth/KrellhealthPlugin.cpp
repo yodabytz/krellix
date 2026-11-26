@@ -129,7 +129,7 @@ public:
 
         const QFontMetrics ifm(iconFont);
         const QFontMetrics tfm(textFont);
-        const auto size = KrellHealthArtwork::requestedSize(*m_theme, artwork());
+        const auto size = KrellHealthArtwork::requestedSize(*m_theme, artwork(), m_text == QStringLiteral("OK"));
         const int iconW = size.isEmpty() ? ifm.horizontalAdvance(m_icon) : size.width();
         return QSize(iconW + tfm.horizontalAdvance(m_text) + 12,
                      qMax(qMax(ifm.height(), tfm.height()), size.height()) + 2);
@@ -158,10 +158,13 @@ protected:
         const QRect r = rect();
         const QFontMetrics ifm(iconFont);
         const QFontMetrics tfm(textFont);
-        const auto icon = artwork();
-        const auto size = KrellHealthArtwork::requestedSize(*m_theme, icon);
-        const int iconW = size.isEmpty() ? ifm.horizontalAdvance(m_icon) : size.width();
         const int textW = tfm.horizontalAdvance(m_text);
+        auto icon = artwork();
+        const bool explicitSize = KrellHealthArtwork::hasExplicitStatusSize(*m_theme);
+        const auto size = KrellHealthArtwork::requestedSize(*m_theme, icon, m_text == QStringLiteral("OK"),
+                                                            explicitSize ? r.width() - textW - 5 : 4096);
+        if (explicitSize && size.isEmpty()) icon = {};
+        const int iconW = size.isEmpty() ? ifm.horizontalAdvance(m_icon) : size.width();
         const int totalW = iconW + 5 + textW;
         const int x = qMax(0, (r.width() - totalW) / 2);
 
@@ -182,7 +185,7 @@ protected:
 private:
     QPixmap artwork() const
     {
-        return m_icon == QStringLiteral("\u2665") ? KrellHealthArtwork::heart(*m_theme) : QPixmap();
+        return KrellHealthArtwork::status(*m_theme, m_text);
     }
 
     Theme *m_theme = nullptr;

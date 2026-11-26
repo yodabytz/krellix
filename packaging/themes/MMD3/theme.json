@@ -1,11 +1,11 @@
 {
   "name": "MMD3",
-  "version": "1.1",
+  "version": "1.3",
   "author": "Theme designer",
   "description": "Sculpted silver and ocean-blue glass, with cyan traces and an animated footer.",
   "colors": {
-    "panel_bg": "#062b40",
-    "panel_border": "#aab7bd",
+    "panel_bg": "#04131c",
+    "panel_border": "#061019",
     "chart_bg": {
       "gradient": "linear",
       "angle": 90,
@@ -52,32 +52,74 @@
     }
   },
   "metrics": {
-    "panel_padding": 6,
+    "panel_padding": 8,
+    "panel_padding_left": 10,
+    "panel_padding_right": 10,
+    "panel_bg_host_padding_bottom": 2,
+    "panel_bg_clock_padding_top": 2,
     "panel_spacing": 2,
     "panel_border": 0,
     "krell_height": 12,
     "chart_height": 100,
     "chart_grid_lines": 4,
+    "chart_glass": 1,
+    "chart_corner_radius": 5,
+    "chart_padding_left": 2,
+    "chart_padding_right": 2,
+    "host_clock_shared_casing": 1,
     "top_strip_height": 47,
     "top_strip_keep_aspect": 1,
-    "panel_icon_size": 18,
-    "panel_icon_krellhealth_heart_size": 26
+    "panel_icon_size": 20,
+    "panel_icon_offset_x": 1,
+    "panel_icon_spacing": 4,
+    "panel_icon_krellhealth_heart_size": 26,
+    "panel_icon_krellhealth_status_size": 40
   },
   "surfaces": {
     "panel_bg": {
       "image": "assets/panel.png",
-      "slice": 6,
+      "slice": 28,
+      "mode": "vertical-caps",
+      "cap_top": 28,
+      "cap_bottom": 28,
       "opacity": 1
     },
     "panel_bg_host": {
       "image": "assets/host-panel.png",
-      "slice": 6,
+      "slice": 20,
+      "mode": "vertical-caps",
+      "cap_top": 20,
+      "cap_bottom": 20,
       "opacity": 1
     },
     "chart_bg": {
       "image": "assets/chart-bg.png",
       "slice": 4,
       "opacity": 0.12
+    },
+    "panel_bg_host_clock": {
+      "image": "assets/host-panel.png",
+      "mode": "vertical-caps",
+      "cap_top": 20,
+      "cap_bottom": 20
+    },
+    "panel_bg_clock": {
+      "image": "assets/panel-short.png",
+      "mode": "vertical-caps",
+      "cap_top": 17,
+      "cap_bottom": 17
+    },
+    "panel_bg_proc": {
+      "image": "assets/panel-short.png",
+      "mode": "vertical-caps",
+      "cap_top": 17,
+      "cap_bottom": 17
+    },
+    "panel_bg_uptime": {
+      "image": "assets/panel-short.png",
+      "mode": "vertical-caps",
+      "cap_top": 17,
+      "cap_bottom": 17
     },
     "panel_bg_top": {
       "image": "assets/optional-header.png",
@@ -113,6 +155,11 @@
     "panel_icon_krellpkg": "assets/monitor-icons/packages.png",
     "panel_icon_krelltop": "assets/monitor-icons/top.png",
     "panel_icon_krellstock_ticker": "assets/monitor-icons/stocks.png",
-    "panel_icon_krellhealth_heart": "assets/health/ok-32.png"
+    "panel_icon_krellhealth_heart": "assets/health/ok-32.png",
+    "panel_icon_krellhealth_status_healthy": "assets/health/ok.png",
+    "panel_icon_krellhealth_status_info": "assets/health/info.png",
+    "panel_icon_krellhealth_status_warning": "assets/health/warning.png",
+    "panel_icon_krellhealth_status_critical": "assets/health/critical.png",
+    "panel_icon_krellhealth_status_check": "assets/health/unknown.png"
   }
 }
