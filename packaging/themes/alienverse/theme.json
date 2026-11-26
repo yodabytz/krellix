@@ -1,0 +1,116 @@
+{
+  "name": "alienverse",
+  "version": "1.0",
+  "author": "yodabytz",
+  "description": "Alienverse — Giger-esque biomechanical violet hive with acid-green xenomorph accents.",
+
+  "comment_v2": "Two distinct panel images: panel_1 carries the rounded ornate header pattern and is reserved for the host panel, panel_2 is the workhorse texture used for every other monitor. panel_top.png is the dramatic alien face strip and lives at the very top via top_strip_height. chart_bg has its own bordered display window.",
+
+  "surfaces": {
+    "panel_bg":         { "image": "assets/panel_2.png",   "slice": 8, "opacity": 1.0 },
+    "panel_bg_top":     { "image": "assets/panel_top.png", "slice": 8, "opacity": 1.0 },
+    "panel_bg_host":    { "image": "assets/panel_1.png",   "slice": 8, "opacity": 1.0 },
+    "panel_bg_clock":   { "image": "assets/panel_2.png",   "slice": 8, "opacity": 1.0 },
+    "panel_bg_cpu":     { "image": "assets/panel_2.png",   "slice": 8, "opacity": 1.0 },
+    "panel_bg_mem":     { "image": "assets/panel_2.png",   "slice": 8, "opacity": 1.0 },
+    "panel_bg_net":     { "image": "assets/panel_2.png",   "slice": 8, "opacity": 1.0 },
+    "panel_bg_disk":    { "image": "assets/panel_2.png",   "slice": 8, "opacity": 1.0 },
+    "panel_bg_uptime":  { "image": "assets/panel_2.png",   "slice": 8, "opacity": 1.0 },
+    "panel_bg_battery": { "image": "assets/panel_2.png",   "slice": 8, "opacity": 1.0 },
+    "panel_bg_sensors": { "image": "assets/panel_2.png",   "slice": 8, "opacity": 1.0 },
+    "panel_bg_proc":    { "image": "assets/panel_2.png",   "slice": 8, "opacity": 1.0 },
+    "chart_bg":         { "image": "assets/chart_bg.png",  "slice": 12, "opacity": 1.0 }
+  },
+
+  "images": {
+    "panel_bg":  "assets/panel_2.png",
+    "chart_bg":  "assets/chart_bg.png"
+  },
+
+  "text_styles": {
+    "text_primary":   { "color": "#ede4ff", "shadow": { "x": 1, "y": 1, "color": "#000000d0" } },
+    "text_secondary": { "color": "#c0a8e8", "shadow": { "x": 1, "y": 1, "color": "#000000bb" } },
+    "text_accent":    { "color": "#7dff8f", "shadow": { "x": 1, "y": 1, "color": "#000000e0" } },
+    "chart_overlay":  { "color": "#9eff7d", "shadow": { "x": 1, "y": 1, "color": "#000000e0" } }
+  },
+
+  "colors": {
+    "panel_bg":        "#1a0a32",
+    "panel_border":    "#0a0418",
+    "panel_highlight": "#5a2c8c",
+
+    "chart_bg":   "#0c0420",
+    "chart_grid": "#3a1d6c",
+
+    "krell_track": {
+      "gradient": "linear",
+      "angle":    90,
+      "stops":    [[0.0, "#1a0a32"], [0.5, "#0e0518"], [1.0, "#03020a"]]
+    },
+    "krell_indicator": {
+      "gradient": "linear",
+      "angle":    0,
+      "stops":    [
+        [0.00, "#3d1666"],
+        [0.30, "#7a2cd8"],
+        [0.60, "#36e0a0"],
+        [0.85, "#9eff7d"],
+        [1.00, "#e8ffd0"]
+      ]
+    },
+
+    "text_primary":   "#ede4ff",
+    "text_secondary": "#c0a8e8",
+    "text_accent":    "#7dff8f",
+    "chart_overlay":  "#9eff7d",
+
+    "chart_line_default": {
+      "gradient": "linear",
+      "angle":    0,
+      "stops":    [[0.0, "#7a2cd8"], [0.55, "#36e0a0"], [1.0, "#9eff7d"]]
+    },
+    "chart_line_cpu": {
+      "gradient": "linear",
+      "angle":    0,
+      "stops":    [[0.0, "#7a2cd8"], [0.55, "#36e0a0"], [1.0, "#9eff7d"]]
+    },
+    "chart_line_mem": {
+      "gradient": "linear",
+      "angle":    0,
+      "stops":    [[0.0, "#5826a0"], [0.55, "#a96cff"], [1.0, "#dcb4ff"]]
+    },
+    "chart_line_swap":   "#ff5cb0",
+    "chart_line_net_rx": {
+      "gradient": "linear",
+      "angle":    0,
+      "stops":    [[0.0, "#1f8a64"], [0.55, "#36e0a0"], [1.0, "#aeffe0"]]
+    },
+    "chart_line_net_tx": "#a96cff",
+    "chart_line_disk": {
+      "gradient": "linear",
+      "angle":    0,
+      "stops":    [[0.0, "#7a2cd8"], [0.55, "#ff5cb0"], [1.0, "#ffb4dc"]]
+    },
+
+    "accent_warning":  "#ffd252",
+    "accent_critical": "#ff4f7d"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  },
+    "time":  { "family": "Monospace", "size": 11, "bold": false }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  100,
+    "krell_height":     10,
+    "chart_height":     74,
+    "chart_grid_lines": 4,
+    "panel_bg_slice":   8,
+    "top_strip_height": 38
+  }
+}

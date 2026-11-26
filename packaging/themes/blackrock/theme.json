@@ -1,0 +1,541 @@
+{
+  "name": "blackrock",
+  "version": "1.0",
+  "author": "yodabytz",
+  "description": "Blackrock \u2014 obsidian panels with molten amber accents. Pure-gradient v2; drop assets/panel.png + chart-bg.png in to add texture.",
+  "comment_v2": "Imageless Blackrock \u2014 every surface is a multi-stop gradient. Per-monitor panels each get a slight tonal tilt (cooler under cpu, warmer under battery) so the stack reads as a single sculpted slab rather than a uniform black wall. krell_indicator is a slow magma sweep; chart_overlay is the same molten color as the alert-warning so high readings look like rock starting to glow.",
+  "surfaces": {
+    "panel_bg": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_host": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_clock": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_cpu": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_mem": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_net": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_disk": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_uptime": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_battery": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_sensors": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_proc": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "chart_bg": {
+      "image": "assets/chart_bg.png",
+      "slice": 8,
+      "opacity": 1.0
+    }
+  },
+  "text_styles": {
+    "text_primary": {
+      "color": "#f4ede0",
+      "shadow": {
+        "x": 1,
+        "y": 1,
+        "color": "#000000c0"
+      }
+    },
+    "text_secondary": {
+      "color": "#b9a98a",
+      "shadow": {
+        "x": 1,
+        "y": 1,
+        "color": "#000000aa"
+      }
+    },
+    "text_accent": {
+      "color": "#ff9248",
+      "shadow": {
+        "x": 1,
+        "y": 1,
+        "color": "#000000d0"
+      }
+    },
+    "chart_overlay": {
+      "color": "#ffb070",
+      "shadow": {
+        "x": 1,
+        "y": 1,
+        "color": "#000000c0"
+      }
+    }
+  },
+  "images": {
+    "panel_bg": "assets/panel.png",
+    "chart_bg": "assets/chart_bg.png"
+  },
+  "colors": {
+    "panel_bg": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#181410"
+        ],
+        [
+          0.3,
+          "#0e0c0a"
+        ],
+        [
+          0.65,
+          "#080706"
+        ],
+        [
+          1.0,
+          "#020202"
+        ]
+      ]
+    },
+    "panel_bg_host": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#221a14"
+        ],
+        [
+          0.32,
+          "#120e0a"
+        ],
+        [
+          0.68,
+          "#080706"
+        ],
+        [
+          1.0,
+          "#020201"
+        ]
+      ]
+    },
+    "panel_bg_clock": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#1c1612"
+        ],
+        [
+          0.32,
+          "#100d0a"
+        ],
+        [
+          0.68,
+          "#070605"
+        ],
+        [
+          1.0,
+          "#010101"
+        ]
+      ]
+    },
+    "panel_bg_cpu": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#15140f"
+        ],
+        [
+          0.32,
+          "#0c0c0a"
+        ],
+        [
+          0.68,
+          "#070707"
+        ],
+        [
+          1.0,
+          "#020202"
+        ]
+      ]
+    },
+    "panel_bg_mem": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#181410"
+        ],
+        [
+          0.32,
+          "#0e0c0a"
+        ],
+        [
+          0.68,
+          "#070605"
+        ],
+        [
+          1.0,
+          "#020201"
+        ]
+      ]
+    },
+    "panel_bg_net": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#14130f"
+        ],
+        [
+          0.32,
+          "#0d0c0a"
+        ],
+        [
+          0.68,
+          "#070706"
+        ],
+        [
+          1.0,
+          "#020202"
+        ]
+      ]
+    },
+    "panel_bg_disk": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#171410"
+        ],
+        [
+          0.32,
+          "#0e0c0a"
+        ],
+        [
+          0.68,
+          "#080706"
+        ],
+        [
+          1.0,
+          "#020201"
+        ]
+      ]
+    },
+    "panel_bg_uptime": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#1a1612"
+        ],
+        [
+          0.32,
+          "#0f0d0a"
+        ],
+        [
+          0.68,
+          "#080706"
+        ],
+        [
+          1.0,
+          "#020201"
+        ]
+      ]
+    },
+    "panel_bg_battery": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#1f1812"
+        ],
+        [
+          0.32,
+          "#110d0a"
+        ],
+        [
+          0.68,
+          "#080706"
+        ],
+        [
+          1.0,
+          "#020201"
+        ]
+      ]
+    },
+    "panel_bg_sensors": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#1d1714"
+        ],
+        [
+          0.32,
+          "#100d0a"
+        ],
+        [
+          0.68,
+          "#080706"
+        ],
+        [
+          1.0,
+          "#020201"
+        ]
+      ]
+    },
+    "panel_bg_proc": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#161410"
+        ],
+        [
+          0.32,
+          "#0d0c0a"
+        ],
+        [
+          0.68,
+          "#070706"
+        ],
+        [
+          1.0,
+          "#020202"
+        ]
+      ]
+    },
+    "panel_border": "#0c0a08",
+    "panel_highlight": "#1d1a16",
+    "chart_bg": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#0d0a08"
+        ],
+        [
+          0.45,
+          "#070605"
+        ],
+        [
+          1.0,
+          "#000000"
+        ]
+      ]
+    },
+    "chart_grid": "#1d1a14",
+    "krell_track": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#15110d"
+        ],
+        [
+          0.5,
+          "#0a0807"
+        ],
+        [
+          1.0,
+          "#020201"
+        ]
+      ]
+    },
+    "krell_indicator": {
+      "gradient": "linear",
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#3a1d10"
+        ],
+        [
+          0.3,
+          "#a04618"
+        ],
+        [
+          0.55,
+          "#ff7a1f"
+        ],
+        [
+          0.8,
+          "#ffb155"
+        ],
+        [
+          1.0,
+          "#ffe9b8"
+        ]
+      ]
+    },
+    "text_primary": "#f4ede0",
+    "text_secondary": "#b9a98a",
+    "text_accent": "#ff9248",
+    "chart_overlay": "#ffb070",
+    "chart_line_default": {
+      "gradient": "linear",
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#a04618"
+        ],
+        [
+          0.55,
+          "#ff7a1f"
+        ],
+        [
+          1.0,
+          "#ffd28a"
+        ]
+      ]
+    },
+    "chart_line_cpu": {
+      "gradient": "linear",
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#a04618"
+        ],
+        [
+          0.55,
+          "#ff7a1f"
+        ],
+        [
+          1.0,
+          "#ffd28a"
+        ]
+      ]
+    },
+    "chart_line_mem": {
+      "gradient": "linear",
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#7a3014"
+        ],
+        [
+          0.55,
+          "#d8541f"
+        ],
+        [
+          1.0,
+          "#ffaa55"
+        ]
+      ]
+    },
+    "chart_line_swap": "#cc4d2a",
+    "chart_line_net_rx": {
+      "gradient": "linear",
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#8a4416"
+        ],
+        [
+          0.55,
+          "#e87328"
+        ],
+        [
+          1.0,
+          "#ffce85"
+        ]
+      ]
+    },
+    "chart_line_net_tx": "#e8a05c",
+    "chart_line_disk": {
+      "gradient": "linear",
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#943818"
+        ],
+        [
+          0.55,
+          "#dc6320"
+        ],
+        [
+          1.0,
+          "#ffc278"
+        ]
+      ]
+    },
+    "accent_warning": "#ff8c2a",
+    "accent_critical": "#ff3a1d"
+  },
+  "fonts": {
+    "label": {
+      "family": "Monospace",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Monospace",
+      "size": 10,
+      "bold": true
+    },
+    "time": {
+      "family": "Monospace",
+      "size": 11,
+      "bold": false
+    }
+  },
+  "metrics": {
+    "panel_padding": 4,
+    "panel_spacing": 2,
+    "panel_border": 1,
+    "panel_min_width": 100,
+    "krell_height": 10,
+    "chart_height": 74,
+    "chart_grid_lines": 4,
+    "panel_bg_slice": 6
+  }
+}
