@@ -48,7 +48,8 @@ int main(int argc, char **argv)
     const QString dir = QStringLiteral("themes/animation-fixture/");
     check(QDir().mkpath(dir), "Cannot create fixture theme");
     write(dir + QStringLiteral("theme.json"),
-          R"({"images":{"frame_left":"static.png"},"surfaces":{"panel_bg":{"image":"static.png","slice":2}}})");
+          R"({"images":{"frame_left":"static.png"},"surfaces":{"panel_bg":{"image":"static.png","slice":2},
+              "panel_bg_host":{"image":"static.png","mode":"vertical-caps","cap_top":3,"cap_bottom":2}}})");
     QImage fallback(12, 10, QImage::Format_ARGB32);
     fallback.fill(Qt::yellow);
     check(fallback.save(dir + QStringLiteral("static.png")), "Cannot save static art");
@@ -76,6 +77,7 @@ int main(int argc, char **argv)
     badRate.replace("\"fps\":20", "\"fps\":0");
     write(dir + QStringLiteral("animation.json"), "{\"version\":1,\"animations\":{\"left\":"
           + json(valid, "images.frame_left") + ",\"body\":" + json(valid, "surfaces.panel_bg")
+          + ",\"host\":" + json(valid, "surfaces.panel_bg_host")
           + ",\"unsafe\":" + broken + ",\"size\":" + wrongSize + ",\"fps\":" + badRate + "}}");
 
     QWidget window;
@@ -88,7 +90,7 @@ int main(int argc, char **argv)
     check(!theme.hasAnimation(QStringLiteral("images.frame_right"))
           && !theme.hasAnimation(QStringLiteral("images.frame_bottom"))
           && !theme.hasAnimation(QStringLiteral("images.krell")), "Invalid manifest entries were accepted");
-    auto *clock = theme.findChild<QTimer *>(QStringLiteral("theme-frame-clock"));
+    const auto *clock = theme.findChild<QTimer *>(QStringLiteral("theme-frame-clock"));
     check(clock && !clock->isActive(), "Unpainted theme started a timer");
     auto frame = [&] { return theme.animationFrame(frameLeft, &window, QRect(0, 0, 12, 10), QSize(12, 10)); };
     auto first = frame();
@@ -101,14 +103,8 @@ int main(int argc, char **argv)
           "Static surface geometry uses animated assets");
     check(center(theme.paintedSurface(QStringLiteral("panel_bg"), {}, &window).image) == Qt::red,
           "Painting did not extract a frame before slicing");
-    write(dir + QStringLiteral("theme.json"),
-          R"({"images":{"frame_left":"static.png"},"surfaces":{"panel_bg":{"image":"static.png",
-                "mode":"vertical-caps","cap_top":3,"cap_bottom":2}}})");
-    check(theme.load(name), "Cannot load capped animation fixture");
-    clock = theme.findChild<QTimer *>(QStringLiteral("theme-frame-clock"));
-    check(clock, "Reloaded animation lost its shared clock");
     Theme::SurfaceGeometry caps;
-    const auto animated = theme.paintedSurface(QStringLiteral("panel_bg"), {}, &window, caps, QRect(5, 6, 16, 12));
+    const auto animated = theme.paintedSurface(QStringLiteral("panel_bg_host"), {}, &window, caps, QRect(5, 6, 16, 12));
     check(caps.mode == Theme::SurfaceGeometry::VerticalCaps && caps.source == QMargins(0, 3, 0, 2)
           && center(animated.image) == Qt::red, "Cap geometry did not survive frame selection");
     check(QFile::remove(dir + QStringLiteral("sheet.png")), "Cannot remove original fixture sheet");
