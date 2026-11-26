@@ -18,12 +18,24 @@ public:
         : Decal(theme, QStringLiteral("value"), QStringLiteral("text_secondary"), parent),
           m_theme(theme) {}
 
+    QSize sizeHint() const override
+    {
+        auto hint = Decal::sizeHint();
+        const auto size = KrellHealthArtwork::requestedSize(*m_theme, artwork());
+        if (size.isEmpty()) return hint;
+        const QFontMetrics fm(m_theme->font(QStringLiteral("value")));
+        hint.rwidth() += size.width() - fm.horizontalAdvance(QStringLiteral("\u2665"));
+        hint.rheight() = qMax(hint.height(), size.height() + 2);
+        return hint;
+    }
+
+    QSize minimumSizeHint() const override { return QSize(0, sizeHint().height()); }
+
 protected:
     void paintEvent(QPaintEvent *event) override
     {
-        const auto artwork = text() == QStringLiteral("\u2665 OK")
-            ? KrellHealthArtwork::heart(*m_theme) : QPixmap();
-        if (artwork.isNull()) {
+        const auto icon = artwork();
+        if (icon.isNull()) {
             Decal::paintEvent(event);
             return;
         }
@@ -32,10 +44,12 @@ protected:
         painter.setRenderHint(QPainter::TextAntialiasing);
         painter.setFont(m_theme->font(QStringLiteral("value")));
         const auto fm = painter.fontMetrics();
-        const int width = fm.horizontalAdvance(text());
         const int glyph = fm.horizontalAdvance(QStringLiteral("\u2665"));
+        const auto size = KrellHealthArtwork::requestedSize(*m_theme, icon);
+        const int iconWidth = size.isEmpty() ? glyph : size.width();
+        const int width = fm.horizontalAdvance(text()) - glyph + iconWidth;
         const int left = qMax(0, (this->width() - width) / 2);
-        KrellHealthArtwork::paint(painter, artwork, QRect(left, 0, glyph, height()));
+        KrellHealthArtwork::paint(painter, icon, QRect(left, 0, iconWidth, height()));
         const auto style = m_theme->textStyle(QStringLiteral("accent_critical"));
         const auto ok = QStringLiteral("OK");
         const QRect label = rect().adjusted(left + width - fm.horizontalAdvance(ok), 0, 0, 0);
@@ -49,6 +63,11 @@ protected:
     }
 
 private:
+    QPixmap artwork() const
+    {
+        return text() == QStringLiteral("\u2665 OK") ? KrellHealthArtwork::heart(*m_theme) : QPixmap();
+    }
+
     Theme *m_theme;
 };
 

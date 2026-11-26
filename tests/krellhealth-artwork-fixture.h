@@ -33,6 +33,10 @@ inline void makeHealthThemes()
     makeHealthTheme(QStringLiteral("health-test-plain"), "{}");
     makeHealthTheme(QStringLiteral("health-test-custom"),
                     R"({"images":{"panel_icon_krellhealth_heart":"heart.png"}})");
+    makeHealthTheme(QStringLiteral("health-test-large"),
+                    R"({"metrics":{"panel_icon_krellhealth_heart_size":28},
+                        "images":{"panel_icon_krellhealth_heart":"heart.png"}})");
     makeHealthTheme(QStringLiteral("health-test-missing"),
-                    R"({"images":{"panel_icon_krellhealth_heart":"not-found.png"}})");
+                    R"({"metrics":{"panel_icon_krellhealth_heart_size":28},
+                        "images":{"panel_icon_krellhealth_heart":"not-found.png"}})");
 }

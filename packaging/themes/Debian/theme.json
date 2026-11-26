@@ -1,6 +1,6 @@
 {
-  "name": "Debian-Flat",
-  "version": "1.0",
+  "name": "Debian",
+  "version": "1.1",
   "author": "Theme designer",
   "description": "Flat charcoal and Debian raspberry-red",
   "colors": {
@@ -45,7 +45,8 @@
     "chart_grid_lines": 4,
     "top_strip_height": 65,
     "top_strip_keep_aspect": 1,
-    "panel_icon_size": 18
+    "panel_icon_size": 18,
+    "panel_icon_krellhealth_heart_size": 26
   },
   "surfaces": {
     "panel_bg": {

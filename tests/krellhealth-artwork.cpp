@@ -80,9 +80,13 @@ int main(int argc, char **argv)
     const auto art = healthArtworkBounds(widget.get());
     require(!art.isEmpty() && qAbs(art.width() - art.height() * 2) <= 2, "Themed heart was absent or distorted");
     require(widget->sizeHint() == hint, "The themed heart resized the panel");
+    require(theme.load(QStringLiteral("health-test-large")), "Could not switch to larger artwork");
+    const auto large = healthArtworkBounds(widget.get());
+    require(large.width() > art.width() && qAbs(large.width() - large.height() * 2) <= 2,
+            "Opt-in heart sizing did not enlarge artwork proportionally");
     require(theme.load(QStringLiteral("health-test-missing")), "Could not switch to missing-art test");
     require(widget->grab().toImage() == fallback, "Missing artwork changed the default rendering");
-    require(theme.load(QStringLiteral("health-test-custom")), "Could not restore the custom theme");
+    require(theme.load(QStringLiteral("health-test-large")), "Could not restore the custom theme");
     send(R"({"type":"sample","health":{"warnings":1,"findings":[{"severity":"warning","title":"Fixture warning","detail":"Full detail kept"}]}})");
     monitor->tick();
     require(healthArtworkBounds(widget.get()).isEmpty(), "Warning showed the healthy artwork");

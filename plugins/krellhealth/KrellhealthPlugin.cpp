@@ -129,8 +129,10 @@ public:
 
         const QFontMetrics ifm(iconFont);
         const QFontMetrics tfm(textFont);
-        return QSize(ifm.horizontalAdvance(m_icon) + tfm.horizontalAdvance(m_text) + 12,
-                     qMax(ifm.height(), tfm.height()) + 2);
+        const auto size = KrellHealthArtwork::requestedSize(*m_theme, artwork());
+        const int iconW = size.isEmpty() ? ifm.horizontalAdvance(m_icon) : size.width();
+        return QSize(iconW + tfm.horizontalAdvance(m_text) + 12,
+                     qMax(qMax(ifm.height(), tfm.height()), size.height()) + 2);
     }
 
     QSize minimumSizeHint() const override
@@ -156,7 +158,9 @@ protected:
         const QRect r = rect();
         const QFontMetrics ifm(iconFont);
         const QFontMetrics tfm(textFont);
-        const int iconW = ifm.horizontalAdvance(m_icon);
+        const auto icon = artwork();
+        const auto size = KrellHealthArtwork::requestedSize(*m_theme, icon);
+        const int iconW = size.isEmpty() ? ifm.horizontalAdvance(m_icon) : size.width();
         const int textW = tfm.horizontalAdvance(m_text);
         const int totalW = iconW + 5 + textW;
         const int x = qMax(0, (r.width() - totalW) / 2);
@@ -164,12 +168,10 @@ protected:
         p.setFont(iconFont);
         p.setPen(fg);
         const int iconY = (r.height() + ifm.ascent() - ifm.descent()) / 2;
-        const auto artwork = m_icon == QStringLiteral("\u2665")
-            ? KrellHealthArtwork::heart(*m_theme) : QPixmap();
-        if (artwork.isNull())
+        if (icon.isNull())
             p.drawText(x, iconY, m_icon);
         else
-            KrellHealthArtwork::paint(p, artwork, QRect(x, 0, iconW, r.height()));
+            KrellHealthArtwork::paint(p, icon, QRect(x, 0, iconW, r.height()));
 
         p.setFont(textFont);
         p.setPen(text);
@@ -178,6 +180,11 @@ protected:
     }
 
 private:
+    QPixmap artwork() const
+    {
+        return m_icon == QStringLiteral("\u2665") ? KrellHealthArtwork::heart(*m_theme) : QPixmap();
+    }
+
     Theme *m_theme = nullptr;
     QString m_icon = QStringLiteral("♥");
     QString m_text = QStringLiteral("OK");

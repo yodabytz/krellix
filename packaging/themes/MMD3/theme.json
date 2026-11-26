@@ -1,12 +1,27 @@
 {
   "name": "MMD3",
-  "version": "1.0",
+  "version": "1.1",
   "author": "Theme designer",
   "description": "Sculpted silver and ocean-blue glass, with cyan traces and an animated footer.",
   "colors": {
     "panel_bg": "#062b40",
     "panel_border": "#aab7bd",
-    "chart_bg": "#042331",
+    "chart_bg": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [0, "#1c506a"],
+        [1, "#0d354b"]
+      ]
+    },
+    "text_meter_bg": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [0, "#21546d"],
+        [1, "#0e354b"]
+      ]
+    },
     "chart_grid": "#185064",
     "text_primary": "#f2f8fc",
     "text_secondary": "#a5d1e2",
@@ -45,7 +60,8 @@
     "chart_grid_lines": 4,
     "top_strip_height": 47,
     "top_strip_keep_aspect": 1,
-    "panel_icon_size": 18
+    "panel_icon_size": 18,
+    "panel_icon_krellhealth_heart_size": 26
   },
   "surfaces": {
     "panel_bg": {
@@ -61,7 +77,7 @@
     "chart_bg": {
       "image": "assets/chart-bg.png",
       "slice": 4,
-      "opacity": 1
+      "opacity": 0.12
     },
     "panel_bg_top": {
       "image": "assets/optional-header.png",
@@ -69,10 +85,6 @@
     }
   },
   "images": {
-    "chart_bg": {
-      "image": "assets/chart-bg.png",
-      "mode": "stretch"
-    },
     "krell_track": {
       "image": "assets/krell-track.png",
       "mode": "tile"

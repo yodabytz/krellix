@@ -77,7 +77,7 @@ jobs:
             $loaded = $false
             for ($i = 0; $i -lt 24; $i++) {
               if ($app.HasExited) { throw "Portable host exited: $($app.ExitCode)" }
-              if (Select-String -LiteralPath $log -Pattern 'io.krellix.krellhealth.*0\.1\.1-windows\.3.*factory ready' -Quiet) {
+              if (Select-String -LiteralPath $log -Pattern 'io.krellix.krellhealth.*0\.1\.1-windows\.4.*factory ready' -Quiet) {
                 $loaded = $true
                 break
               }
@@ -90,6 +90,6 @@ jobs:
           }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: krellhealth-windows.3
+          name: krellhealth-windows.4
           path: ${{ runner.temp }}/health-package/*.zip
           if-no-files-found: error

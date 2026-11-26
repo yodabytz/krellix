@@ -79,9 +79,15 @@ int main(int argc, char **argv)
     check(!art.isEmpty() && qAbs(art.width() - art.height() * 2) <= 2,
           "Themed heart did not render proportionally");
     check(heart->sizeHint() == hint, "Themed heart changed badge size");
+    check(theme.load(QStringLiteral("health-test-large")), "Could not switch to larger artwork");
+    heart->resize(100, heart->sizeHint().height());
+    const auto large = healthArtworkBounds(heart);
+    check(large.width() > art.width() && qAbs(large.width() - large.height() * 2) <= 2,
+          "Opt-in heart sizing did not enlarge artwork proportionally");
     check(theme.load(QStringLiteral("health-test-missing")), "Could not load missing-asset theme");
+    heart->resize(100, heart->sizeHint().height());
     check(heart->grab().toImage() == fallback, "Missing artwork did not preserve the default");
-    check(theme.load(QStringLiteral("health-test-custom")), "Could not restore custom theme");
+    check(theme.load(QStringLiteral("health-test-large")), "Could not restore custom theme");
     sockets.last()->write("garbage\n");
     check(until([&]{return widget->toolTip().contains("invalid remote health message");}),"Malformed message accepted");
     check(healthArtworkBounds(heart).isEmpty(), "Unavailable reading showed healthy artwork");

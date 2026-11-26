@@ -164,6 +164,8 @@ keys keep the built-in vector icons.
 
 KrellHealth accepts `panel_icon_krellhealth_heart` in `images` to override the
 healthy heart without changing the OK label, other states, or check details.
+An optional `metrics.panel_icon_krellhealth_heart_size` sets the longest edge
+of the custom artwork in logical pixels (8 to 32). Omit it for the old slot.
 See the [KrellHealth artwork example](../plugins/krellhealth/README.md).
 
 ### Optional animation manifest

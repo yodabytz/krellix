@@ -5,6 +5,9 @@ To replace the built-in healthy heart, add this entry to the existing
 
 ```json
 {
+  "metrics": {
+    "panel_icon_krellhealth_heart_size": 26
+  },
   "images": {
     "panel_icon_krellhealth_heart": "assets/health-heart.png"
   }
@@ -13,9 +16,10 @@ To replace the built-in healthy heart, add this entry to the existing
 
 Place the PNG inside the theme folder. A square transparent 32 or 64 px
 source works well; keep the silhouette simple and avoid large empty margins.
-The artwork scales proportionally inside the current heart slot. It does not
-change row height, the OK label, or any health checks. It is static, and the
-original heart is used if the asset is missing or unreadable.
+The optional size metric sets the longest side, from 8 to 32 logical pixels.
+With no metric, the art fits the original heart slot. An explicit larger
+icon can make the OK row taller, without changing the label or other states.
+The original heart and row size return if the PNG is missing or unreadable.
 
 `panel_icon_krellhealth` is separate: it decorates the **Health** panel title.
 The healthy heart override is never drawn in an informational, warning,
