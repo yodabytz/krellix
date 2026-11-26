@@ -6,22 +6,18 @@
 #include "remote/RemoteSource.h"
 #endif
 
-#include <QActionGroup>
 #include <QDesktopServices>
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
-#include <QMenu>
-#include <QMouseEvent>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPainter>
 #include <QPainterPath>
 #include <QSettings>
 #include <QSizePolicy>
-#include <QToolButton>
 #include <QUrl>
 #include <QUrlQuery>
 #include <QVBoxLayout>
@@ -81,6 +77,15 @@ QColor themeColor(Theme *theme, const QString &key, const QColor &fallback)
     if (!theme) return fallback;
     const QColor color = theme->color(key, fallback);
     return color.isValid() ? color : fallback;
+}
+
+QString cssColor(const QColor &color)
+{
+    return QStringLiteral("rgba(%1, %2, %3, %4)")
+        .arg(color.red())
+        .arg(color.green())
+        .arg(color.blue())
+        .arg(color.alpha());
 }
 
 QString countText(int count)
@@ -165,11 +170,13 @@ void KrellmailEnvelope::setMailCount(int count)
     update();
 }
 
-void KrellmailEnvelope::setIconStyle(IconStyle style)
+bool KrellmailEnvelope::reloadIconStyle()
 {
-    if (m_style == style) return;
+    const IconStyle style = iconStyleFromKey(QSettings().value(iconStyleKey()).toString());
+    if (m_style == style) return false;
     m_style = style;
     reloadArtwork();
+    return true;
 }
 
 void KrellmailEnvelope::reloadArtwork()
@@ -190,7 +197,7 @@ void KrellmailEnvelope::reloadArtwork()
             m_unreadSprite = {};
     }
     const bool themed = !m_idleIcon.isNull() || m_unreadFrames > 0;
-    if (!themed) {
+    if (m_style != IconStyle::FollowTheme) {
         m_idleIcon.load(QStringLiteral(":/krellmail/art/closed-mail.png"));
         if (m_unreadSprite.load(QStringLiteral(":/krellmail/art/envelope-strip.png"))) {
             m_bundledAnimation = true;
@@ -200,8 +207,6 @@ void KrellmailEnvelope::reloadArtwork()
         } else {
             m_idleIcon = {};
         }
-    } else if (m_idleIcon.isNull()) {
-        m_idleIcon.load(QStringLiteral(":/krellmail/art/closed-mail.png"));
     }
     const int iconHeight = m_theme && (themed || m_style != IconStyle::FollowTheme)
         ? qBound(12, m_theme->metric(QStringLiteral("panel_icon_krellmail_size"), kDefaultIconHeight), 48)
@@ -314,13 +319,6 @@ KrellmailMonitor::KrellmailMonitor(Theme *theme, QObject *parent)
 {
     m_timeout.setSingleShot(true);
     connect(&m_timeout, &QTimer::timeout, this, &KrellmailMonitor::onTimeout);
-    if (theme) {
-#ifdef Q_OS_WIN
-        connect(theme, SIGNAL(themeChanged()), this, SLOT(refreshAppearance()));
-#else
-        connect(theme, &Theme::themeChanged, this, &KrellmailMonitor::refreshAppearance);
-#endif
-    }
 }
 
 KrellmailMonitor::~KrellmailMonitor()
@@ -352,72 +350,39 @@ QWidget *KrellmailMonitor::createWidget(QWidget *parent)
     panel->setSurfaceKey(QStringLiteral("panel_bg_krellmail"));
     panel->setCursor(Qt::PointingHandCursor);
     panel->installEventFilter(this);
-    m_panel = panel;
 
     auto *row = new QWidget(panel);
     row->installEventFilter(this);
-    auto *stack = new QVBoxLayout(row);
-    stack->setContentsMargins(1, 2, 1, 2);
-    stack->setSpacing(2);
-    auto *icons = new QHBoxLayout;
-    icons->setSpacing(0);
+    auto *hbox = new QHBoxLayout(row);
+    hbox->setContentsMargins(3, 1, 3, 1);
+    hbox->setSpacing(4);
 
     m_icon = new KrellmailEnvelope(theme(), row);
     m_icon->installEventFilter(this);
-    m_icon->setToolTip(QStringLiteral("Open mail app"));
-    m_settings = new QToolButton(row);
-    m_settings->setObjectName(QStringLiteral("krellmail-settings"));
-    m_settings->setText(QStringLiteral("..."));
-    m_settings->setToolTip(QStringLiteral("KrellMail Settings"));
-    m_settings->setAccessibleName(QStringLiteral("KrellMail Settings"));
-    m_settings->setAutoRaise(true);
-    m_settings->setFixedSize(20, 20);
-    m_settings->setStyleSheet(QStringLiteral("QToolButton::menu-indicator { image: none; }"));
+    hbox->addWidget(m_icon);
 
-    auto *menu = new QMenu(m_settings);
-    menu->setObjectName(QStringLiteral("krellmail-settings-menu"));
-    menu->addSection(QStringLiteral("Unread mail animation"));
-    auto *styles = new QActionGroup(menu);
-    const QString saved = QSettings().value(iconStyleKey()).toString();
-    const auto addStyle = [&](const QString &label, const QString &key) {
-        auto *action = menu->addAction(label);
-        action->setData(key);
-        action->setCheckable(true);
-        styles->addAction(action);
-        action->setChecked(iconStyleFromKey(saved) == iconStyleFromKey(key));
-    };
-    addStyle(QStringLiteral("Follow Theme"), QStringLiteral("theme"));
-    addStyle(QStringLiteral("Envelope"), QStringLiteral("envelope"));
-    addStyle(QStringLiteral("Envelope with Tux"), QStringLiteral("tux"));
-    connect(styles, &QActionGroup::triggered, this, [this](QAction *action) {
-        const QString key = action->data().toString();
-        QSettings().setValue(iconStyleKey(), key);
-        if (m_icon) m_icon->setIconStyle(iconStyleFromKey(key));
-    });
-    m_settings->setMenu(menu);
-    m_settings->setPopupMode(QToolButton::InstantPopup);
-    icons->addSpacing(m_settings->width());
-    icons->addStretch(1);
-    icons->addWidget(m_icon, 0, Qt::AlignVCenter);
-    icons->addStretch(1);
-    icons->addWidget(m_settings, 0, Qt::AlignVCenter);
-    stack->addLayout(icons);
-
-    m_primary = new QLabel(row);
+    auto *textBox = new QWidget(row);
+    textBox->installEventFilter(this);
+    auto *vbox = new QVBoxLayout(textBox);
+    vbox->setContentsMargins(0, 0, 0, 0);
+    vbox->setSpacing(0);
+    m_primary = new QLabel(QStringLiteral("Mail"), textBox);
     m_primary->setObjectName(QStringLiteral("krellmail-status"));
-    m_detail = new QLabel(row);
+    m_primary->setTextFormat(Qt::PlainText);
+    m_detail = new QLabel(QStringLiteral("checking..."), textBox);
     m_detail->setObjectName(QStringLiteral("krellmail-count"));
-    for (QLabel *label : {m_primary.data(), m_detail.data()}) {
-        label->setAlignment(Qt::AlignHCenter);
-        label->setTextFormat(Qt::PlainText);
-        label->setWordWrap(true);
-        label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-        label->installEventFilter(this);
-        stack->addWidget(label);
-    }
+    m_detail->setTextFormat(Qt::PlainText);
+    m_primary->installEventFilter(this);
+    m_detail->installEventFilter(this);
+    m_primary->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_detail->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_primary->setFixedHeight(12);
+    m_detail->setFixedHeight(11);
+    vbox->addWidget(m_primary);
+    vbox->addWidget(m_detail);
+    hbox->addWidget(textBox, 1);
     panel->addWidget(row);
 
-    refreshAppearance();
     applyStatus();
     startCheck(true);
     return panel;
@@ -425,13 +390,13 @@ QWidget *KrellmailMonitor::createWidget(QWidget *parent)
 
 void KrellmailMonitor::tick()
 {
+    if (m_icon && m_icon->reloadIconStyle()) return;
     startCheck(true);
 }
 
 bool KrellmailMonitor::eventFilter(QObject *watched, QEvent *event)
 {
-    if (event && event->type() == QEvent::MouseButtonRelease
-        && static_cast<QMouseEvent *>(event)->button() == Qt::LeftButton) {
+    if (event && event->type() == QEvent::MouseButtonRelease) {
         if (watched == m_icon.data()) {
             QDesktopServices::openUrl(QUrl(QStringLiteral("mailto:")));
             return true;
@@ -515,19 +480,17 @@ void KrellmailMonitor::startCheck(bool force)
     m_lastError.clear();
     m_oauthAccessToken.clear();
     if (m_accounts.isEmpty()) {
-        m_hasResult = false;
         applyStatus();
         return;
     }
     m_fetching = true;
-    if (!m_hasResult) applyStatus();
+    if (m_detail) m_detail->setText(QStringLiteral("checking..."));
     startNextAccount();
 }
 
 void KrellmailMonitor::finishCheck()
 {
     m_fetching = false;
-    m_hasResult = true;
     m_state = State::Idle;
     m_timeout.stop();
     cancelOAuthReply();
@@ -859,9 +822,10 @@ void KrellmailMonitor::processLine(const QByteArray &line)
     }
 }
 
-void KrellmailMonitor::refreshAppearance()
+void KrellmailMonitor::applyStatus()
 {
-    if (!theme()) return;
+    if (m_icon) m_icon->setMailCount(m_totalCount);
+
     const Theme::TextStyle primary =
         theme()->textStyle(QStringLiteral("text_primary"), QStringLiteral("text_primary"));
     const Theme::TextStyle secondary =
@@ -871,58 +835,33 @@ void KrellmailMonitor::refreshAppearance()
     const QColor scol = secondary.color.isValid() ? secondary.color
         : themeColor(theme(), QStringLiteral("text_secondary"), QColor(170, 190, 200));
     if (m_primary) {
-        auto font = theme()->font(QStringLiteral("label"));
-        font.setBold(true);
-        m_primary->setFont(font);
-        auto palette = m_primary->palette();
-        palette.setColor(QPalette::WindowText, pcol);
-        m_primary->setPalette(palette);
+        m_primary->setStyleSheet(QStringLiteral("QLabel { color: %1; font-size: 10px; font-weight: 700; }")
+                                 .arg(cssColor(pcol)));
     }
     if (m_detail) {
-        m_detail->setFont(theme()->font(QStringLiteral("label")));
-        auto palette = m_detail->palette();
-        palette.setColor(QPalette::WindowText, scol);
-        m_detail->setPalette(palette);
+        m_detail->setStyleSheet(QStringLiteral("QLabel { color: %1; font-size: 9px; }").arg(cssColor(scol)));
     }
-    if (m_settings) {
-        auto palette = m_settings->palette();
-        palette.setColor(QPalette::ButtonText, scol);
-        m_settings->setPalette(palette);
-    }
-}
 
-void KrellmailMonitor::applyStatus()
-{
-    if (m_icon) m_icon->setMailCount(m_totalCount);
-    QString title;
-    QString detail;
     if (m_accounts.isEmpty()) {
-        title = QStringLiteral("Mail");
-        detail = QStringLiteral("Configure account");
-    } else if (m_fetching) {
-        title = QStringLiteral("Checking mail");
-    } else if (m_totalCount > 0) {
-        title = QStringLiteral("You Have Mail");
-        detail = countText(m_totalCount);
-    } else if (m_errorCount > 0) {
-        title = QStringLiteral("Mail check failed");
-        detail = QStringLiteral("Click to retry");
-    } else {
-        title = QStringLiteral("No new mail");
+        if (m_primary) m_primary->setText(QStringLiteral("Mail"));
+        if (m_detail) {
+            m_detail->setText(QStringLiteral("configure account"));
+            m_detail->setToolTip({});
+        }
+        return;
     }
-    if (m_primary) m_primary->setText(title);
+
+    if (m_primary)
+        m_primary->setText(m_totalCount > 0 ? QStringLiteral("You Have Mail")
+                                            : QStringLiteral("No new mail"));
     if (m_detail) {
-        m_detail->setText(detail);
-        m_detail->setVisible(!detail.isEmpty());
-    }
-    if (m_panel) {
-        QStringList lines{title};
-        if (!detail.isEmpty()) lines.append(detail);
+        const QString detail = m_errorCount > 0 && m_totalCount == 0
+            ? QStringLiteral("Check failed") : countText(m_totalCount);
         if (m_errorCount > 0 && !m_lastError.isEmpty())
-            lines.append(m_lastError.left(800));
-        m_panel->setToolTip(QStringLiteral("<qt>%1</qt>")
-                            .arg(lines.join(QLatin1Char('\n')).toHtmlEscaped()
-                                 .replace(QLatin1Char('\n'), QStringLiteral("<br />"))));
+            m_detail->setToolTip(QStringLiteral("<qt>%1</qt>").arg(m_lastError.toHtmlEscaped()));
+        else
+            m_detail->setToolTip({});
+        m_detail->setText(detail);
     }
 }
 
@@ -939,9 +878,9 @@ QString KrellmailPlugin::pluginName() const
 QString KrellmailPlugin::pluginVersion() const
 {
 #ifdef Q_OS_WIN
-    return QStringLiteral("0.1.3-windows.1");
+    return QStringLiteral("0.1.4-windows.1");
 #else
-    return QStringLiteral("0.1.3");
+    return QStringLiteral("0.1.4");
 #endif
 }
 

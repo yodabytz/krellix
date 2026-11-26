@@ -8,7 +8,6 @@
 #include <QFile>
 #include <QImage>
 #include <QLabel>
-#include <QMenu>
 #include <QPainter>
 #include <QPluginLoader>
 #include <QSettings>
@@ -16,6 +15,7 @@
 #include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QThread>
+#include <QToolButton>
 #include <QWidget>
 #include <cstdio>
 #include <memory>
@@ -147,35 +147,27 @@ int main(int argc, char **argv)
 
     auto *status = panel->findChild<QLabel *>(QStringLiteral("krellmail-status"));
     auto *count = panel->findChild<QLabel *>(QStringLiteral("krellmail-count"));
-    auto *menu = panel->findChild<QMenu *>(QStringLiteral("krellmail-settings-menu"));
-    require(status && count && menu, "Status, count, or settings menu is missing");
+    require(status && count, "Status or count is missing");
+    require(!panel->findChild<QToolButton *>(), "Settings must not be in the monitor panel");
     require(status->text() == QLatin1String("You Have Mail") && count->text() == QLatin1String("2 messages"),
             "Unread wording or count is wrong");
-    for (int width : {80, 120, 240}) {
+    for (int width : {120, 240}) {
         panel->setFixedWidth(width);
         panel->adjustSize();
         QApplication::processEvents();
-        require(status->width() >= 60 && status->height() >= status->heightForWidth(status->width()),
+        require(status->width() >= status->fontMetrics().horizontalAdvance(status->text()),
                 "Unread status clips at a supported panel width");
-        require(count->height() >= count->heightForWidth(count->width()), "Unread count clips");
-        require(status->y() > icon->geometry().bottom() && count->y() > status->geometry().bottom(),
-                "Unread status and count must stack below the icon");
+        require(status->mapTo(panel.get(), {}).x() > icon->mapTo(panel.get(), {}).x() + icon->width()
+                && count->y() > status->geometry().bottom(), "Original mail layout changed");
     }
-    const auto findStyle = [menu](const QString &key) {
-        for (auto *action : menu->actions())
-            if (action->data().toString() == key) return action;
-        return static_cast<QAction *>(nullptr);
+    const auto configureStyle = [&](const QString &key) {
+        settings.setValue(QStringLiteral("plugins/krellmail/icon_style"), key);
+        monitor->tick();
     };
-    auto *follow = findStyle(QStringLiteral("theme"));
-    auto *envelope = findStyle(QStringLiteral("envelope"));
-    auto *tux = findStyle(QStringLiteral("tux"));
-    require(follow && envelope && tux && follow->isChecked(), "Mail animation choices missing");
-    envelope->trigger();
+    configureStyle(QStringLiteral("envelope"));
     const auto closed = pixels();
     require(until([&] { return pixels() != closed; }), "Bundled Envelope did not animate");
-    tux->trigger();
-    require(QSettings().value(QStringLiteral("plugins/krellmail/icon_style")).toString() == QLatin1String("tux"),
-            "Mail icon setting was not saved");
+    configureStyle(QStringLiteral("tux"));
     const auto tuxVisible = [&] {
         const auto img = pixels();
         for (int y = 0; y < img.height(); ++y) {
@@ -188,7 +180,7 @@ int main(int argc, char **argv)
         return false;
     };
     require(until(tuxVisible), "Bundled Tux artwork did not appear");
-    follow->trigger();
+    configureStyle(QStringLiteral("theme"));
     require(until([&] { return centerColor() == Qt::cyan; }), "Follow Theme did not restore the theme sprite");
 
     require(theme.load(QStringLiteral("gallery-mail-invalid")), "Cannot load invalid-sprite fixture");

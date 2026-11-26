@@ -905,6 +905,13 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             m_krellmailUpdateMs->setSingleStep(30000);
             m_krellmailUpdateMs->setSuffix(QStringLiteral(" ms"));
             form->addRow(QStringLiteral("Update interval:"), m_krellmailUpdateMs);
+
+            m_krellmailIconStyle = new QComboBox(group);
+            m_krellmailIconStyle->setObjectName(QStringLiteral("krellmail-icon-style"));
+            m_krellmailIconStyle->addItem(QStringLiteral("Follow Theme"), QStringLiteral("theme"));
+            m_krellmailIconStyle->addItem(QStringLiteral("Envelope"), QStringLiteral("envelope"));
+            m_krellmailIconStyle->addItem(QStringLiteral("Envelope with Tux"), QStringLiteral("tux"));
+            form->addRow(QStringLiteral("Mail animation:"), m_krellmailIconStyle);
             groupLayout->addLayout(form);
 
             m_krellmailAccountsContainer = new QWidget(group);
@@ -1643,6 +1650,13 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
     }
     if (m_krellmailAddAccount)
         connect(m_krellmailAddAccount, &QPushButton::clicked, this, &SettingsDialog::addKrellmailAccount);
+    if (m_krellmailIconStyle) {
+        connect(m_krellmailIconStyle, &QComboBox::activated, this, [this](int index) {
+            QSettings().setValue(QStringLiteral("plugins/krellmail/icon_style"),
+                                 m_krellmailIconStyle->itemData(index));
+            emit settingsApplied();
+        });
+    }
     if (m_krellspectrumEnabled) {
         connect(m_krellspectrumEnabled, &QCheckBox::toggled, this, [this](bool v) {
             QSettings().setValue(QStringLiteral("plugins/krellspectrum/enabled"), v);
@@ -1976,6 +1990,10 @@ void SettingsDialog::loadFromSettings()
     if (m_krellmailUpdateMs) {
         m_krellmailUpdateMs->setValue(
             s.value(QStringLiteral("plugins/krellmail/update_ms"), 300000).toInt());
+    }
+    if (m_krellmailIconStyle) {
+        const QString style = s.value(QStringLiteral("plugins/krellmail/icon_style")).toString();
+        m_krellmailIconStyle->setCurrentIndex(qMax(0, m_krellmailIconStyle->findData(style)));
     }
     rebuildKrellmailAccounts();
     if (m_krellspectrumEnabled) {

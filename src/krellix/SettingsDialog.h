@@ -146,6 +146,7 @@ private:
     QList<QLineEdit *> m_krellwireFeeds;
     QCheckBox   *m_krellmailEnabled = nullptr;
     QSpinBox    *m_krellmailUpdateMs = nullptr;
+    QComboBox   *m_krellmailIconStyle = nullptr;
     QWidget     *m_krellmailAccountsContainer = nullptr;
     QVBoxLayout *m_krellmailAccountsLayout = nullptr;
     QPushButton *m_krellmailAddAccount = nullptr;

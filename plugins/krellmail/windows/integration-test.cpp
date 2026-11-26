@@ -25,9 +25,8 @@ bool waitForText(QWidget *widget, const QString &text)
     timeout.start();
     do {
         QApplication::processEvents();
-        if (widget->toolTip().contains(text)) return true;
         for (const auto *label : widget->findChildren<QLabel *>()) {
-            if (label->text().contains(text)) return true;
+            if (label->text().contains(text) || label->toolTip().contains(text)) return true;
         }
         QThread::msleep(5);
     } while (timeout.elapsed() < 6000);
@@ -71,7 +70,7 @@ int main(int argc, char **argv)
         delete monitor;
         QApplication::processEvents();
     };
-    testMonitor(QStringLiteral("Configure account"));
+    testMonitor(QStringLiteral("configure account"));
 
     QTcpServer server;
     check(server.listen(QHostAddress::LocalHost, 0), "Cannot listen for fixture mail requests");

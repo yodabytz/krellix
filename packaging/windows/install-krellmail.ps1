@@ -24,7 +24,7 @@ if (Test-Path $target) {
         '57670311238914cc8edc662c5c1887cdf0e0c2ffffc5cd47c1038307833360c4'
         '83f600dbfa052d4c43c5bc44b5120cfa16c8c78012d8a6979d5451d9e5bf40b9'
     )
-    if ($installedHash -notin $knownPrevious -or $manifest.plugin_version -ne '0.1.3-windows.1') {
+    if ($installedHash -notin $knownPrevious -or $manifest.plugin_version -ne '0.1.4-windows.1') {
         throw 'A different KrellMail build already exists. Refusing to overwrite or downgrade it.'
     }
     $replace = $true
@@ -34,7 +34,7 @@ if ($replace) {
     $temporary = Join-Path $plugins ([Guid]::NewGuid().ToString('N') + '.tmp')
     try {
         Copy-Item $dll $temporary
-        [IO.File]::Replace($temporary, $target, "$target.before-0.1.3")
+        [IO.File]::Replace($temporary, $target, "$target.before-0.1.4")
     } finally {
         if (Test-Path $temporary) { Remove-Item -LiteralPath $temporary }
     }

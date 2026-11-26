@@ -2,6 +2,7 @@
 #include "../src/krellix/main.cpp"
 #undef main
 #include "krellix/SettingsDialog.h"
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFile>
@@ -59,6 +60,47 @@ static void verifyDragHandle(Theme *theme)
 }
 
 static int completed = 0;
+
+static void verifyMailAnimationSetting(Theme *theme)
+{
+    QTemporaryDir fixture;
+    const QByteArray devPlugins = qgetenv("KRELLIX_DEV_PLUGINS");
+    const QString previous = QDir::currentPath();
+    if (!fixture.isValid() || !QDir::setCurrent(fixture.path()) || !QDir().mkdir(QStringLiteral("plugins")))
+        qFatal("Cannot prepare KrellMail settings fixture");
+    QFile installed(QStringLiteral("plugins/krellmail.so"));
+    if (!installed.open(QIODevice::WriteOnly)) qFatal("Cannot mark KrellMail installed");
+    installed.close();
+    qputenv("KRELLIX_DEV_PLUGINS", "1");
+    const auto key = QStringLiteral("plugins/krellmail/icon_style");
+    QSettings settings;
+    settings.remove(key);
+    {
+        SettingsDialog dialog(theme, nullptr);
+        auto *style = dialog.findChild<QComboBox *>(QStringLiteral("krellmail-icon-style"));
+        if (!style || style->count() != 3 || style->currentData().toString() != QLatin1String("theme"))
+            qFatal("KrellMail animation choices are missing from settings");
+        const int tux = style->findData(QStringLiteral("tux"));
+        if (tux < 0) qFatal("Missing Tux animation choice");
+        style->setCurrentIndex(tux);
+        int applied = 0;
+        QObject::connect(&dialog, &SettingsDialog::settingsApplied, &dialog, [&] { ++applied; });
+        if (!QMetaObject::invokeMethod(style, "activated", Qt::DirectConnection, Q_ARG(int, tux))
+            || applied != 1 || settings.value(key).toString() != QLatin1String("tux"))
+            qFatal("KrellMail animation choice did not apply");
+    }
+    {
+        SettingsDialog dialog(theme, nullptr);
+        auto *style = dialog.findChild<QComboBox *>(QStringLiteral("krellmail-icon-style"));
+        if (!style || style->currentData().toString() != QLatin1String("tux"))
+            qFatal("KrellMail animation choice was lost when reopening settings");
+    }
+    settings.remove(key);
+    if (devPlugins.isNull()) qunsetenv("KRELLIX_DEV_PLUGINS");
+    else qputenv("KRELLIX_DEV_PLUGINS", devPlugins);
+    if (!QDir::setCurrent(previous)) qFatal("Cannot restore working directory");
+    qInfo("PASS: KrellMail animation preference is saved and restored in configuration");
+}
 
 static void verifyClockScroll(Theme *theme)
 {
@@ -149,6 +191,7 @@ static void exercise()
         if (!existing) qFatal("No monitor for disk test theme");
         verifyDragHandle(existing->theme());
         verifyClockScroll(existing->theme());
+        verifyMailAnimationSetting(existing->theme());
         verifyFooterFrame();
         DiskMonitor disk(existing->theme());
         DiskStat::setReadOverride([]() { return QList<DiskSample>{}; });

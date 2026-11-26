@@ -15,7 +15,7 @@ $expectedHost = if ($HostVersion -eq '0.1.2-windows-preview.6') {
 if ($hostHash -ne $expectedHost) {
     throw 'The host is not the one built with this plugin.'
 }
-$version = '0.1.3-windows.1'
+$version = '0.1.4-windows.1'
 $folder = Join-Path $Destination 'krellmail'
 New-Item -ItemType Directory $folder -Force | Out-Null
 Copy-Item "$Build\plugins\krellmail.dll", "$source\LICENSE", "$source\plugins\krellmail\windows\README.md", "$PSScriptRoot\install-krellmail.ps1" $folder
