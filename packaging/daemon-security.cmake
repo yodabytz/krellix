@@ -12,4 +12,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     add_test(NAME daemon-security COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/daemon-security.py $<TARGET_FILE:krellixd>)
     set_tests_properties(daemon-security PROPERTIES TIMEOUT 180 RUN_SERIAL TRUE)
+    add_test(NAME docker-snapshot-cache COMMAND ${Python3_EXECUTABLE} -B
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/test-docker-snapshot.py)
 endif()
