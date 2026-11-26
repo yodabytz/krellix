@@ -1,0 +1,103 @@
+{
+  "name": "Debian-Flat",
+  "version": "1.0",
+  "author": "Theme designer",
+  "description": "Flat charcoal and Debian raspberry-red",
+  "colors": {
+    "panel_bg": "#111315",
+    "panel_border": "#d70748",
+    "chart_bg": "#0d1012",
+    "chart_grid": "#282b2e",
+    "text_primary": "#f4f4f5",
+    "text_secondary": "#bfc2c7",
+    "text_accent": "#ff2860",
+    "krell_track": "#292b2e",
+    "krell_indicator": "#d70748",
+    "chart_line_default": "#d70748",
+    "chart_line_cpu": "#ff2860",
+    "chart_line_mem": "#d70748",
+    "chart_line_swap": "#a82b55",
+    "chart_line_net_rx": "#ff2860",
+    "chart_line_net_tx": "#ff819f",
+    "chart_line_disk": "#d70748",
+    "accent_ok": "#38d54a",
+    "accent_warning": "#ffd34d",
+    "accent_critical": "#ff3449"
+  },
+  "fonts": {
+    "label": {
+      "family": "Arial",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Arial",
+      "size": 10,
+      "bold": true
+    }
+  },
+  "metrics": {
+    "panel_padding": 6,
+    "panel_spacing": 0,
+    "panel_border": 0,
+    "krell_height": 12,
+    "chart_height": 100,
+    "chart_grid_lines": 4,
+    "top_strip_height": 65,
+    "top_strip_keep_aspect": 1,
+    "panel_icon_size": 18
+  },
+  "surfaces": {
+    "panel_bg": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1
+    },
+    "panel_bg_host": {
+      "image": "assets/host-panel.png",
+      "slice": 6,
+      "opacity": 1
+    },
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "slice": 4,
+      "opacity": 1
+    },
+    "panel_bg_top": {
+      "image": "assets/optional-header.png",
+      "slice": 0
+    }
+  },
+  "images": {
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "mode": "stretch"
+    },
+    "krell_track": {
+      "image": "assets/krell-track.png",
+      "mode": "tile"
+    },
+    "krell": {
+      "image": "assets/krell.png",
+      "frames": 1
+    },
+    "frame_top": "assets/frame-top.png",
+    "frame_bottom": "assets/frame-bottom.png",
+    "frame_left": "assets/frame-left.png",
+    "frame_right": "assets/frame-right.png",
+    "panel_icon_cpu": "assets/monitor-icons/cpu.png",
+    "panel_icon_proc": "assets/monitor-icons/proc.png",
+    "panel_icon_mem": "assets/monitor-icons/memory.png",
+    "panel_icon_disk": "assets/monitor-icons/disk.png",
+    "panel_icon_net": "assets/monitor-icons/network.png",
+    "panel_icon_sensors": "assets/monitor-icons/sensors.png",
+    "panel_icon_netports": "assets/monitor-icons/ports.png",
+    "panel_icon_krellhealth": "assets/monitor-icons/health.png",
+    "panel_icon_krellweather": "assets/monitor-icons/weather.png",
+    "panel_icon_krellstock": "assets/monitor-icons/stocks.png",
+    "panel_icon_krellpkg": "assets/monitor-icons/packages.png",
+    "panel_icon_krelltop": "assets/monitor-icons/top.png",
+    "panel_icon_krellstock_ticker": "assets/monitor-icons/stocks.png",
+    "panel_icon_krellhealth_heart": "assets/health/ok-32.png"
+  }
+}
