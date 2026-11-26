@@ -114,7 +114,7 @@ Map of name → integer (clamped to `0..4096`).
 | `panel_min_width`  | 100     | Legacy metric; the current client uses the user's panel width instead |
 | `krell_height`     | 8       | Base slider track height; a themed sprite can set it instead |
 | `meter_height`     | 0       | Base meter height; 0 falls back to Krell height for meters without text |
-| `chart_height`     | 32      | Chart strip height                      |
+| `chart_height`     | 32      | Legacy chart strip height. In the desktop app, the profile's Settings → Appearance chart height (32 if unset) always wins. |
 | `chart_grid_lines` | 5       | Number of horizontal grid divisions     |
 | `chart_grid_width` | 1       | Horizontal grid line width (1 to 4 logical pixels) |
 | `chart_series_grayscale` | 0  | Use white and light gray lines in combined charts when set to 1 |

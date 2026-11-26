@@ -119,6 +119,22 @@ static void verifySavedHeightWinsOverTheme()
     const auto key = QStringLiteral("appearance/chart_height");
     QSettings settings;
     const auto previous = settings.value(key);
+    settings.remove(key);
+    {
+        Theme withoutSavedHeight;
+        if (!withoutSavedHeight.load(QStringLiteral("tall"))) qFatal("Tall theme missing");
+        MainWindow defaultWindow(&withoutSavedHeight, {QStringLiteral("clock")});
+        Chart chart(&withoutSavedHeight);
+        if (chart.sizeHint().height() != 32 || settings.contains(key))
+            qFatal("Theme controlled chart height for a profile without a saved value");
+        if (!QMetaObject::invokeMethod(&defaultWindow, "showSettings", Qt::DirectConnection))
+            qFatal("Could not open height settings");
+        auto *height = defaultWindow.findChild<QSpinBox *>(QStringLiteral("chart-height"));
+        if (!height || height->value() != 32) qFatal("Settings do not show the profile default");
+        height->setValue(56);
+        if (settings.value(key).toInt() != 56 || chart.sizeHint().height() != 56)
+            qFatal("Settings did not apply the chart height live");
+    }
     settings.setValue(key, 80);
     Theme theme;
     if (!theme.load(QStringLiteral("tall"))) qFatal("Tall theme missing");
@@ -133,7 +149,7 @@ static void verifySavedHeightWinsOverTheme()
         qFatal("Live theme reload replaced the saved chart height");
     Theme fresh;
     if (!fresh.load(QStringLiteral("short")) || fresh.metric(QStringLiteral("chart_height")) != 144)
-        qFatal("Theme chart height did not apply when no profile preference was set");
+        qFatal("Standalone theme metrics changed");
     if (previous.isValid()) settings.setValue(key, previous);
     else settings.remove(key);
     if (!QDir::setCurrent(previousDir)) qFatal("Could not restore working directory");

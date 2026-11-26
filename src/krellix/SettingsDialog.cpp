@@ -7,6 +7,7 @@
 #include "sysdep/DiskStat.h"
 #include "sysdep/NetStat.h"
 #include "theme/Theme.h"
+#include "theme/ThemePreferences.h"
 
 #include <QAbstractItemView>
 #include <QApplication>
@@ -295,8 +296,10 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         form->addRow(QStringLiteral("Krell base height:"), m_krellHeight);
 
         m_chartHeight = new QSpinBox(page);
+        m_chartHeight->setObjectName(QStringLiteral("chart-height"));
         m_chartHeight->setRange(kMinChartHeight, kMaxChartHeight);
         m_chartHeight->setSuffix(QStringLiteral(" px"));
+        m_chartHeight->setToolTip(QStringLiteral("Chart height for this profile. Themes do not change it."));
         form->addRow(QStringLiteral("Chart height:"), m_chartHeight);
 
         auto *motion = new QComboBox(page);
@@ -1881,7 +1884,7 @@ void SettingsDialog::loadFromSettings()
     m_krellHeight->setValue(s.value(QStringLiteral("appearance/krell_height"),
                                     m_theme->metric(QStringLiteral("krell_height"), 8)).toInt());
     m_chartHeight->setValue(s.value(QStringLiteral("appearance/chart_height"),
-                                    m_theme->metric(QStringLiteral("chart_height"), 32)).toInt());
+                                    ThemePreferences::defaultChartHeight).toInt());
 
     m_updateMs   ->setValue(s.value(QStringLiteral("update/interval_ms"),  1000).toInt());
     m_scrollSpeed->setValue(s.value(QStringLiteral("appearance/scroll_pps"),

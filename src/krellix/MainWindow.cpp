@@ -811,7 +811,9 @@ void MainWindow::applySettingsOverridesToTheme()
         const auto value = s.value(key).toInt(&ok);
         return ok ? value : -1;
     };
-    ThemePreferences::setPreferredHeights(*m_theme, preferred(QStringLiteral("appearance/chart_height")),
+    const int chartHeight = preferred(QStringLiteral("appearance/chart_height"));
+    ThemePreferences::setPreferredHeights(*m_theme,
+                                          chartHeight < 0 ? ThemePreferences::defaultChartHeight : chartHeight,
                                           preferred(QStringLiteral("appearance/krell_height")));
 }
 
