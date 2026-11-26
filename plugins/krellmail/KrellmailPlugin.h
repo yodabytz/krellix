@@ -15,6 +15,7 @@
 class QEvent;
 class QLabel;
 class QNetworkReply;
+class QToolButton;
 
 struct KrellmailAccount {
     QString protocol;
@@ -34,9 +35,12 @@ class KrellmailEnvelope : public QWidget
     Q_OBJECT
 
 public:
+    enum class IconStyle { FollowTheme, Envelope, Tux };
+
     explicit KrellmailEnvelope(Theme *theme, QWidget *parent = nullptr);
 
     void setMailCount(int count);
+    void setIconStyle(IconStyle style);
 
 protected:
     void paintEvent(QPaintEvent *event) override;
@@ -51,11 +55,15 @@ private:
 private:
     void syncAnimation();
     int animationFrames() const;
+    int frameInterval() const;
 
     Theme *m_theme = nullptr;
     QPixmap m_idleIcon;
     QPixmap m_unreadSprite;
+    QPixmap m_tuxIcon;
     QTimer m_timer;
+    IconStyle m_style = IconStyle::FollowTheme;
+    bool m_bundledAnimation = false;
     int m_unreadFrames = 0;
     int m_count = 0;
     int m_phase = 0;
@@ -78,6 +86,7 @@ public:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private slots:
+    void refreshAppearance();
     void onConnected();
     void onEncrypted();
     void onReadyRead();
@@ -115,8 +124,10 @@ private:
     void applyStatus();
 
     QPointer<KrellmailEnvelope> m_icon;
+    QPointer<QWidget> m_panel;
     QPointer<QLabel> m_primary;
     QPointer<QLabel> m_detail;
+    QPointer<QToolButton> m_settings;
     QSslSocket *m_socket = nullptr;
     QNetworkAccessManager m_oauthManager;
     QPointer<QNetworkReply> m_oauthReply;
@@ -133,6 +144,7 @@ private:
     quint64 m_oauthGeneration = 0;
     State m_state = State::Idle;
     bool m_fetching = false;
+    bool m_hasResult = false;
     bool m_tearingDown = false;
 };
 

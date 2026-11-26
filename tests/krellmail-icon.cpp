@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QImage>
 #include <QLabel>
+#include <QMenu>
 #include <QPainter>
 #include <QPluginLoader>
 #include <QSettings>
@@ -98,6 +99,7 @@ int main(int argc, char **argv)
     require(monitors.size() == 1, "KrellMail monitor missing");
     std::unique_ptr<MonitorBase> monitor(monitors.first());
     std::unique_ptr<QWidget> panel(monitor->createWidget(nullptr));
+    panel->setFixedWidth(120);
     panel->show();
     auto *icon = panel->findChild<QWidget *>(QStringLiteral("krellmail-icon"));
     require(icon, "KrellMail icon widget missing");
@@ -143,6 +145,52 @@ int main(int argc, char **argv)
     require(until([&] { return centerColor() == Qt::red; }), "Unread sprite never appeared");
     require(until([&] { return centerColor() == Qt::cyan; }), "Unread sprite did not animate");
 
+    auto *status = panel->findChild<QLabel *>(QStringLiteral("krellmail-status"));
+    auto *count = panel->findChild<QLabel *>(QStringLiteral("krellmail-count"));
+    auto *menu = panel->findChild<QMenu *>(QStringLiteral("krellmail-settings-menu"));
+    require(status && count && menu, "Status, count, or settings menu is missing");
+    require(status->text() == QLatin1String("You Have Mail") && count->text() == QLatin1String("2 messages"),
+            "Unread wording or count is wrong");
+    for (int width : {80, 120, 240}) {
+        panel->setFixedWidth(width);
+        panel->adjustSize();
+        QApplication::processEvents();
+        require(status->width() >= 60 && status->height() >= status->heightForWidth(status->width()),
+                "Unread status clips at a supported panel width");
+        require(count->height() >= count->heightForWidth(count->width()), "Unread count clips");
+        require(status->y() > icon->geometry().bottom() && count->y() > status->geometry().bottom(),
+                "Unread status and count must stack below the icon");
+    }
+    const auto findStyle = [menu](const QString &key) {
+        for (auto *action : menu->actions())
+            if (action->data().toString() == key) return action;
+        return static_cast<QAction *>(nullptr);
+    };
+    auto *follow = findStyle(QStringLiteral("theme"));
+    auto *envelope = findStyle(QStringLiteral("envelope"));
+    auto *tux = findStyle(QStringLiteral("tux"));
+    require(follow && envelope && tux && follow->isChecked(), "Mail animation choices missing");
+    envelope->trigger();
+    const auto closed = pixels();
+    require(until([&] { return pixels() != closed; }), "Bundled Envelope did not animate");
+    tux->trigger();
+    require(QSettings().value(QStringLiteral("plugins/krellmail/icon_style")).toString() == QLatin1String("tux"),
+            "Mail icon setting was not saved");
+    const auto tuxVisible = [&] {
+        const auto img = pixels();
+        for (int y = 0; y < img.height(); ++y) {
+            for (int x = 0; x < img.width(); ++x) {
+                const QColor c = img.pixelColor(x, y);
+                if (c.red() > c.blue() + 65 && c.green() > c.blue() + 40)
+                    return true;
+            }
+        }
+        return false;
+    };
+    require(until(tuxVisible), "Bundled Tux artwork did not appear");
+    follow->trigger();
+    require(until([&] { return centerColor() == Qt::cyan; }), "Follow Theme did not restore the theme sprite");
+
     require(theme.load(QStringLiteral("gallery-mail-invalid")), "Cannot load invalid-sprite fixture");
     require(icon->size() == QSize(28, 20), "Theme without a size override did not restore the default size");
     require(centerColor() == Qt::blue, "Invalid sprite did not fall back to the themed static icon");
@@ -158,5 +206,5 @@ int main(int argc, char **argv)
     require(theme.load(QStringLiteral("gallery-mail-plain")), "Cannot switch back to the plain theme");
     require(pixels() == defaultIdle, "Plain theme did not restore the existing default icon");
     monitor->shutdown();
-    qInfo("PASS: themed size and idle art, unread animation, invalid sprite fallback, live switching, return to idle, default envelope");
+    qInfo("PASS: narrow layout, You Have Mail, saved Envelope/Tux/Theme choices, themed size, animation and fallback");
 }

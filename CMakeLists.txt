@@ -393,6 +393,7 @@ endif()
 add_library(krellmail MODULE
     plugins/krellmail/KrellmailPlugin.cpp
     plugins/krellmail/KrellmailPlugin.h
+    plugins/krellmail/assets/krellmail.qrc
 )
 target_include_directories(krellmail PRIVATE src)
 target_link_libraries(krellmail PRIVATE

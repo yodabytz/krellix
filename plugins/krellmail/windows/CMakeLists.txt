@@ -1,4 +1,4 @@
-add_library(krellmail MODULE ../KrellmailPlugin.cpp ../KrellmailPlugin.h)
+add_library(krellmail MODULE ../KrellmailPlugin.cpp ../KrellmailPlugin.h ../assets/krellmail.qrc)
 target_include_directories(krellmail PRIVATE "${CMAKE_SOURCE_DIR}/src")
 target_link_libraries(krellmail PRIVATE krellix Qt6::Widgets Qt6::Network)
 set_target_properties(krellmail PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins")
