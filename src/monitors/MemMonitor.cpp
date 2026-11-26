@@ -43,11 +43,13 @@ QWidget *MemMonitor::createWidget(QWidget *parent)
                              QStringLiteral("text_primary"));
     m_memText->setAlignment(Qt::AlignHCenter);
     m_memMeter = p->addMeter(QStringLiteral("chart_line_mem"));
+    m_memMeter->setCompactHeight(true);
 
     m_swapText  = p->addDecal(QStringLiteral("label"),
                               QStringLiteral("text_secondary"));
     m_swapText->setAlignment(Qt::AlignHCenter);
     m_swapMeter = p->addMeter(QStringLiteral("chart_line_swap"));
+    m_swapMeter->setCompactHeight(true);
 
     tick();
     return p;

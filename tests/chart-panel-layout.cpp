@@ -1,6 +1,8 @@
 #include "monitors/CpuMonitor.h"
 #include "monitors/DiskMonitor.h"
+#include "monitors/MemMonitor.h"
 #include "monitors/NetMonitor.h"
+#include "sysdep/MemStat.h"
 #include "theme/Theme.h"
 #include "widgets/Chart.h"
 #include "widgets/Decal.h"
@@ -37,6 +39,58 @@ QList<NetSample> netSamples()
 QList<DiskSample> diskSamples()
 {
     return {{QStringLiteral("testdisk"), ticks, ticks * 2}};
+}
+
+void checkMemoryMeters()
+{
+    Theme theme;
+    theme.setMetric(QStringLiteral("krell_height"), 12);
+    MemStat::setReadOverride([]() -> MemInfo {
+        MemInfo data;
+        data.totalKb = 8 * 1024 * 1024;
+        data.availableKb = data.totalKb / 2;
+        data.swapTotalKb = 4 * 1024 * 1024;
+        data.swapFreeKb = data.swapTotalKb / 4;
+        return data;
+    });
+    MemMonitor memory(&theme);
+    std::unique_ptr<QWidget> panel(memory.createWidget(nullptr));
+    MemStat::setReadOverride(nullptr);
+    auto *layout = panel->layout();
+    auto *ramText = qobject_cast<Decal *>(layout->itemAt(1)->widget());
+    auto *ram = qobject_cast<Meter *>(layout->itemAt(2)->widget());
+    auto *swapText = qobject_cast<Decal *>(layout->itemAt(3)->widget());
+    auto *swap = qobject_cast<Meter *>(layout->itemAt(4)->widget());
+    if (!ram || !swap || !ramText || !swapText
+        || ramText->text() != QStringLiteral("RAM 4.0 G / 8.0 G")
+        || swapText->text() != QStringLiteral("Swap 3.0 G / 4.0 G"))
+        qFatal("Memory or Swap readout changed");
+
+    const auto verifyHeight = [&](int expected) {
+        if (ram->sizeHint().height() != expected || ram->minimumSizeHint() != ram->sizeHint()
+            || swap->sizeHint() != ram->sizeHint() || swap->minimumSizeHint() != swap->sizeHint())
+            qFatal("Memory and Swap meters must be one-third shorter");
+    };
+    verifyHeight(8);
+    Meter uptime(&theme);
+    uptime.setText(QStringLiteral("5d 12:00"));
+    uptime.setFillVisible(false);
+    if (uptime.sizeHint().height() != 18) qFatal("Text meter height changed");
+    theme.setMetric(QStringLiteral("meter_height"), 15);
+    verifyHeight(10);
+    if (uptime.sizeHint().height() != 15) qFatal("Text meter theme height changed");
+
+    const auto verifyFill = [&](Meter *meter, const QString &color, int percent) {
+        meter->resize(120, meter->sizeHint().height());
+        const auto image = meter->grab().toImage();
+        const int x = image.width() * percent / 100;
+        const int y = image.height() / 2;
+        if (image.pixelColor(x - 2, y) != theme.color(color, theme.color(QStringLiteral("krell_indicator")))
+            || image.pixelColor(x + 2, y) != theme.color(QStringLiteral("chart_bg")))
+            qFatal("The compact meter changed the fill color or usage width");
+    };
+    verifyFill(ram, QStringLiteral("chart_line_mem"), 50);
+    verifyFill(swap, QStringLiteral("chart_line_swap"), 75);
 }
 
 Chart *checkPanel(QWidget &container, const QString &title, int tracks)
@@ -260,5 +314,6 @@ int main(int argc, char **argv)
     checkOverlay(theme);
     checkChartStyling(theme, config.path(), *link);
     checkTitleFont(theme, config.path());
-    qInfo("PASS: title, live chart readout and moving tracks on all charted monitors");
+    checkMemoryMeters();
+    qInfo("PASS: chart layout, live readouts, moving tracks, and compact Memory and Swap meters");
 }

@@ -4,7 +4,13 @@
 
 #include <QPaintEvent>
 #include <QPainter>
+#include <QVariant>
 #include <QtGlobal>
+
+namespace {
+// Store the opt-in without changing the widget layout used by existing plugins.
+constexpr auto kCompactHeight = "_krellix_compact_meter_height";
+}
 
 Meter::Meter(Theme *theme, const QString &colorKey, QWidget *parent)
     : QWidget(parent)
@@ -44,13 +50,21 @@ void Meter::setFillVisible(bool visible)
     update();
 }
 
+void Meter::setCompactHeight(bool compact)
+{
+    if (compact == property(kCompactHeight).toBool()) return;
+    setProperty(kCompactHeight, compact);
+    updateGeometry();
+}
+
 QSize Meter::sizeHint() const
 {
     const int fallback = m_text.isEmpty()
         ? qMax(4, m_theme->metric(QStringLiteral("krell_height"), 8))
         : qMax(12, m_theme->metric(QStringLiteral("krell_height"), 8) + 6);
     const int themed = m_theme->metric(QStringLiteral("meter_height"), fallback);
-    return QSize(0, themed > 0 ? themed : fallback);
+    const int height = themed > 0 ? themed : fallback;
+    return QSize(0, property(kCompactHeight).toBool() ? qMax(1, qRound(height * (2.0 / 3.0))) : height);
 }
 
 QSize Meter::minimumSizeHint() const

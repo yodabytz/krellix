@@ -21,6 +21,7 @@ public:
     void setValue(double normalized);
     void setText(const QString &text);
     void setFillVisible(bool visible);
+    void setCompactHeight(bool compact);
 
     QSize sizeHint() const override;
     QSize minimumSizeHint() const override;

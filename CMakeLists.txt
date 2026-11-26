@@ -167,9 +167,9 @@ endif()
 if(BUILD_TESTING)
     qt_add_executable(chart-panel-layout tests/chart-panel-layout.cpp
         src/monitors/MonitorBase.cpp src/monitors/CpuMonitor.cpp
-        src/monitors/NetMonitor.cpp src/monitors/DiskMonitor.cpp
+        src/monitors/NetMonitor.cpp src/monitors/DiskMonitor.cpp src/monitors/MemMonitor.cpp
         src/sysdep/CpuStat.cpp src/sysdep/NetStat.cpp src/sysdep/DiskStat.cpp
-        src/sysdep/DockerNet.cpp src/theme/Theme.cpp
+        src/sysdep/DockerNet.cpp src/sysdep/MemStat.cpp src/theme/Theme.cpp
         src/widgets/Chart.cpp src/widgets/Panel.cpp src/widgets/Decal.cpp
         src/widgets/Krell.cpp src/widgets/Meter.cpp)
     target_include_directories(chart-panel-layout PRIVATE src)
