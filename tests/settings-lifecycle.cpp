@@ -79,7 +79,7 @@ static void verifyMailAnimationSetting(Theme *theme)
     {
         SettingsDialog dialog(theme, nullptr);
         auto *style = dialog.findChild<QComboBox *>(QStringLiteral("krellmail-icon-style"));
-        if (!style || style->count() != 3 || style->currentData().toString() != QLatin1String("theme"))
+        if (!style || style->count() != 3 || style->currentData().toString() != QLatin1String("envelope"))
             qFatal("KrellMail animation choices are missing from settings");
         const int tux = style->findData(QStringLiteral("tux"));
         if (tux < 0) qFatal("Missing Tux animation choice");

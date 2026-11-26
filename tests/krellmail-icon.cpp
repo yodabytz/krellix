@@ -84,8 +84,7 @@ int main(int argc, char **argv)
     settings.setValue(QStringLiteral("plugins/krellmail/account_count"), 0);
     makeTheme(QStringLiteral("gallery-mail-themed"), Qt::green, 3, 28);
     makeTheme(QStringLiteral("gallery-mail-invalid"), Qt::blue, 5);
-    writeTheme(QStringLiteral("themes/gallery-mail-plain"),
-               QByteArrayLiteral(R"({"metrics":{"panel_icon_krellmail_size":40}})"));
+    writeTheme(QStringLiteral("themes/gallery-mail-plain"), QByteArrayLiteral("{}"));
 
     QPluginLoader loader(QString::fromLocal8Bit(argv[1]));
     auto *plugin = qobject_cast<IKrellixPlugin *>(loader.instance());
@@ -112,6 +111,9 @@ int main(int argc, char **argv)
 
     const QImage defaultIdle = pixels();
     require(theme.load(QStringLiteral("gallery-mail-themed")), "Cannot load themed icon");
+    require(centerColor() != Qt::green, "Theme displaced the default white envelope");
+    settings.setValue(QStringLiteral("plugins/krellmail/icon_style"), QStringLiteral("theme"));
+    monitor->tick();
     require(icon->size() == QSize(28, 28), "Themed icon did not grow on reload");
     require(centerColor() == Qt::green, "Idle icon did not override the default");
     require(pixels().pixelColor(2, pixels().height() / 2) != Qt::green, "Icon aspect ratio was stretched");

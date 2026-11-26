@@ -48,9 +48,9 @@ QString iconStyleKey()
 
 IconStyle iconStyleFromKey(const QString &value)
 {
-    if (value == QLatin1String("envelope")) return IconStyle::Envelope;
+    if (value == QLatin1String("theme")) return IconStyle::FollowTheme;
     if (value == QLatin1String("tux")) return IconStyle::Tux;
-    return IconStyle::FollowTheme;
+    return IconStyle::Envelope;
 }
 
 QString accountKey(int index, const QString &name)

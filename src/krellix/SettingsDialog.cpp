@@ -914,9 +914,9 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
 
             m_krellmailIconStyle = new QComboBox(group);
             m_krellmailIconStyle->setObjectName(QStringLiteral("krellmail-icon-style"));
-            m_krellmailIconStyle->addItem(QStringLiteral("Follow Theme"), QStringLiteral("theme"));
             m_krellmailIconStyle->addItem(QStringLiteral("Envelope"), QStringLiteral("envelope"));
             m_krellmailIconStyle->addItem(QStringLiteral("Envelope with Tux"), QStringLiteral("tux"));
+            m_krellmailIconStyle->addItem(QStringLiteral("Follow Theme"), QStringLiteral("theme"));
             form->addRow(QStringLiteral("Mail animation:"), m_krellmailIconStyle);
             groupLayout->addLayout(form);
 
