@@ -7,6 +7,7 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QImage>
 #include <QLayout>
 #include <QListWidget>
@@ -96,6 +97,46 @@ static void verifySharedHostClockCasing()
     for (const auto *panel : clockOnly.findChildren<Panel *>())
         if (panel->property("krellSharedPanelCasing").toBool())
             qFatal("A standalone clock was stripped of its casing");
+}
+
+static void verifySavedHeightWinsOverTheme()
+{
+    QTemporaryDir fixture;
+    const auto previousDir = QDir::currentPath();
+    if (!fixture.isValid() || !QDir::setCurrent(fixture.path()))
+        qFatal("Could not isolate preferred heights");
+    const auto manifest = [](QString name, int height) {
+        const auto path = QStringLiteral("themes/") + name;
+        if (!QDir().mkpath(path)) qFatal("Cannot create size fixture");
+        QFile file(path + QStringLiteral("/theme.json"));
+        const auto json = QByteArray(R"({"metrics":{"chart_height":)") + QByteArray::number(height) + "}}";
+        if (!file.open(QIODevice::WriteOnly) || file.write(json) != json.size())
+            qFatal("Cannot write size fixture");
+        return QFileInfo(file).canonicalFilePath();
+    };
+    manifest(QStringLiteral("tall"), 100);
+    manifest(QStringLiteral("short"), 32);
+    const auto key = QStringLiteral("appearance/chart_height");
+    QSettings settings;
+    const auto previous = settings.value(key);
+    settings.setValue(key, 80);
+    Theme theme;
+    if (!theme.load(QStringLiteral("tall"))) qFatal("Tall theme missing");
+    MainWindow window(&theme, {QStringLiteral("clock")});
+    Chart chart(&theme);
+    if (chart.sizeHint().height() != 80) qFatal("Saved chart height not applied at startup");
+    if (!theme.load(QStringLiteral("short")) || chart.sizeHint().height() != 80)
+        qFatal("Theme selection replaced the saved chart height");
+    const auto path = manifest(QStringLiteral("short"), 144);
+    if (!QMetaObject::invokeMethod(&theme, "onFileChanged", Qt::DirectConnection, Q_ARG(QString, path))
+        || chart.sizeHint().height() != 80)
+        qFatal("Live theme reload replaced the saved chart height");
+    Theme fresh;
+    if (!fresh.load(QStringLiteral("short")) || fresh.metric(QStringLiteral("chart_height")) != 144)
+        qFatal("Theme chart height did not apply when no profile preference was set");
+    if (previous.isValid()) settings.setValue(key, previous);
+    else settings.remove(key);
+    if (!QDir::setCurrent(previousDir)) qFatal("Could not restore working directory");
 }
 
 static void verifyAppearanceSelector(SettingsDialog &dialog, QComboBox &combo, const QString &pluginName)
@@ -386,6 +427,7 @@ static void exercise()
         if (!existing) qFatal("No monitor for disk test theme");
         verifyDragHandle(existing->theme());
         verifySharedHostClockCasing();
+        verifySavedHeightWinsOverTheme();
         verifyClockScroll(existing->theme());
         verifyMailAnimationSetting(existing->theme());
         verifyFooterFrame();

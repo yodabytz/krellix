@@ -18,6 +18,7 @@
 #include "monitors/SensorsMonitor.h"
 #include "monitors/UptimeMonitor.h"
 #include "theme/Theme.h"
+#include "theme/ThemePreferences.h"
 #include "widgets/AlertBanner.h"
 #include "widgets/Decal.h"
 #include "widgets/Panel.h"
@@ -804,14 +805,14 @@ void MainWindow::applySettingsOverridesToTheme()
 #endif
     // Note: panel_width is NOT pushed into the theme — window width is
     // controlled by applyFixedWidth() reading the setting directly.
-    // Krell/chart height overrides do go into the theme so widgets can
-    // pick them up via the standard themeChanged signal path.
-    if (s.contains(QStringLiteral("appearance/krell_height")))
-        m_theme->setMetric(QStringLiteral("krell_height"),
-                           s.value(QStringLiteral("appearance/krell_height")).toInt());
-    if (s.contains(QStringLiteral("appearance/chart_height")))
-        m_theme->setMetric(QStringLiteral("chart_height"),
-                           s.value(QStringLiteral("appearance/chart_height")).toInt());
+    // Store saved heights independently of the theme's reloaded metrics.
+    const auto preferred = [&](const QString &key) {
+        bool ok = false;
+        const auto value = s.value(key).toInt(&ok);
+        return ok ? value : -1;
+    };
+    ThemePreferences::setPreferredHeights(*m_theme, preferred(QStringLiteral("appearance/chart_height")),
+                                          preferred(QStringLiteral("appearance/krell_height")));
 }
 
 void MainWindow::restorePosition()

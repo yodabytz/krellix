@@ -1,5 +1,6 @@
 #include "Theme.h"
 #include "ThemeAnimation.h"
+#include "ThemePreferences.h"
 
 #include <QDir>
 #include <QCoreApplication>
@@ -16,6 +17,7 @@
 #include <QRegularExpression>
 #include <QSet>
 #include <QStandardPaths>
+#include <QVariant>
 #include <QtMath>
 
 #include <algorithm>
@@ -31,6 +33,10 @@ namespace {
 constexpr int kMaxJsonBytes = 256 * 1024;  // hard cap on theme.json size
 constexpr qint64 kMaxImageBytes = 10LL * 1024LL * 1024LL;
 constexpr qint64 kMaxImagePixels = 4096LL * 4096LL;
+// QObject properties keep per-profile sizes separate from the theme's
+// reloaded metric table without adding fields to the exported class.
+constexpr char kChartHeightPreference[] = "krellixChartHeightPreference";
+constexpr char kKrellHeightPreference[] = "krellixKrellHeightPreference";
 
 QPixmap loadBoundedPixmap(const QString &path)
 {
@@ -488,7 +494,27 @@ QFont Theme::font(const QString &key, const QFont &fallback) const
 
 int Theme::metric(const QString &key, int fallback) const
 {
+    const char *preference = nullptr;
+    if (key == QLatin1String("chart_height")) preference = kChartHeightPreference;
+    else if (key == QLatin1String("krell_height")) preference = kKrellHeightPreference;
+    if (preference) {
+        const auto value = property(preference);
+        if (value.isValid()) return value.toInt();
+    }
     return m_metrics.value(key, fallback);
+}
+
+void ThemePreferences::setPreferredHeights(Theme &theme, int chartHeight, int krellHeight)
+{
+    const auto keep = [&theme](const char *name, int height) {
+        const QVariant value = height < 0 ? QVariant() : QVariant(qBound(0, height, 4096));
+        if (theme.property(name) == value) return false;
+        theme.setProperty(name, value);
+        return true;
+    };
+    const bool chartChanged = keep(kChartHeightPreference, chartHeight);
+    const bool krellChanged = keep(kKrellHeightPreference, krellHeight);
+    if (chartChanged || krellChanged) emit theme.themeChanged();
 }
 
 void Theme::setMetric(const QString &key, int value)
