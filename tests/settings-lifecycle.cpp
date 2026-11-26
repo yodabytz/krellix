@@ -282,6 +282,71 @@ static void verifyFooterFrame()
     qInfo("PASS: proportional footer scales at 120 and 240; existing frames still tile");
 }
 
+static void verifyChassisBackground()
+{
+    QTemporaryDir fixture;
+    const auto previous = QDir::currentPath();
+    if (!fixture.isValid() || !QDir::setCurrent(fixture.path())) qFatal("Could not isolate chassis test");
+    for (const auto &id : {QStringLiteral("chassis-base"), QStringLiteral("chassis-textured")}) {
+        const auto path = QStringLiteral("themes/") + id + QLatin1Char('/');
+        if (!QDir().mkpath(path)) qFatal("Could not create chassis theme");
+        const auto save = [&](const QString &name, QSize size, QColor color) {
+            QImage image(size, QImage::Format_ARGB32);
+            image.fill(color);
+            if (!image.save(path + name)) qFatal("Could not save chassis fixture");
+        };
+        save(QStringLiteral("header.png"), QSize(20, 10), Qt::yellow);
+        save(QStringLiteral("footer.png"), QSize(20, 8), Qt::cyan);
+        save(QStringLiteral("spacer.png"), QSize(6, 8), Qt::transparent);
+        QImage pattern(5, 3, QImage::Format_RGB32);
+        pattern.fill(Qt::red);
+        for (int x = 0; x < pattern.width(); ++x) pattern.setPixelColor(x, 1, Qt::blue);
+        if (!pattern.save(path + QStringLiteral("pattern.png"))) qFatal("Could not save chassis backing");
+        const QByteArray data = R"({"metrics":{"top_strip_height":14,"panel_border":0},
+          "colors":{"panel_bg":"#101010"},"surfaces":{"panel_bg_top":{"image":"header.png","slice":0}},
+          "images":{"frame_left":"spacer.png","frame_right":"spacer.png","frame_bottom":"footer.png")"
+          + QByteArray(id == QStringLiteral("chassis-textured") ? R"(,"window_bg":"pattern.png")" : "") + "}}";
+        QFile json(path + QStringLiteral("theme.json"));
+        if (!json.open(QIODevice::WriteOnly) || json.write(data) != data.size())
+            qFatal("Could not write chassis theme");
+    }
+    Theme theme;
+    if (!theme.load(QStringLiteral("chassis-base"))) qFatal("Could not load plain chassis");
+    MainWindow window(&theme, {QStringLiteral("clock")});
+    window.show();
+    QApplication::processEvents();
+    const auto before = window.grab().toImage();
+    const auto margins = window.layout()->contentsMargins();
+    const auto content = window.layout()->itemAt(window.layout()->count() - 1)->geometry();
+    if (!theme.load(QStringLiteral("chassis-textured"))) qFatal("Could not load textured chassis");
+    QApplication::processEvents();
+    const auto after = window.grab().toImage();
+    const auto dpr = after.devicePixelRatio();
+    const auto sample = [dpr](const QImage &image, int x, int y) {
+        return image.pixelColor(qFloor((x + .5)*dpr), qFloor((y + .5)*dpr));
+    };
+    const auto matchesTile = [&](int x, int y, QColor expected) {
+        const auto actual = sample(after, x, y);
+        return qAbs(actual.red() - expected.red()) <= 2 && qAbs(actual.green() - expected.green()) <= 2
+            && qAbs(actual.blue() - expected.blue()) <= 2;
+    };
+    if (before.size() != after.size() || margins != window.layout()->contentsMargins()
+        || content != window.layout()->itemAt(window.layout()->count() - 1)->geometry()
+        || sample(before, 2, 16) != QColor("#101010")
+        || !matchesTile(2, 16, Qt::red) || !matchesTile(2, 17, Qt::red)
+        || !matchesTile(2, 18, Qt::blue) || !matchesTile(window.width() - 2, 18, Qt::blue)
+        || sample(after, 15, 3) != Qt::yellow || sample(after, 15, window.height() - 2) != Qt::cyan
+        || sample(after, content.left() + 1, content.top() + 1) != QColor("#101010"))
+        qFatal("Chassis geometry/paint mismatch: layout=%d rows=%s/%s,%s,%s,%s header=%s footer=%s face=%s",
+               int(content == window.layout()->itemAt(window.layout()->count() - 1)->geometry()),
+               qPrintable(sample(before, 2, 16).name()), qPrintable(sample(after, 2, 16).name()),
+               qPrintable(sample(after, 2, 17).name()), qPrintable(sample(after, 2, 18).name()),
+               qPrintable(sample(after, window.width() - 2, 18).name()),
+               qPrintable(sample(after, 15, 3).name()), qPrintable(sample(after, 15, window.height() - 2).name()),
+               qPrintable(sample(after, content.left() + 1, content.top() + 1).name()));
+    if (!QDir::setCurrent(previous)) qFatal("Could not restore working directory");
+}
+
 static void exercise()
 {
     MainWindow *window = nullptr;
@@ -302,6 +367,7 @@ static void exercise()
         verifyClockScroll(existing->theme());
         verifyMailAnimationSetting(existing->theme());
         verifyFooterFrame();
+        verifyChassisBackground();
         DiskMonitor disk(existing->theme());
         DiskStat::setReadOverride([]() { return QList<DiskSample>{}; });
         QWidget *panel = disk.createWidget(nullptr);

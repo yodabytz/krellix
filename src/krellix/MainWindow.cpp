@@ -912,6 +912,20 @@ void MainWindow::paintEvent(QPaintEvent *)
 
     p.fillRect(rect(), m_theme->color(QStringLiteral("panel_bg"),
                                       QColor(0, 0, 0)));
+    const auto chassis = m_theme->pixmap(QStringLiteral("window_bg"));
+    if (!chassis.isNull()) {
+        const int stackTop = m_topStrip && !m_topStrip->isHidden()
+            ? qMax(topH, m_topStrip->geometry().bottom() + 1) : topH;
+        const QRect stack(0, stackTop, width(), height() - bottomH - stackTop);
+        if (!stack.isEmpty()) {
+            const qreal sourceWidth = chassis.deviceIndependentSize().width();
+            p.save();
+            p.translate(stack.topLeft());
+            p.scale(stack.width() / sourceWidth, 1);
+            p.drawTiledPixmap(QRectF(0, 0, sourceWidth, stack.height()), chassis);
+            p.restore();
+        }
+    }
     const QRect sharedCasing = syncHostClockCasing(false);
     if (!sharedCasing.isEmpty())
         Panel::paintCasing(p, *m_theme, QStringLiteral("panel_bg_host_clock"), this, sharedCasing);
