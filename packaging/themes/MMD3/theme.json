@@ -1,0 +1,106 @@
+{
+  "name": "MMD3",
+  "version": "1.0",
+  "author": "Theme designer",
+  "description": "Sculpted silver and ocean-blue glass, with cyan traces and an animated footer.",
+  "colors": {
+    "panel_bg": "#062b40",
+    "panel_border": "#aab7bd",
+    "chart_bg": "#042331",
+    "chart_grid": "#185064",
+    "text_primary": "#f2f8fc",
+    "text_secondary": "#a5d1e2",
+    "text_accent": "#71e8ff",
+    "krell_track": "#10384a",
+    "krell_indicator": "#35dfff",
+    "chart_line_default": "#42caff",
+    "chart_line_cpu": "#62eaff",
+    "chart_line_mem": "#42caff",
+    "chart_line_swap": "#d98aff",
+    "chart_line_net_rx": "#40eaff",
+    "chart_line_net_tx": "#b1eaff",
+    "chart_line_disk": "#70cfff",
+    "accent_ok": "#39ee91",
+    "accent_warning": "#ffc45b",
+    "accent_critical": "#ff6262"
+  },
+  "fonts": {
+    "label": {
+      "family": "Arial",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Arial",
+      "size": 10,
+      "bold": true
+    }
+  },
+  "metrics": {
+    "panel_padding": 6,
+    "panel_spacing": 2,
+    "panel_border": 0,
+    "krell_height": 12,
+    "chart_height": 100,
+    "chart_grid_lines": 4,
+    "top_strip_height": 47,
+    "top_strip_keep_aspect": 1,
+    "panel_icon_size": 18
+  },
+  "surfaces": {
+    "panel_bg": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1
+    },
+    "panel_bg_host": {
+      "image": "assets/host-panel.png",
+      "slice": 6,
+      "opacity": 1
+    },
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "slice": 4,
+      "opacity": 1
+    },
+    "panel_bg_top": {
+      "image": "assets/optional-header.png",
+      "slice": 0
+    }
+  },
+  "images": {
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "mode": "stretch"
+    },
+    "krell_track": {
+      "image": "assets/krell-track.png",
+      "mode": "tile"
+    },
+    "krell": {
+      "image": "assets/krell.png",
+      "frames": 1
+    },
+    "frame_bottom": {
+      "image": "assets/optional-footer.png",
+      "mode": "stretch"
+    },
+    "frame_left": "assets/frame-left.png",
+    "frame_right": "assets/frame-right.png",
+    "panel_icon_cpu": "assets/monitor-icons/cpu.png",
+    "panel_icon_proc": "assets/monitor-icons/proc.png",
+    "panel_icon_mem": "assets/monitor-icons/memory.png",
+    "panel_icon_disk": "assets/monitor-icons/disk.png",
+    "panel_icon_net": "assets/monitor-icons/network.png",
+    "panel_icon_sensors": "assets/monitor-icons/sensors.png",
+    "panel_icon_netports": "assets/monitor-icons/ports.png",
+    "panel_icon_uptime": "assets/monitor-icons/uptime.png",
+    "panel_icon_krellhealth": "assets/monitor-icons/health.png",
+    "panel_icon_krellweather": "assets/monitor-icons/weather.png",
+    "panel_icon_krellstock": "assets/monitor-icons/stocks.png",
+    "panel_icon_krellpkg": "assets/monitor-icons/packages.png",
+    "panel_icon_krelltop": "assets/monitor-icons/top.png",
+    "panel_icon_krellstock_ticker": "assets/monitor-icons/stocks.png",
+    "panel_icon_krellhealth_heart": "assets/health/ok-32.png"
+  }
+}
