@@ -176,6 +176,7 @@ Recognized keys:
 | `panel_icon_*` | Optional icon beside a panel title, e.g. `panel_icon_cpu` for `panel_bg_cpu` |
 | `frame_bottom` | Bottom frame strip; use `{"image":"assets/footer.png","mode":"stretch"}` for a single proportional footer between the side frames |
 | `window_bg` | Optional chassis backing. Scales across the existing window width and tiles vertically behind the monitor stack, between the header and footer. It adds no margins and is layered below the frame strips, panels and shared Host/Clock casing. Omit it for the existing solid backing. |
+| `window_bg_cap_top`, `window_bg_cap_bottom` | Optional transparent end caps for the existing side strips. The left and right bands of each PNG must match the frame strip widths in source pixels. Only those bands are painted: rounded alpha replaces the corresponding rail ends without resizing the window or the header/footer. A missing cap leaves that end unchanged. |
 
 Image-themed widgets gracefully fall back to color-only rendering for any
 key that isn't supplied — so a theme can mix images and colors freely.

@@ -34,6 +34,7 @@
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
+#include <QRegion>
 #include <QSettings>
 #include <QSet>
 #include <QShortcut>
@@ -910,8 +911,43 @@ void MainWindow::paintEvent(QPaintEvent *)
     const int leftW   = leftPix.isNull()   ? 0 : leftPix.width();
     const int rightW  = rightPix.isNull()  ? 0 : rightPix.width();
 
-    p.fillRect(rect(), m_theme->color(QStringLiteral("panel_bg"),
-                                      QColor(0, 0, 0)));
+    const auto topCap = m_theme->pixmap(QStringLiteral("window_bg_cap_top"));
+    const auto bottomCap = m_theme->pixmap(QStringLiteral("window_bg_cap_bottom"));
+    const auto capHeight = [&](const QPixmap &cap) {
+        return !cap.isNull() && leftW + rightW > 0 && leftW + rightW <= width() && cap.width() >= leftW + rightW
+            ? qMin(qRound(cap.deviceIndependentSize().height()), height() / 2) : 0;
+    };
+    const int topCapH = capHeight(topCap), bottomCapH = capHeight(bottomCap);
+    const QColor backing = m_theme->color(QStringLiteral("panel_bg"), QColor(0, 0, 0));
+    QRegion backingRegion;
+    if (topCapH || bottomCapH) {
+        // The caps replace only the ends of the side strips, not the header/footer.
+        backingRegion = QRegion(rect());
+        const auto drawCaps = [&](const QPixmap &cap, int y, int h) {
+            if (!h) return;
+            if (leftW) {
+                const QRect left(0, y, leftW, h);
+                backingRegion -= left;
+                p.drawPixmap(left, cap, QRect(0, 0, leftW, cap.height()));
+            }
+            if (rightW) {
+                const QRect right(width() - rightW, y, rightW, h);
+                backingRegion -= right;
+                p.drawPixmap(right, cap, QRect(cap.width() - rightW, 0, rightW, cap.height()));
+            }
+        };
+        p.save();
+        p.setCompositionMode(QPainter::CompositionMode_Source);
+        drawCaps(topCap, 0, topCapH);
+        drawCaps(bottomCap, height() - bottomCapH, bottomCapH);
+        p.restore();
+        p.save();
+        p.setClipRegion(backingRegion, Qt::IntersectClip);
+        p.fillRect(rect(), backing);
+        p.restore();
+    } else {
+        p.fillRect(rect(), backing);
+    }
     const auto chassis = m_theme->pixmap(QStringLiteral("window_bg"));
     if (!chassis.isNull()) {
         const int stackTop = m_topStrip && !m_topStrip->isHidden()
@@ -920,6 +956,7 @@ void MainWindow::paintEvent(QPaintEvent *)
         if (!stack.isEmpty()) {
             const qreal sourceWidth = chassis.deviceIndependentSize().width();
             p.save();
+            if (topCapH || bottomCapH) p.setClipRegion(backingRegion, Qt::IntersectClip);
             p.translate(stack.topLeft());
             p.scale(stack.width() / sourceWidth, 1);
             p.drawTiledPixmap(QRectF(0, 0, sourceWidth, stack.height()), chassis);
@@ -930,8 +967,14 @@ void MainWindow::paintEvent(QPaintEvent *)
     if (!sharedCasing.isEmpty())
         Panel::paintCasing(p, *m_theme, QStringLiteral("panel_bg_host_clock"), this, sharedCasing);
 
-    if (!topPix.isNull())
+    if (!topPix.isNull()) {
+        if (topCapH) {
+            p.save();
+            p.setClipRegion(backingRegion, Qt::IntersectClip);
+        }
         p.drawTiledPixmap(QRect(0, 0, width(), topH), topPix);
+        if (topCapH) p.restore();
+    }
     const auto animate = [this](QPixmap &staticImage, const QString &target, const QRect &rect) {
         const auto frame = m_theme->animationFrame(target, this, rect, staticImage.size());
         if (!frame.isNull()) staticImage = frame;
@@ -942,24 +985,29 @@ void MainWindow::paintEvent(QPaintEvent *)
             ? QRect(leftW, height() - bottomH, width() - leftW - rightW, bottomH)
             : QRect(0, height() - bottomH, width(), bottomH);
         animate(bottomPix, QStringLiteral("images.frame_bottom"), footer);
+        if (bottomCapH) {
+            p.save();
+            p.setClipRegion(backingRegion, Qt::IntersectClip);
+        }
         if (scaledFooter)
             p.drawPixmap(footer, bottomPix);
         else
             p.drawTiledPixmap(footer, bottomPix);
+        if (bottomCapH) p.restore();
     }
 
-    const int sideTop    = topH;
-    const int sideBottom = scaledFooter ? height() : height() - bottomH;
+    const int sideTop    = qMax(topH, topCapH);
+    const int sideBottom = qMin(scaledFooter ? height() : height() - bottomH, height() - bottomCapH);
     if (sideBottom > sideTop) {
         if (!leftPix.isNull()) {
             const QRect left(0, sideTop, leftW, sideBottom - sideTop);
             animate(leftPix, QStringLiteral("images.frame_left"), left);
-            p.drawTiledPixmap(left, leftPix);
+            p.drawTiledPixmap(left, leftPix, QPoint(0, sideTop - topH));
         }
         if (!rightPix.isNull()) {
             const QRect right(width() - rightW, sideTop, rightW, sideBottom - sideTop);
             animate(rightPix, QStringLiteral("images.frame_right"), right);
-            p.drawTiledPixmap(right, rightPix);
+            p.drawTiledPixmap(right, rightPix, QPoint(0, sideTop - topH));
         }
     }
 }

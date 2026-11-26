@@ -287,7 +287,8 @@ static void verifyChassisBackground()
     QTemporaryDir fixture;
     const auto previous = QDir::currentPath();
     if (!fixture.isValid() || !QDir::setCurrent(fixture.path())) qFatal("Could not isolate chassis test");
-    for (const auto &id : {QStringLiteral("chassis-base"), QStringLiteral("chassis-textured")}) {
+    for (const auto &id : {QStringLiteral("chassis-base"), QStringLiteral("chassis-textured"),
+                           QStringLiteral("chassis-capped")}) {
         const auto path = QStringLiteral("themes/") + id + QLatin1Char('/');
         if (!QDir().mkpath(path)) qFatal("Could not create chassis theme");
         const auto save = [&](const QString &name, QSize size, QColor color) {
@@ -302,10 +303,17 @@ static void verifyChassisBackground()
         pattern.fill(Qt::red);
         for (int x = 0; x < pattern.width(); ++x) pattern.setPixelColor(x, 1, Qt::blue);
         if (!pattern.save(path + QStringLiteral("pattern.png"))) qFatal("Could not save chassis backing");
+        QImage cap(20, 6, QImage::Format_ARGB32);
+        cap.fill(Qt::magenta);
+        for (const auto &pt : {QPoint(0, 0), QPoint(19, 0), QPoint(0, 5), QPoint(19, 5)})
+            cap.setPixelColor(pt, Qt::transparent);
+        if (!cap.save(path + QStringLiteral("cap.png"))) qFatal("Could not save chassis cap");
         const QByteArray data = R"({"metrics":{"top_strip_height":14,"panel_border":0},
           "colors":{"panel_bg":"#101010"},"surfaces":{"panel_bg_top":{"image":"header.png","slice":0}},
           "images":{"frame_left":"spacer.png","frame_right":"spacer.png","frame_bottom":"footer.png")"
-          + QByteArray(id == QStringLiteral("chassis-textured") ? R"(,"window_bg":"pattern.png")" : "") + "}}";
+          + QByteArray(id != QStringLiteral("chassis-base") ? R"(,"window_bg":"pattern.png")" : "")
+          + QByteArray(id == QStringLiteral("chassis-capped")
+              ? R"(,"window_bg_cap_top":"cap.png","window_bg_cap_bottom":"cap.png")" : "") + "}}";
         QFile json(path + QStringLiteral("theme.json"));
         if (!json.open(QIODevice::WriteOnly) || json.write(data) != data.size())
             qFatal("Could not write chassis theme");
@@ -344,6 +352,20 @@ static void verifyChassisBackground()
                qPrintable(sample(after, window.width() - 2, 18).name()),
                qPrintable(sample(after, 15, 3).name()), qPrintable(sample(after, 15, window.height() - 2).name()),
                qPrintable(sample(after, content.left() + 1, content.top() + 1).name()));
+    if (!theme.load(QStringLiteral("chassis-capped"))) qFatal("Could not load capped chassis");
+    QApplication::processEvents();
+    const auto capped = window.grab().toImage();
+    if (capped.size() != after.size() || margins != window.layout()->contentsMargins()
+        || content != window.layout()->itemAt(window.layout()->count() - 1)->geometry()
+        || sample(capped, 0, 0).alpha() != 0 || sample(capped, window.width() - 1, window.height() - 1).alpha() != 0
+        || sample(capped, 2, 2) != Qt::magenta || sample(capped, window.width() - 2, window.height() - 2) != Qt::magenta
+        || sample(capped, 15, 3) != Qt::yellow || sample(capped, 15, window.height() - 2) != Qt::cyan
+        || sample(capped, 2, 18) != sample(after, 2, 18))
+        qFatal("Chassis cap mismatch: alphas=%d/%d cap=%s/%s header=%s footer=%s backdrop=%s",
+               sample(capped, 0, 0).alpha(), sample(capped, window.width() - 1, window.height() - 1).alpha(),
+               qPrintable(sample(capped, 2, 2).name()), qPrintable(sample(capped, window.width() - 2, window.height() - 2).name()),
+               qPrintable(sample(capped, 15, 3).name()), qPrintable(sample(capped, 15, window.height() - 2).name()),
+               qPrintable(sample(capped, 2, 18).name()));
     if (!QDir::setCurrent(previous)) qFatal("Could not restore working directory");
 }
 

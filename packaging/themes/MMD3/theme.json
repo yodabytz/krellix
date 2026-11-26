@@ -1,6 +1,6 @@
 {
   "name": "MMD3",
-  "version": "1.4",
+  "version": "1.5",
   "author": "Theme designer",
   "description": "Sculpted silver and ocean-blue glass, with cyan traces and an animated footer.",
   "colors": {
@@ -128,6 +128,8 @@
   },
   "images": {
     "window_bg": "assets/chassis-bg.png",
+    "window_bg_cap_top": "assets/chassis-top.png",
+    "window_bg_cap_bottom": "assets/chassis-bottom.png",
     "krell_track": {
       "image": "assets/krell-track.png",
       "mode": "tile"
