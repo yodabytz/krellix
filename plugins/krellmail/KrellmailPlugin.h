@@ -120,6 +120,7 @@ private:
     QByteArray xoauth2InitialResponse(const KrellmailAccount &account, const QString &accessToken) const;
     void processLine(const QByteArray &line);
     void applyStatus();
+    void fitStatusText();
 
     QPointer<KrellmailEnvelope> m_icon;
     QPointer<QLabel> m_primary;

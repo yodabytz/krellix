@@ -8,6 +8,7 @@
 
 #include <QDesktopServices>
 #include <QEvent>
+#include <QFontMetricsF>
 #include <QHBoxLayout>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -369,12 +370,13 @@ QWidget *KrellmailMonitor::createWidget(QWidget *parent)
     m_primary = new QLabel(QStringLiteral("Mail"), textBox);
     m_primary->setObjectName(QStringLiteral("krellmail-status"));
     m_primary->setTextFormat(Qt::PlainText);
+    m_primary->setIndent(0);
     m_detail = new QLabel(QStringLiteral("checking..."), textBox);
     m_detail->setObjectName(QStringLiteral("krellmail-count"));
     m_detail->setTextFormat(Qt::PlainText);
     m_primary->installEventFilter(this);
     m_detail->installEventFilter(this);
-    m_primary->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    m_primary->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
     m_detail->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     m_primary->setFixedHeight(12);
     m_detail->setFixedHeight(11);
@@ -396,6 +398,8 @@ void KrellmailMonitor::tick()
 
 bool KrellmailMonitor::eventFilter(QObject *watched, QEvent *event)
 {
+    if (watched == m_primary.data() && event->type() == QEvent::Resize)
+        fitStatusText();
     if (event && event->type() == QEvent::MouseButtonRelease) {
         if (watched == m_icon.data()) {
             QDesktopServices::openUrl(QUrl(QStringLiteral("mailto:")));
@@ -822,6 +826,25 @@ void KrellmailMonitor::processLine(const QByteArray &line)
     }
 }
 
+void KrellmailMonitor::fitStatusText()
+{
+    if (!m_primary || m_primary->width() <= 0) return;
+    QFont font = m_primary->font();
+    font.setPixelSize(10);
+    font.setBold(true);
+    font.setStretch(100);
+    const qreal width = qMax(1, m_primary->contentsRect().width() - 1);
+    const QString text = m_primary->text();
+    const qreal advance = QFontMetricsF(font, m_primary).horizontalAdvance(text);
+    if (advance > width) {
+        int stretch = qMax(1, qFloor(100 * width / advance));
+        font.setStretch(stretch);
+        while (stretch > 1 && QFontMetricsF(font, m_primary).horizontalAdvance(text) > width)
+            font.setStretch(--stretch);
+    }
+    m_primary->setFont(font);
+}
+
 void KrellmailMonitor::applyStatus()
 {
     if (m_icon) m_icon->setMailCount(m_totalCount);
@@ -835,8 +858,7 @@ void KrellmailMonitor::applyStatus()
     const QColor scol = secondary.color.isValid() ? secondary.color
         : themeColor(theme(), QStringLiteral("text_secondary"), QColor(170, 190, 200));
     if (m_primary) {
-        m_primary->setStyleSheet(QStringLiteral("QLabel { color: %1; font-size: 10px; font-weight: 700; }")
-                                 .arg(cssColor(pcol)));
+        m_primary->setStyleSheet(QStringLiteral("QLabel { color: %1; }").arg(cssColor(pcol)));
     }
     if (m_detail) {
         m_detail->setStyleSheet(QStringLiteral("QLabel { color: %1; font-size: 9px; }").arg(cssColor(scol)));
@@ -844,6 +866,7 @@ void KrellmailMonitor::applyStatus()
 
     if (m_accounts.isEmpty()) {
         if (m_primary) m_primary->setText(QStringLiteral("Mail"));
+        fitStatusText();
         if (m_detail) {
             m_detail->setText(QStringLiteral("configure account"));
             m_detail->setToolTip({});
@@ -854,6 +877,7 @@ void KrellmailMonitor::applyStatus()
     if (m_primary)
         m_primary->setText(m_totalCount > 0 ? QStringLiteral("You Have Mail")
                                             : QStringLiteral("No new mail"));
+    fitStatusText();
     if (m_detail) {
         const QString detail = m_errorCount > 0 && m_totalCount == 0
             ? QStringLiteral("Check failed") : countText(m_totalCount);

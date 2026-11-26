@@ -157,7 +157,7 @@ int main(int argc, char **argv)
         QApplication::processEvents();
         require(status->width() >= status->fontMetrics().horizontalAdvance(status->text()),
                 "Unread status clips at a supported panel width");
-        require(status->mapTo(panel.get(), {}).x() > icon->mapTo(panel.get(), {}).x() + icon->width()
+        require(status->mapTo(panel.get(), QPoint()).x() > icon->mapTo(panel.get(), QPoint()).x() + icon->width()
                 && count->y() > status->geometry().bottom(), "Original mail layout changed");
     }
     const auto configureStyle = [&](const QString &key) {
