@@ -38,7 +38,7 @@
   },
   "metrics": {
     "panel_padding": 6,
-    "panel_spacing": 0,
+    "panel_spacing": 2,
     "panel_border": 0,
     "krell_height": 12,
     "chart_height": 100,
