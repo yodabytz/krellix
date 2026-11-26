@@ -6,25 +6,126 @@
 #include "remote/RemoteSource.h"
 #endif
 
-#include <QDesktopServices>
 #include <QEvent>
+#include <QFileInfo>
 #include <QFontMetricsF>
 #include <QHBoxLayout>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QPainter>
 #include <QPainterPath>
+#include <QProcess>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QSizePolicy>
+#include <QStandardPaths>
 #include <QUrl>
 #include <QUrlQuery>
 #include <QVBoxLayout>
 #include <QtMath>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#include <shobjidl.h>
+#include <shlwapi.h>
+#elif defined(Q_OS_MACOS)
+bool launchMacDefaultMail();
+#endif
+
 namespace {
+
+#ifdef Q_OS_WIN
+QString mailAssociation(ASSOCSTR property)
+{
+    DWORD length = 0;
+    const auto flags = ASSOCF_IS_PROTOCOL;
+    AssocQueryStringW(flags, property, L"mailto", nullptr, nullptr, &length);
+    if (!length || length > 32768) return {};
+    std::wstring result(length, L'\0');
+    if (FAILED(AssocQueryStringW(flags, property, L"mailto", nullptr, result.data(), &length)))
+        return {};
+    return QString::fromWCharArray(result.c_str());
+}
+
+bool launchWindowsDefaultMail()
+{
+    const QString appId = mailAssociation(ASSOCSTR_APPID);
+    if (!appId.isEmpty()) {
+        const HRESULT com = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+        bool launched = false;
+        if (SUCCEEDED(com) || com == RPC_E_CHANGED_MODE) {
+            IApplicationActivationManager *manager = nullptr;
+            if (SUCCEEDED(CoCreateInstance(CLSID_ApplicationActivationManager, nullptr,
+                                           CLSCTX_LOCAL_SERVER, IID_PPV_ARGS(&manager)))) {
+                DWORD pid = 0;
+                launched = SUCCEEDED(manager->ActivateApplication(
+                    appId.toStdWString().c_str(), nullptr, AO_NONE, &pid));
+                manager->Release();
+            }
+        }
+        if (SUCCEEDED(com)) CoUninitialize();
+        if (launched) return true;
+    }
+    const QFileInfo exe(mailAssociation(ASSOCSTR_EXECUTABLE));
+    const QString name = exe.fileName().toLower();
+    if (!exe.isAbsolute() || !exe.isFile() || name == QLatin1String("rundll32.exe")
+        || name == QLatin1String("applicationframehost.exe")
+        || name == QLatin1String("explorer.exe"))
+        return false;
+    return QProcess::startDetached(exe.absoluteFilePath(), {});
+}
+#endif
+
+void openDefaultMail(QObject *owner)
+{
+#ifdef Q_OS_MACOS
+    Q_UNUSED(owner);
+    if (!launchMacDefaultMail()) qWarning("KrellMail: no default mail app found");
+#elif defined(Q_OS_WIN)
+    Q_UNUSED(owner);
+    if (!launchWindowsDefaultMail()) qWarning("KrellMail: could not open the default mail app");
+#else
+    const QString queryName = QStringLiteral("krellmail-default-app-query");
+    if (owner->findChild<QProcess *>(queryName, Qt::FindDirectChildrenOnly)) return;
+    const QString query = QStandardPaths::findExecutable(QStringLiteral("xdg-mime"));
+    if (query.isEmpty()) {
+        qWarning("KrellMail: xdg-mime is unavailable");
+        return;
+    }
+    auto *process = new QProcess(owner);
+    process->setObjectName(queryName);
+    QObject::connect(process, &QProcess::errorOccurred, process, [process](QProcess::ProcessError error) {
+        if (error != QProcess::FailedToStart) return;
+        qWarning("KrellMail: could not look up the default mail app");
+        process->deleteLater();
+    });
+    QObject::connect(process, &QProcess::finished, process, [process](int code, QProcess::ExitStatus status) {
+        const QString id = QString::fromUtf8(process->readAllStandardOutput()).trimmed();
+        process->deleteLater();
+        static const QRegularExpression desktopId(QStringLiteral("\\A[A-Za-z0-9][A-Za-z0-9_.-]{0,247}\\.desktop\\z"));
+        if (status == QProcess::NormalExit && code == 0 && desktopId.match(id).hasMatch()) {
+            // Launch the app, not the protocol handler's compose command.
+            const QString gtk = QStandardPaths::findExecutable(QStringLiteral("gtk-launch"));
+            if (!gtk.isEmpty() && QProcess::startDetached(gtk, {id})) return;
+            const QString gio = QStandardPaths::findExecutable(QStringLiteral("gio"));
+            const QString entry = QStandardPaths::locate(QStandardPaths::GenericDataLocation,
+                                                         QStringLiteral("applications/") + id);
+            if (!gio.isEmpty() && !entry.isEmpty()
+                && QProcess::startDetached(gio, {QStringLiteral("launch"), entry})) return;
+        }
+        qWarning("KrellMail: could not open the default mail app");
+    });
+    QTimer::singleShot(2500, process, [process] {
+        if (process->state() != QProcess::NotRunning) process->kill();
+    });
+    process->start(query, {QStringLiteral("query"), QStringLiteral("default"),
+                           QStringLiteral("x-scheme-handler/mailto")});
+#endif
+}
 
 constexpr int kMaxAccounts = 3;
 constexpr int kMaxDynamicAccounts = 10;
@@ -416,7 +517,9 @@ bool KrellmailMonitor::eventFilter(QObject *watched, QEvent *event)
         fitStatusText();
     if (event && event->type() == QEvent::MouseButtonRelease) {
         if (watched == m_icon.data()) {
-            QDesktopServices::openUrl(QUrl(QStringLiteral("mailto:")));
+            if (static_cast<QMouseEvent *>(event)->button() != Qt::LeftButton)
+                return MonitorBase::eventFilter(watched, event);
+            openDefaultMail(this);
             return true;
         }
         startCheck(true);
@@ -916,9 +1019,9 @@ QString KrellmailPlugin::pluginName() const
 QString KrellmailPlugin::pluginVersion() const
 {
 #ifdef Q_OS_WIN
-    return QStringLiteral("0.1.6-windows.1");
+    return QStringLiteral("0.1.7-windows.1");
 #else
-    return QStringLiteral("0.1.6");
+    return QStringLiteral("0.1.7");
 #endif
 }
 

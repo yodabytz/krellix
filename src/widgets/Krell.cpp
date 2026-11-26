@@ -7,6 +7,22 @@
 #include <QVariant>
 #include <QtGlobal>
 
+namespace {
+int originalHeight(const Theme &theme)
+{
+    const auto sprite = theme.pixmap(QStringLiteral("krell"));
+    if (sprite.isNull()) return qMax(1, theme.metric(QStringLiteral("krell_height"), 8));
+    if (!theme.imageInt(QStringLiteral("krell.vertical"), 0)) return sprite.height();
+    const int frames = qMax(1, theme.imageInt(QStringLiteral("krell.frames"), 1));
+    return qMax(1, sprite.height() / frames);
+}
+
+int slimHeight(int height)
+{
+    return qMax(1, qRound(height * (2.0 / 3.0)));
+}
+}
+
 Krell::Krell(Theme *theme, QWidget *parent)
     : QWidget(parent)
     , m_theme(theme)
@@ -48,17 +64,7 @@ void Krell::onThemeChanged()
 
 QSize Krell::sizeHint() const
 {
-    // If a krell sprite is themed, its (single-)frame height drives the
-    // row height; otherwise fall back to the krell_height metric.
-    const QPixmap krellPix = m_theme->pixmap(QStringLiteral("krell"));
-    if (!krellPix.isNull()) {
-        const int  frames   = qMax(1, m_theme->imageInt(QStringLiteral("krell.frames"), 1));
-        const bool vertical = m_theme->imageInt(QStringLiteral("krell.vertical"), 0) != 0;
-        const int  frameH   = vertical ? krellPix.height() / frames
-                                       : krellPix.height();
-        return QSize(0, frameH);
-    }
-    return QSize(0, m_theme->metric(QStringLiteral("krell_height"), 8));
+    return QSize(0, slimHeight(originalHeight(*m_theme)));
 }
 
 QSize Krell::minimumSizeHint() const
@@ -89,10 +95,18 @@ void Krell::paintEvent(QPaintEvent *)
     if (!trackPix.isNull()) {
         const QString mode = m_theme->imageMode(QStringLiteral("krell_track"),
                                                 QStringLiteral("tile"));
-        if (mode == QStringLiteral("stretch"))
+        p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        if (mode == QStringLiteral("stretch")) {
             p.drawPixmap(r, trackPix);
-        else
-            p.drawTiledPixmap(r, trackPix);
+        } else {
+            // Keep the horizontal tile pitch and scale the full track vertically.
+            const int height = originalHeight(*m_theme);
+            p.save();
+            p.translate(r.topLeft());
+            p.scale(1.0, r.height() / qreal(height));
+            p.drawTiledPixmap(QRect(0, 0, r.width(), height), trackPix);
+            p.restore();
+        }
     } else {
         p.fillRect(r, m_theme->brush(trackKey, r));
     }
@@ -120,10 +134,12 @@ void Krell::paintEvent(QPaintEvent *)
                 : QRect(idx * frameW, 0, frameW, frameH);
             const int xMax = qMax(0, r.width() - frameW);
             const int x    = static_cast<int>(m_value * xMax);
-            const int y    = r.y() + (r.height() - frameH) / 2;
-            const QRect indicator(x, y, frameW, frameH);
+            const int height = qMin(r.height(), slimHeight(frameH));
+            const int y = r.y() + (r.height() - height) / 2;
+            const QRect indicator(x, y, frameW, height);
+            p.setRenderHint(QPainter::SmoothPixmapTransform, true);
             const auto animated = frames == 1
-                ? m_theme->animationFrame(QStringLiteral("images.krell"), this, indicator, indicator.size())
+                ? m_theme->animationFrame(QStringLiteral("images.krell"), this, indicator, QSize(frameW, frameH))
                 : QPixmap();
             if (animated.isNull())
                 p.drawPixmap(indicator, krellPix, src);

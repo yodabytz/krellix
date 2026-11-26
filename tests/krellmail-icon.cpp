@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QImage>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPluginLoader>
 #include <QSettings>
@@ -107,6 +108,29 @@ int main(int argc, char **argv)
     auto *icon = panel->findChild<QWidget *>(QStringLiteral("krellmail-icon"));
     require(icon, "KrellMail icon widget missing");
     require(icon->size() == QSize(28, 20), "Default envelope unexpectedly resized");
+#ifdef Q_OS_LINUX
+    const auto mockProgram = [&](const QString &name, const QByteArray &script) {
+        QFile scriptFile(scratch.filePath(name));
+        require(scriptFile.open(QIODevice::WriteOnly) && scriptFile.write(script) == script.size()
+                    && scriptFile.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner
+                                                 | QFileDevice::ExeOwner),
+                "Cannot write executable mail launcher fixture");
+    };
+    mockProgram(QStringLiteral("xdg-mime"),
+                "#!/bin/sh\n[ \"$*\" = 'query default x-scheme-handler/mailto' ] || exit 1\nprintf 'fixture.mail.desktop\\n'\n");
+    mockProgram(QStringLiteral("gtk-launch"),
+                "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$PWD/desktop-launch-args\"\n");
+    const QByteArray originalPath = qgetenv("PATH");
+    qputenv("PATH", QFile::encodeName(scratch.path()));
+    QMouseEvent click(QEvent::MouseButtonRelease, QPointF(1, 1), QPointF(1, 1),
+                      Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QApplication::sendEvent(icon, &click);
+    QFile launch(scratch.filePath(QStringLiteral("desktop-launch-args")));
+    require(until([&] { return launch.size() > 0; }), "Click did not activate the default mail app");
+    require(launch.open(QIODevice::ReadOnly) && launch.readAll() == "fixture.mail.desktop\n",
+            "Click included arguments other than the default mail app ID");
+    qputenv("PATH", originalPath);
+#endif
     const auto pixels = [icon] { return icon->grab().toImage(); };
     const auto centerColor = [&] {
         const QImage image = pixels();

@@ -291,7 +291,8 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         m_krellHeight = new QSpinBox(page);
         m_krellHeight->setRange(kMinKrellHeight, kMaxKrellHeight);
         m_krellHeight->setSuffix(QStringLiteral(" px"));
-        form->addRow(QStringLiteral("Krell height:"), m_krellHeight);
+        m_krellHeight->setToolTip(QStringLiteral("Base height. Krell bars render at two-thirds of this height."));
+        form->addRow(QStringLiteral("Krell base height:"), m_krellHeight);
 
         m_chartHeight = new QSpinBox(page);
         m_chartHeight->setRange(kMinChartHeight, kMaxChartHeight);

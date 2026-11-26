@@ -26,14 +26,19 @@
   },
   "fonts": {
     "label": {
-      "family": "Sans Serif",
-      "size": 9,
+      "family": "Avenir Next Condensed",
+      "size": 8,
       "bold": false
     },
-    "value": {
-      "family": "Sans Serif",
-      "size": 10,
+    "panel_title": {
+      "family": "Avenir Next Condensed",
+      "size": 11,
       "bold": true
+    },
+    "value": {
+      "family": "Menlo",
+      "size": 10,
+      "bold": false
     }
   },
   "metrics": {

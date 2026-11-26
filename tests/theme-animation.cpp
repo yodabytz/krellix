@@ -1,4 +1,5 @@
 #include "theme/ThemeAnimation.h"
+#include "widgets/Krell.h"
 
 #include <QApplication>
 #include <QDir>
@@ -119,6 +120,37 @@ int main(int argc, char **argv)
           "Off did not restore static artwork");
     check(theme.load(name) && !theme.hasAnimation(frameLeft)
           && !theme.findChild<QTimer *>(QStringLiteral("theme-frame-clock")), "Theme reload retained old frame caches");
+
+    theme.setMetric(QStringLiteral("krell_height"), 12);
+    Krell krell(&theme);
+    check(krell.sizeHint().height() == 8, "Plain Krell is not one third shorter");
+    const auto krellDir = QStringLiteral("themes/slim-krell-fixture/");
+    check(QDir().mkpath(krellDir), "Cannot create themed Krell fixture");
+    check(fallback.save(krellDir + QStringLiteral("static.png"))
+        && sheet.save(krellDir + QStringLiteral("sheet.png")), "Cannot save themed Krell art");
+    QImage track(2, 10, QImage::Format_RGB32);
+    track.fill(Qt::black);
+    {
+        QPainter painter(&track);
+        painter.fillRect(0, 7, 2, 3, Qt::blue);
+    }
+    check(track.save(krellDir + QStringLiteral("track.png")), "Cannot save Krell track");
+    write(krellDir + QStringLiteral("theme.json"),
+          R"({"images":{"krell":"static.png","krell_track":"track.png"}})");
+    write(krellDir + QStringLiteral("animation.json"),
+          "{\"version\":1,\"animations\":{\"indicator\":" + json(valid, "images.krell") + "}}");
+    check(theme.load(QStringLiteral("slim-krell-fixture")), "Cannot load slim Krell fixture");
+    check(krell.sizeHint().height() == 7, "Themed Krell is not one third shorter");
+    krell.setFixedSize(60, krell.sizeHint().height());
+    krell.show();
+    krell.setValue(1);
+    const auto image = krell.grab().toImage();
+    check(image.pixelColor(54, 3) == Qt::yellow && image.pixelColor(6, 3) != Qt::yellow,
+          "The new height changed the indicator's horizontal position");
+    check(image.pixelColor(24, 6) == Qt::blue, "The shortened track cropped its bottom");
+    theme.setMotion(Theme::Motion::Full);
+    check(until([&] { return krell.grab().toImage().pixelColor(54, 3) == Qt::green; }),
+          "The shorter indicator lost themed animation or shifted position");
 
     ThemePhase a, b;
     a.advance(2, 16, 48, 1.8, 2);

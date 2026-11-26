@@ -158,7 +158,7 @@ install(DIRECTORY themes/ DESTINATION share/krellix/themes)
 
 include(CTest)
 if(BUILD_TESTING)
-    qt_add_executable(theme-animation tests/theme-animation.cpp src/theme/Theme.cpp)
+    qt_add_executable(theme-animation tests/theme-animation.cpp src/theme/Theme.cpp src/widgets/Krell.cpp)
     target_include_directories(theme-animation PRIVATE src)
     target_link_libraries(theme-animation PRIVATE Qt6::Widgets)
     add_test(NAME theme-animation COMMAND theme-animation)
@@ -423,6 +423,10 @@ set_target_properties(krellmail PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/plugins"
 )
 install(TARGETS krellmail LIBRARY DESTINATION lib/krellix/plugins)
+if(APPLE)
+    target_sources(krellmail PRIVATE plugins/krellmail/MacMailLauncher.mm)
+    target_link_libraries(krellmail PRIVATE ${APPKIT_FRAMEWORK})
+endif()
 
 if(BUILD_TESTING)
     qt_add_executable(krellmail-icon tests/krellmail-icon.cpp
