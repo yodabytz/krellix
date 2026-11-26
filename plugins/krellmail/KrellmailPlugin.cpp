@@ -1019,7 +1019,7 @@ QString KrellmailPlugin::pluginName() const
 QString KrellmailPlugin::pluginVersion() const
 {
 #ifdef Q_OS_WIN
-    return QStringLiteral("0.1.7-windows.3");
+    return QStringLiteral("0.1.7-windows.4");
 #else
     return QStringLiteral("0.1.7");
 #endif

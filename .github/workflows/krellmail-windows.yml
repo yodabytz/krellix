@@ -34,9 +34,9 @@ jobs:
       - name: Get the published portable host
         shell: pwsh
         run: |
-          $archive = Join-Path $env:RUNNER_TEMP 'krellix-preview11.zip'
-          Invoke-WebRequest 'https://repo.cerberix.org/windows/krellix-0.1.2-windows-preview.11-x86_64.zip' -OutFile $archive
-          if ((Get-FileHash $archive).Hash -ne 'ae5679504af1548c75ff34132e68afae2d0959f9be0360f68a0854345ff12325') {
+          $archive = Join-Path $env:RUNNER_TEMP 'krellix-preview12.zip'
+          Invoke-WebRequest 'https://repo.cerberix.org/windows/krellix-0.1.2-windows-preview.12-x86_64.zip' -OutFile $archive
+          if ((Get-FileHash $archive).Hash -ne 'ab93061c614e5c73557dfc9d20d6486ffc85c449a1b26ab798e192ada11efe67') {
             throw 'Unexpected portable host archive'
           }
           Expand-Archive $archive -DestinationPath "$env:RUNNER_TEMP\portable"
@@ -58,7 +58,7 @@ jobs:
           [[ "$(pacman -Q mingw-w64-ucrt-x86_64-qt6-base)" == 'mingw-w64-ucrt-x86_64-qt6-base 6.12.0-'* ]]
           [[ "$(g++ -dumpfullversion)" == 16.2.0 ]]
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
-            -DKRELLIX_PRERELEASE=windows-preview.12 \
+            -DKRELLIX_PRERELEASE=windows-preview.13 \
             "-DKRELLIX_SENSOR_DIR=$(cygpath -m "$portable/sensors")"
           cmake --build build --target krellix settings-lifecycle krellmail-icon krellmail-integration krellweather krellweather-icons krellweather-layout krellweather-metar-test windows-core theme-animation chart-panel-layout -j 4
           ctest --test-dir build -R '^(krellmail-(icon|integration)|krellweather-(icons|layout|metar-test)|theme-animation|chart-panel-layout-(1|1\.5|2)|settings-lifecycle|windows-(core|remote-isolation))$' --output-on-failure
@@ -78,9 +78,9 @@ jobs:
           Copy-Item build/sensors-candidate/krellix.exe "$hostDir\krellix.exe" -Force
           New-Item -ItemType Directory "$sandbox\plugins", "$sandbox\themes", "$env:APPDATA\krellix" -Force | Out-Null
           Copy-Item build/plugins/krellmail.dll, build/plugins/krellweather.dll "$sandbox\plugins"
-          $healthZip = "$env:RUNNER_TEMP\krellhealth-preview11.zip"
-          Invoke-WebRequest 'https://repo.cerberix.org/windows/krellix-krellhealth-0.1.1-windows.4-x86_64.zip' -OutFile $healthZip
-          if ((Get-FileHash -LiteralPath $healthZip -Algorithm SHA256).Hash -ne 'cabb5ae3c2055a8b6aafa9e3f514ca9f618f073aa89d663d044fcea3c8917f37') {
+          $healthZip = "$env:RUNNER_TEMP\krellhealth-preview12.zip"
+          Invoke-WebRequest 'https://repo.cerberix.org/windows/krellix-krellhealth-0.1.1-windows.4-preview.12-x86_64.zip' -OutFile $healthZip
+          if ((Get-FileHash -LiteralPath $healthZip -Algorithm SHA256).Hash -ne 'c435a2593ede0bc26ba62ace15ea6be279c9af6b7dbe42ad5ba6cd2710c3e983') {
             throw 'Unexpected KrellHealth archive'
           }
           Expand-Archive -LiteralPath $healthZip -DestinationPath "$sandbox\health-package"
@@ -100,7 +100,7 @@ jobs:
           $app = Start-Process "$hostDir\krellix.exe" -WorkingDirectory $sandbox -PassThru `
             -ArgumentList '--instance', 'krellmail-test', '--theme', 'reactor', '--monitors', 'host,krellmail,krellweather,krellhealth' `
             -RedirectStandardError $log
-          $mailPattern = 'io.krellix.krellmail.*0\.1\.7-windows\.3.*factory ready'
+          $mailPattern = 'io.krellix.krellmail.*0\.1\.7-windows\.4.*factory ready'
           $healthPattern = 'io.krellix.krellhealth.*0\.1\.1-windows\.4.*factory ready'
           $weatherPattern = 'loaded plugin.*"krellweather" "0\.1\.2-windows\.1".*factory ready'
           try {
@@ -124,11 +124,11 @@ jobs:
             if (-not $app.HasExited) { Stop-Process -Id $app.Id }
           }
           ./packaging/windows/package-mail.ps1 -Build "$PWD/build" -HostDirectory $hostDir `
-            -HostVersion '0.1.2-windows-preview.12' -Destination "$env:RUNNER_TEMP/mail-package"
+            -HostVersion '0.1.2-windows-preview.13' -Destination "$env:RUNNER_TEMP/mail-package"
           $manifestPath = "$hostDir\extras\krelltop\manifest.json"
           if (Test-Path -LiteralPath $manifestPath) {
             $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
-            $manifest.host_version = '0.1.2-windows-preview.12'
+            $manifest.host_version = '0.1.2-windows-preview.13'
             $manifest.host_sha256 = (Get-FileHash "$hostDir\krellix.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
             $manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding ASCII
           }
@@ -136,15 +136,15 @@ jobs:
           Remove-Item -LiteralPath "$hostDir\health"
           $healthManifestPath = "$health\manifest.json"
           $healthManifest = Get-Content -LiteralPath $healthManifestPath -Raw | ConvertFrom-Json
-          $healthManifest.host_version = '0.1.2-windows-preview.12'
+          $healthManifest.host_version = '0.1.2-windows-preview.13'
           $healthManifest.host_sha256 = (Get-FileHash "$hostDir\krellix.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
           $healthManifest | ConvertTo-Json | Set-Content -LiteralPath $healthManifestPath -Encoding ASCII
-          $healthReadme = (Get-Content -LiteralPath "$health\README.md" -Raw).Replace('preview.11', 'preview.12')
+          $healthReadme = (Get-Content -LiteralPath "$health\README.md" -Raw).Replace('preview.12', 'preview.13')
           Set-Content -LiteralPath "$health\README.md" -Value $healthReadme -Encoding UTF8
-          Compress-Archive -LiteralPath $health -DestinationPath "$env:RUNNER_TEMP/mail-package/krellix-krellhealth-0.1.1-windows.4-preview.12-x86_64.zip"
-          Compress-Archive -LiteralPath $hostDir -DestinationPath "$env:RUNNER_TEMP/mail-package/krellix-0.1.2-windows-preview.12-x86_64.zip"
+          Compress-Archive -LiteralPath $health -DestinationPath "$env:RUNNER_TEMP/mail-package/krellix-krellhealth-0.1.1-windows.4-preview.13-x86_64.zip"
+          Compress-Archive -LiteralPath $hostDir -DestinationPath "$env:RUNNER_TEMP/mail-package/krellix-0.1.2-windows-preview.13-x86_64.zip"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: krellix-krellix-preview12
+          name: krellix-krellix-preview13
           path: ${{ runner.temp }}/mail-package/*.zip
           if-no-files-found: error
