@@ -11,6 +11,7 @@
 #include <QMouseEvent>
 #include <QPushButton>
 #include <QScreen>
+#include <QSpinBox>
 #include <QTimer>
 #include <QPointer>
 #include <QTemporaryDir>
@@ -79,6 +80,8 @@ static void verifyMailAnimationSetting(Theme *theme)
     {
         SettingsDialog dialog(theme, nullptr);
         auto *style = dialog.findChild<QComboBox *>(QStringLiteral("krellmail-icon-style"));
+        auto *interval = dialog.findChild<QSpinBox *>(QStringLiteral("krellmail-update-interval"));
+        if (!interval || interval->value() != 60000) qFatal("KrellMail settings show the wrong default interval");
         if (!style || style->count() != 3 || style->currentData().toString() != QLatin1String("envelope"))
             qFatal("KrellMail animation choices are missing from settings");
         const int tux = style->findData(QStringLiteral("tux"));

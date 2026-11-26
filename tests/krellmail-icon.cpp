@@ -97,6 +97,9 @@ int main(int argc, char **argv)
     const auto monitors = plugin->createMonitors(&theme, nullptr);
     require(monitors.size() == 1, "KrellMail monitor missing");
     std::unique_ptr<MonitorBase> monitor(monitors.first());
+    require(monitor->tickIntervalMs() == 60000, "Default poll interval must be one minute");
+    settings.setValue(QStringLiteral("plugins/krellmail/update_ms"), 120000);
+    require(monitor->tickIntervalMs() == 120000, "Configured polling interval was ignored");
     std::unique_ptr<QWidget> panel(monitor->createWidget(nullptr));
     panel->setFixedWidth(120);
     panel->show();
@@ -121,8 +124,10 @@ int main(int argc, char **argv)
     QTcpServer server;
     require(server.listen(QHostAddress::LocalHost), "Cannot start local POP3 fixture");
     int mailCount = 2;
+    int connections = 0;
     QObject::connect(&server, &QTcpServer::newConnection, &server, [&] {
         while (server.hasPendingConnections()) {
+            ++connections;
             auto *socket = server.nextPendingConnection();
             QObject::connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
             socket->write("+OK test\r\n");
@@ -144,7 +149,9 @@ int main(int argc, char **argv)
     settings.setValue(QStringLiteral("password"), QStringLiteral("fixture"));
     settings.endGroup();
     monitor->tick();
+    monitor->tick();
     require(until([&] { return centerColor() == Qt::red; }), "Unread sprite never appeared");
+    require(connections == 1, "An automatic check interrupted an in-flight check");
     require(until([&] { return centerColor() == Qt::cyan; }), "Unread sprite did not animate");
 
     auto *status = panel->findChild<QLabel *>(QStringLiteral("krellmail-status"));

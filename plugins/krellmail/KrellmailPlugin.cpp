@@ -341,7 +341,7 @@ int KrellmailMonitor::tickIntervalMs() const
 {
     return qBound(30000,
                   QSettings().value(QStringLiteral("plugins/krellmail/update_ms"),
-                                     300000).toInt(),
+                                     60000).toInt(),
                   3600000);
 }
 
@@ -393,7 +393,7 @@ QWidget *KrellmailMonitor::createWidget(QWidget *parent)
 void KrellmailMonitor::tick()
 {
     if (m_icon && m_icon->reloadIconStyle()) return;
-    startCheck(true);
+    startCheck();
 }
 
 bool KrellmailMonitor::eventFilter(QObject *watched, QEvent *event)
@@ -902,9 +902,9 @@ QString KrellmailPlugin::pluginName() const
 QString KrellmailPlugin::pluginVersion() const
 {
 #ifdef Q_OS_WIN
-    return QStringLiteral("0.1.4-windows.1");
+    return QStringLiteral("0.1.5-windows.1");
 #else
-    return QStringLiteral("0.1.4");
+    return QStringLiteral("0.1.5");
 #endif
 }
 

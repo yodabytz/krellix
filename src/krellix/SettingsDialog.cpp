@@ -907,6 +907,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
             form->addRow(QString(), m_krellmailEnabled);
 
             m_krellmailUpdateMs = new QSpinBox(group);
+            m_krellmailUpdateMs->setObjectName(QStringLiteral("krellmail-update-interval"));
             m_krellmailUpdateMs->setRange(30000, 3600000);
             m_krellmailUpdateMs->setSingleStep(30000);
             m_krellmailUpdateMs->setSuffix(QStringLiteral(" ms"));
@@ -1995,7 +1996,7 @@ void SettingsDialog::loadFromSettings()
     }
     if (m_krellmailUpdateMs) {
         m_krellmailUpdateMs->setValue(
-            s.value(QStringLiteral("plugins/krellmail/update_ms"), 300000).toInt());
+            s.value(QStringLiteral("plugins/krellmail/update_ms"), 60000).toInt());
     }
     if (m_krellmailIconStyle) {
         const QString style = s.value(QStringLiteral("plugins/krellmail/icon_style")).toString();
