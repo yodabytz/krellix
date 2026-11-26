@@ -198,7 +198,7 @@ void KrellmailEnvelope::reloadArtwork()
             m_unreadSprite = {};
     }
     const bool themed = !m_idleIcon.isNull() || m_unreadFrames > 0;
-    if (m_style != IconStyle::FollowTheme) {
+    if (!themed) {
         m_idleIcon.load(QStringLiteral(":/krellmail/art/closed-mail.png"));
         if (m_unreadSprite.load(QStringLiteral(":/krellmail/art/envelope-strip.png"))) {
             m_bundledAnimation = true;
