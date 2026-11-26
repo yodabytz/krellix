@@ -26,6 +26,7 @@
 #include <QLocale>
 #include <QPalette>
 #include <QPushButton>
+#include <QScreen>
 #include <QScrollArea>
 #include <QSet>
 #include <QSettings>
@@ -154,8 +155,13 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
     setWindowFlag(Qt::Window, true);
     setWindowModality(Qt::NonModal);
     setModal(false);
-    resize(700, 560);
-    setMinimumSize(560, 380);
+    const QScreen *screen = parent ? parent->screen() : QGuiApplication::primaryScreen();
+    const QSize preferred(920, 740);
+    const QSize available = screen
+        ? (screen->availableGeometry().size() - QSize(24, 56)).expandedTo(QSize(1, 1))
+        : preferred;
+    setMinimumSize(QSize(560, 380).boundedTo(available));
+    resize(preferred.boundedTo(available));
     setSizeGripEnabled(true);
 
     const QColor panel = m_theme->color(QStringLiteral("panel_bg"), palette().window().color());

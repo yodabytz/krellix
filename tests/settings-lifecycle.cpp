@@ -10,6 +10,7 @@
 #include <QLayout>
 #include <QMouseEvent>
 #include <QPushButton>
+#include <QScreen>
 #include <QTimer>
 #include <QPointer>
 #include <QTemporaryDir>
@@ -229,6 +230,11 @@ static void exercise()
     QMetaObject::invokeMethod(window, "showSettings", Qt::DirectConnection);
     auto *dialog = window->findChild<SettingsDialog *>();
     if (!dialog) qFatal("Settings missing");
+    const QSize available = window->screen()->availableGeometry().size();
+    const QSize expected = QSize(920, 740).boundedTo(available - QSize(24, 56));
+    if (dialog->width() < expected.width() || dialog->height() < expected.height()
+        || dialog->width() > available.width() || dialog->height() > available.height())
+        qFatal("Settings did not open at the larger size within the screen");
     if (dialog->isModal() || dialog->windowModality() != Qt::NonModal)
         qFatal("Settings must not attach as a modal sheet");
 #ifdef Q_OS_WIN
