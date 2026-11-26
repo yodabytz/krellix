@@ -1033,9 +1033,15 @@ void MainWindow::mousePressEvent(QMouseEvent *event)
         m_dragging = false;
         const auto *host = findLiveMonitor(QStringLiteral("host"));
         const QPoint position = event->globalPosition().toPoint();
+        const auto hits = [&position](const QWidget *widget) {
+            return widget && widget->isVisible()
+                && widget->rect().contains(widget->mapFromGlobal(position));
+        };
+        // The top layout margin is exactly the painted frame_top strip.
+        const QRect topFrame(0, 0, width(), m_layout->contentsMargins().top());
         // Check the press, not the cursor's later location during the drag.
-        if (!host || !host->widget || !host->widget->isVisible()
-            || !host->widget->rect().contains(host->widget->mapFromGlobal(position))) {
+        if (!hits(host ? host->widget : nullptr) && !hits(m_topStrip)
+            && !topFrame.contains(mapFromGlobal(position))) {
             QWidget::mousePressEvent(event);
             return;
         }

@@ -36,9 +36,10 @@ static void mouse(QWidget *target, QEvent::Type type, const QPoint &position,
     QApplication::sendEvent(target, &event);
 }
 
-static void verifyDragHandle(Theme *theme)
+static void verifyDragHandle()
 {
-    MainWindow test(theme, {QStringLiteral("host"), QStringLiteral("clock")});
+    Theme theme;
+    MainWindow test(&theme, {QStringLiteral("host"), QStringLiteral("clock")});
     test.move(100, 100);
     test.show();
     QApplication::processEvents();
@@ -63,7 +64,72 @@ static void verifyDragHandle(Theme *theme)
     if (test.pos() != original + delta) qFatal("Dragging the hostname label did not move the window");
     mouse(hostLabel, QEvent::MouseMove, hostPos + delta * 2, Qt::NoButton, Qt::LeftButton);
     if (test.pos() != original + delta) qFatal("Drag remained active after release");
-    qInfo("PASS: only the hostname panel can start a window drag");
+    qInfo("PASS: only the hostname panel can start a drag in a theme without a header");
+}
+
+static void verifyThemeHeaderDragHandles()
+{
+    QTemporaryDir fixture;
+    const QDir previous = QDir::current();
+    if (!fixture.isValid() || !QDir::setCurrent(fixture.path()))
+        qFatal("Could not isolate the header drag test");
+    const auto writeTheme = [](const QString &name, const QByteArray &manifest) {
+        const QString path = QStringLiteral("themes/") + name;
+        if (!QDir().mkpath(path)) qFatal("Could not create header fixture");
+        QImage image(20, 8, QImage::Format_RGB32);
+        image.fill(Qt::blue);
+        if (!image.save(path + QStringLiteral("/strip.png"))) qFatal("Could not save header fixture");
+        QFile file(path + QStringLiteral("/theme.json"));
+        if (!file.open(QIODevice::WriteOnly) || file.write(manifest) != manifest.size())
+            qFatal("Could not write header fixture");
+    };
+    writeTheme(QStringLiteral("drag-header"),
+        R"({"metrics":{"top_strip_height":16},"surfaces":{"panel_bg_top":{"image":"strip.png"}}})");
+    writeTheme(QStringLiteral("drag-frame"),
+        R"({"images":{"frame_top":"strip.png","frame_left":"strip.png","frame_bottom":"strip.png"}})");
+    writeTheme(QStringLiteral("drag-plain"), "{}");
+
+    Theme theme;
+    MainWindow window(&theme, {QStringLiteral("clock")});
+    window.move(100, 100);
+    window.show();
+    const auto checkDrag = [&](QWidget *target, const QPoint &local, bool shouldMove,
+                               Qt::MouseButton button = Qt::LeftButton) {
+        const QPoint from = target->mapToGlobal(local);
+        const QPoint origin = window.pos();
+        const QPoint delta(18, 12);
+        mouse(target, QEvent::MouseButtonPress, from, button, button);
+        mouse(target, QEvent::MouseMove, from + delta, Qt::NoButton, button);
+        mouse(target, QEvent::MouseButtonRelease, from + delta, button, Qt::NoButton);
+        if (window.pos() != (shouldMove ? origin + delta : origin))
+            qFatal("Unexpected drag result for %s at (%d, %d)", qPrintable(theme.name()), local.x(), local.y());
+        mouse(target, QEvent::MouseMove, from + delta * 2, Qt::NoButton, button);
+        if (window.pos() != (shouldMove ? origin + delta : origin))
+            qFatal("Header drag remained active after release");
+    };
+
+    if (!theme.load(QStringLiteral("drag-header"))) qFatal("Could not load header fixture");
+    QApplication::processEvents();
+    auto *header = window.layout()->itemAt(0)->widget();
+    if (!header || !header->isVisible() || header->height() != 16) qFatal("Top strip missing");
+    checkDrag(header, header->rect().center(), true);
+    checkDrag(header, header->rect().center(), false, Qt::RightButton);
+
+    if (!theme.load(QStringLiteral("drag-frame"))) qFatal("Could not load frame fixture");
+    QApplication::processEvents();
+    if (header->isVisible() || window.layout()->contentsMargins().top() != 8)
+        qFatal("Top frame fixture missing");
+    checkDrag(&window, QPoint(window.width() / 2, 4), true);
+    checkDrag(&window, QPoint(2, window.height() / 2), false);
+    checkDrag(&window, QPoint(window.width() / 2, window.height() - 2), false);
+
+    if (!theme.load(QStringLiteral("drag-plain"))) qFatal("Could not load plain fixture");
+    QApplication::processEvents();
+    if (header->isVisible() || window.layout()->contentsMargins().top() != 0)
+        qFatal("Header did not disappear on theme switch");
+    checkDrag(&window, QPoint(window.width() / 2, 4), false);
+    if (!QDir::setCurrent(previous.absolutePath())) qFatal("Could not restore working directory");
+    qInfo("PASS: theme strip and frame top can start a drag without a hostname, but side and bottom frames cannot");
 }
 
 static int completed = 0;
@@ -484,7 +550,8 @@ static void exercise()
         diskChecked = true;
         auto *existing = window->findChild<MonitorBase *>();
         if (!existing) qFatal("No monitor for disk test theme");
-        verifyDragHandle(existing->theme());
+        verifyDragHandle();
+        verifyThemeHeaderDragHandles();
         verifySharedHostClockCasing();
         verifySavedHeightWinsOverTheme();
         verifyClockScroll(existing->theme());

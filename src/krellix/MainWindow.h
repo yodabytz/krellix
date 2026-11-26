@@ -24,7 +24,7 @@ class QTimer;
 // vertically, and drives them with per-monitor QTimers.
 //
 // User interaction:
-//   - left-button drag on hostname panel: move (compositor-driven via
+//   - left-button drag on hostname panel or themed header: move (via
 //     QWindow::startSystemMove with a manual fallback)
 //   - QSizeGrip in the bottom-right corner: resize
 //   - right-click: context menu (always-on-top, About, Quit)
