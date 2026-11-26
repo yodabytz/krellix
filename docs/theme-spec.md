@@ -121,6 +121,7 @@ Map of name → integer (clamped to `0..4096`).
 | `chart_overlay_right` | 0 | Put the live chart readout at the top right when set to 1 |
 | `panel_icon_size` | 16 | Maximum panel title icon width or height (8 to 32 logical pixels) |
 | `top_strip_keep_aspect` | 0 | Scale an enabled top strip proportionally to the panel width |
+| `window_shadow` | 1 | Set to `0` to suppress the desktop window shadow on supported platforms. It does not affect the artwork or panel opacity. |
 
 **Optional sculpted panel metrics (new):**
 

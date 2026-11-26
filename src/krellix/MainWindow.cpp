@@ -156,6 +156,13 @@ void invalidateWidgetTree(QWidget *root)
     }
 }
 
+Qt::WindowFlags themedWindowFlags(Qt::WindowFlags flags, const Theme &theme)
+{
+    flags.setFlag(Qt::NoDropShadowWindowHint,
+                  theme.metric(QStringLiteral("window_shadow"), 1) == 0);
+    return flags;
+}
+
 } // namespace
 
 MainWindow::MainWindow(Theme *theme,
@@ -180,7 +187,7 @@ MainWindow::MainWindow(Theme *theme,
         if (s.value(QStringLiteral("window/always_on_top"), false).toBool())
             flags |= Qt::WindowStaysOnTopHint;
     }
-    setWindowFlags(flags);
+    setWindowFlags(themedWindowFlags(flags, *m_theme));
     setWindowTitle(QStringLiteral("krellix"));
 
     // Translucent main window: panels paint their own backgrounds, gaps are
@@ -841,6 +848,11 @@ void MainWindow::persistPosition()
 
 void MainWindow::onThemeChanged()
 {
+    // Change the native flag rather than hiding the widget on a live reload.
+    if (auto *handle = windowHandle())
+        handle->setFlags(themedWindowFlags(handle->flags(), *m_theme));
+    else
+        setWindowFlags(themedWindowFlags(windowFlags(), *m_theme));
     applyFixedWidth();
     fitToPanelStack();
     scheduleFitToPanelStack();
@@ -1117,7 +1129,7 @@ void MainWindow::toggleAlwaysOnTop()
     const bool now = !windowFlags().testFlag(Qt::WindowStaysOnTopHint);
     Qt::WindowFlags f = windowFlags();
     f.setFlag(Qt::WindowStaysOnTopHint, now);
-    setWindowFlags(f);
+    setWindowFlags(themedWindowFlags(f, *m_theme));
     show();
 
     QSettings s;
@@ -1165,7 +1177,7 @@ void MainWindow::showSettings()
             [this](bool on) {
                 Qt::WindowFlags f = windowFlags();
                 f.setFlag(Qt::WindowStaysOnTopHint, on);
-                setWindowFlags(f);
+                setWindowFlags(themedWindowFlags(f, *m_theme));
                 show();
             });
     connect(dlg, &SettingsDialog::settingsApplied, this,

@@ -19,6 +19,7 @@
 #include <QTimer>
 #include <QPointer>
 #include <QTemporaryDir>
+#include <QWindow>
 #include <memory>
 #include "sysdep/SensorDisplay.h"
 #include "monitors/ClockMonitor.h"
@@ -339,6 +340,48 @@ static void verifyFooterFrame()
     qInfo("PASS: proportional footer scales at 120 and 240; existing frames still tile");
 }
 
+static void verifyThemeWindowShadow()
+{
+    QTemporaryDir fixture;
+    const auto current = QDir::currentPath();
+    if (!fixture.isValid() || !QDir::setCurrent(fixture.path())) qFatal("Could not isolate shadow test");
+    const auto writeTheme = [](const QString &name, const QByteArray &data) {
+        const QString directory = QStringLiteral("themes/") + name;
+        if (!QDir().mkpath(directory)) qFatal("Could not create shadow theme");
+        QFile json(directory + QStringLiteral("/theme.json"));
+        if (!json.open(QIODevice::WriteOnly) || json.write(data) != data.size())
+            qFatal("Could not write shadow theme");
+    };
+    const auto flat = QStringLiteral("flat-window");
+    const auto normal = QStringLiteral("native-shadow");
+    writeTheme(flat, R"({"metrics":{"window_shadow":0}})");
+    writeTheme(normal, R"({})");
+    Theme theme;
+    if (!theme.load(flat)) qFatal("Could not load shadowless theme");
+    MainWindow window(&theme, {QStringLiteral("host")});
+    window.move(100, 100);
+    window.show();
+    QApplication::processEvents();
+    const auto hasNoShadow = [&] {
+        return window.windowHandle() && window.windowHandle()->flags().testFlag(Qt::NoDropShadowWindowHint);
+    };
+    if (!hasNoShadow()) qFatal("Theme shadow opt-out missing on startup");
+    const auto original = window.geometry();
+    if (!theme.load(normal) || hasNoShadow() || !window.isVisible() || window.geometry() != original)
+        qFatal("Switching themes did not restore the default shadow without moving or hiding the window");
+    if (!theme.load(flat) || !hasNoShadow() || !window.isVisible() || window.geometry() != original)
+        qFatal("Live theme switch did not suppress the shadow");
+    QSettings settings;
+    const auto key = QStringLiteral("window/always_on_top");
+    const auto saved = settings.value(key);
+    QMetaObject::invokeMethod(&window, "toggleAlwaysOnTop", Qt::DirectConnection);
+    if (!hasNoShadow()) qFatal("Always-on-top change lost theme shadow preference");
+    if (saved.isValid()) settings.setValue(key, saved);
+    else settings.remove(key);
+    if (!QDir::setCurrent(current)) qFatal("Could not restore shadow test working directory");
+    qInfo("PASS: window shadow opt-out applies at startup and live without changing default themes");
+}
+
 static void verifyChassisBackground()
 {
     QTemporaryDir fixture;
@@ -447,6 +490,7 @@ static void exercise()
         verifyClockScroll(existing->theme());
         verifyMailAnimationSetting(existing->theme());
         verifyFooterFrame();
+        verifyThemeWindowShadow();
         verifyChassisBackground();
         DiskMonitor disk(existing->theme());
         DiskStat::setReadOverride([]() { return QList<DiskSample>{}; });
