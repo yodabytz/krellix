@@ -16,3 +16,6 @@ KrellMail uses `images.panel_icon_krellmail` for the idle icon. An optional
 (2 to 128 equally wide frames in one horizontal row) supplies the unread
 animation at 50 ms per frame. Bluemask provides both. Without usable theme
 artwork KrellMail keeps its built-in icon.
+Set `metrics.panel_icon_krellmail_size` to choose the artwork's height in
+logical pixels (12 to 48, default 20). Bluemask uses 28; the built-in
+envelope keeps its usual size.

@@ -1,6 +1,6 @@
 {
   "name": "Bluemask",
-  "version": "6.0",
+  "version": "7.0",
   "author": "Theme designer",
   "description": "Muted lavender charcoal and dusty blue charts inspired by classic GKrellM Bluemask.",
   "colors": {
@@ -40,6 +40,7 @@
     "panel_padding": 3,
     "panel_spacing": 0,
     "panel_border": 0,
+    "panel_icon_krellmail_size": 28,
     "krell_height": 12,
     "chart_height": 64,
     "chart_grid_lines": 6

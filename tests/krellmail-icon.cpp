@@ -48,10 +48,11 @@ void writeTheme(const QString &root, const QByteArray &manifest)
     require(file.open(QIODevice::WriteOnly) && file.write(manifest) == manifest.size(), "Cannot write test theme");
 }
 
-void makeTheme(const QString &name, Qt::GlobalColor color, int frames)
+void makeTheme(const QString &name, Qt::GlobalColor color, int frames, int iconSize = 20)
 {
     const QString root = QStringLiteral("themes/") + name;
-    writeTheme(root, QByteArrayLiteral(R"({"images":{"panel_icon_krellmail":"idle.png","panel_icon_krellmail_unread":{"image":"unread.png","frames":)")
+    writeTheme(root, QByteArrayLiteral(R"({"metrics":{"panel_icon_krellmail_size":)") + QByteArray::number(iconSize)
+                   + QByteArrayLiteral(R"(},"images":{"panel_icon_krellmail":"idle.png","panel_icon_krellmail_unread":{"image":"unread.png","frames":)")
                    + QByteArray::number(frames) + QByteArrayLiteral("}}}"));
     QImage icon(8, 16, QImage::Format_ARGB32);
     icon.fill(color);
@@ -80,9 +81,10 @@ int main(int argc, char **argv)
     QSettings settings;
     settings.setValue(QStringLiteral("plugins/krellmail/enabled"), true);
     settings.setValue(QStringLiteral("plugins/krellmail/account_count"), 0);
-    makeTheme(QStringLiteral("gallery-mail-themed"), Qt::green, 3);
+    makeTheme(QStringLiteral("gallery-mail-themed"), Qt::green, 3, 28);
     makeTheme(QStringLiteral("gallery-mail-invalid"), Qt::blue, 5);
-    writeTheme(QStringLiteral("themes/gallery-mail-plain"), QByteArrayLiteral("{}"));
+    writeTheme(QStringLiteral("themes/gallery-mail-plain"),
+               QByteArrayLiteral(R"({"metrics":{"panel_icon_krellmail_size":40}})"));
 
     QPluginLoader loader(QString::fromLocal8Bit(argv[1]));
     auto *plugin = qobject_cast<IKrellixPlugin *>(loader.instance());
@@ -99,6 +101,7 @@ int main(int argc, char **argv)
     panel->show();
     auto *icon = panel->findChild<QWidget *>(QStringLiteral("krellmail-icon"));
     require(icon, "KrellMail icon widget missing");
+    require(icon->size() == QSize(28, 20), "Default envelope unexpectedly resized");
     const auto pixels = [icon] { return icon->grab().toImage(); };
     const auto centerColor = [&] {
         const QImage image = pixels();
@@ -107,6 +110,7 @@ int main(int argc, char **argv)
 
     const QImage defaultIdle = pixels();
     require(theme.load(QStringLiteral("gallery-mail-themed")), "Cannot load themed icon");
+    require(icon->size() == QSize(28, 28), "Themed icon did not grow on reload");
     require(centerColor() == Qt::green, "Idle icon did not override the default");
     require(pixels().pixelColor(2, pixels().height() / 2) != Qt::green, "Icon aspect ratio was stretched");
 
@@ -140,6 +144,7 @@ int main(int argc, char **argv)
     require(until([&] { return centerColor() == Qt::cyan; }), "Unread sprite did not animate");
 
     require(theme.load(QStringLiteral("gallery-mail-invalid")), "Cannot load invalid-sprite fixture");
+    require(icon->size() == QSize(28, 20), "Theme without a size override did not restore the default size");
     require(centerColor() == Qt::blue, "Invalid sprite did not fall back to the themed static icon");
     require(theme.load(QStringLiteral("gallery-mail-themed")), "Cannot restore themed icon");
     require(until([&] { return centerColor() == Qt::yellow; }), "Live theme switch did not restore animation");
@@ -153,5 +158,5 @@ int main(int argc, char **argv)
     require(theme.load(QStringLiteral("gallery-mail-plain")), "Cannot switch back to the plain theme");
     require(pixels() == defaultIdle, "Plain theme did not restore the existing default icon");
     monitor->shutdown();
-    qInfo("PASS: themed idle art, unread animation, invalid sprite fallback, live switching, return to idle, default envelope");
+    qInfo("PASS: themed size and idle art, unread animation, invalid sprite fallback, live switching, return to idle, default envelope");
 }

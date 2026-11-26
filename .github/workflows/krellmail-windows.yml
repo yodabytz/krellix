@@ -79,11 +79,11 @@ jobs:
           try {
             for ($i = 0; $i -lt 20; $i++) {
               if ($app.HasExited) { throw "Portable host exited: $($app.ExitCode)" }
-              if (Select-String -LiteralPath $log -Pattern 'io.krellix.krellmail.*0.1.1-windows.1.*factory ready' -Quiet) { break }
+              if (Select-String -LiteralPath $log -Pattern 'io.krellix.krellmail.*0\.1\.2-windows\.1.*factory ready' -Quiet) { break }
               Start-Sleep -Milliseconds 500
             }
             Get-Content $log
-            if (-not (Select-String -LiteralPath $log -Pattern 'io.krellix.krellmail.*0.1.1-windows.1.*factory ready' -Quiet)) {
+            if (-not (Select-String -LiteralPath $log -Pattern 'io.krellix.krellmail.*0\.1\.2-windows\.1.*factory ready' -Quiet)) {
               throw 'Published host did not load the new plugin'
             }
             if (Select-String -LiteralPath $log -Pattern 'krellix.theme:.*(not found|failed|refusing|missing)' -Quiet) {

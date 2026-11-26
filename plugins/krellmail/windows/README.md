@@ -5,7 +5,7 @@ Install the signed ZIP for your Windows Krellix preview, extract it, and run
 Reopen the **local** window and configure accounts in Settings / Plugins.
 The installer does not copy accounts or turn on the plugin automatically.
 
-Theme-aware KrellMail 0.1.1-windows.1 supports the Windows preview.6 host.
+Theme-aware KrellMail 0.1.2-windows.1 supports the Windows preview.6 host.
 Install Bluemask separately and select it in Appearance to use its mail artwork.
 
 Set up IMAP or POP3 with TLS enabled. KrellMail uses Qt's certificate
