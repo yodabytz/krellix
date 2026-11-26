@@ -51,6 +51,11 @@ jobs:
           ctest --test-dir build -R '^krellmail-(icon|integration)$' --output-on-failure
           # Check the plugin against the DLLs shipped beside the published host.
           cp "$portable/"*.dll build/krellmail-icon-test-host/
+          offscreen=$(find /ucrt64 -path '*/platforms/qoffscreen.dll' -type f -print -quit)
+          test -n "$offscreen"
+          mkdir -p build/krellmail-icon-test-host/platforms
+          cp "$offscreen" build/krellmail-icon-test-host/platforms/
+          cp "$offscreen" "$portable/platforms/"
           ctest --test-dir build -R '^krellmail-icon$' --output-on-failure
       - name: Test the published host and package the plugin
         shell: pwsh
@@ -65,6 +70,7 @@ jobs:
             Set-Content "$env:APPDATA\krellix\krellix-krellmail-test.ini" -Encoding ASCII
           $env:QT_FORCE_STDERR_LOGGING = '1'
           $env:QT_LOGGING_RULES = 'krellix.plugin.info=true'
+          $env:QT_QPA_PLATFORM = 'offscreen'
           $env:KRELLIX_DEV_PLUGINS = '1'
           $log = "$sandbox\startup.log"
           $app = Start-Process "$hostDir\krellix.exe" -WorkingDirectory $sandbox -PassThru `

@@ -1,17 +1,17 @@
 {
   "name": "Bluemask",
-  "version": "2.0",
+  "version": "3.0",
   "author": "Theme designer",
   "description": "Muted lavender charcoal and dusty blue charts inspired by classic GKrellM Bluemask.",
   "colors": {
-    "panel_bg": "#3d3e4b",
-    "panel_border": "#9293aa",
-    "chart_bg": "#161b23",
-    "chart_grid": "#404955",
+    "panel_bg": "#414250",
+    "panel_border": "#88869e",
+    "chart_bg": "#111721",
+    "chart_grid": "#343945",
     "text_primary": "#f0f4fa",
     "text_secondary": "#c8d5e4",
     "text_accent": "#9bbde0",
-    "krell_track": "#161b23",
+    "krell_track": "#111721",
     "krell_indicator": "#8db4d9",
     "chart_line_default": "#82afd5",
     "chart_line_cpu": "#82afd5",
@@ -37,12 +37,12 @@
     }
   },
   "metrics": {
-    "panel_padding": 6,
+    "panel_padding": 3,
     "panel_spacing": 0,
     "panel_border": 0,
     "krell_height": 12,
     "chart_height": 64,
-    "chart_grid_lines": 4
+    "chart_grid_lines": 6
   },
   "surfaces": {
     "panel_bg": {
