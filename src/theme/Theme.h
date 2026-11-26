@@ -11,8 +11,11 @@
 #include <QRectF>
 #include <QString>
 #include <QStringList>
+#include <memory>
 
 class QFileSystemWatcher;
+class ThemeAnimation;
+class QWidget;
 
 // Holds the visual configuration loaded from a theme directory's theme.json.
 // Widgets read colors/fonts/metrics from here and connect to themeChanged()
@@ -167,6 +170,15 @@ public:
     Surface surface(const QString &key,
                     const QString &fallbackKey = QString()) const;
 
+    enum class Motion { Full, Reduced, Off };
+    static Motion motionFromKey(QStringView key);
+    void setMotion(Motion mode);
+    void setAnimationCpu(double load);
+    bool hasAnimation(const QString &target) const;
+    QPixmap animationFrame(const QString &target, QWidget *widget, const QRect &region, QSize size) const;
+    void stopAnimation(const QString &target, QWidget *widget) const;
+    Surface paintedSurface(const QString &key, const QString &fallbackKey, QWidget *widget) const;
+
     // Runtime override of a theme metric (e.g. user-set krell_height from
     // SettingsDialog). Triggers themeChanged() so widgets refresh.
     void   setMetric(const QString &key, int value);
@@ -198,6 +210,9 @@ private slots:
 private:
     void loadDefaults();
     bool parseJsonFile(const QString &path);
+    void loadAnimation();
+    QPixmap surfaceImage(const QString &relativePath) const;
+    Surface resolveSurface(const QString &key, const QString &fallbackKey, QWidget *widget) const;
 
     // v2 parse helpers
     void parseSurfaces  (const class QJsonObject &obj);
@@ -230,6 +245,9 @@ private:
     QHash<QString, Gradient>     m_gradients;
 
     QFileSystemWatcher *m_watcher = nullptr;  // child QObject; parent owns
+    std::unique_ptr<ThemeAnimation> m_animation;
+    mutable QHash<QString, QPixmap> m_surfaceImages;
+    Motion m_motion = Motion::Full;
 
     Q_DISABLE_COPY_MOVE(Theme)
 };

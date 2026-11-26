@@ -182,7 +182,9 @@ bool KrellmailEnvelope::reloadIconStyle()
 
 void KrellmailEnvelope::reloadArtwork()
 {
+    if (m_theme) m_theme->stopAnimation(QStringLiteral("mail.new"), this);
     m_idleIcon = {};
+    m_themeUnread = {};
     m_unreadSprite = {};
     m_tuxIcon = {};
     m_unreadFrames = 0;
@@ -190,6 +192,7 @@ void KrellmailEnvelope::reloadArtwork()
     if (m_theme && m_style == IconStyle::FollowTheme) {
         const auto spriteKey = QStringLiteral("panel_icon_krellmail_unread");
         m_idleIcon = m_theme->pixmap(QStringLiteral("panel_icon_krellmail"));
+        m_themeUnread = m_theme->pixmap(QStringLiteral("panel_icon_krellmail_new"));
         m_unreadSprite = m_theme->pixmap(spriteKey);
         const int frames = m_theme->imageInt(spriteKey + QStringLiteral(".frames"), 0);
         m_unreadFrames = !m_unreadSprite.isNull() && frames >= 2 && frames <= kMaxUnreadFrames
@@ -197,7 +200,7 @@ void KrellmailEnvelope::reloadArtwork()
         if (m_unreadFrames == 0)
             m_unreadSprite = {};
     }
-    const bool themed = !m_idleIcon.isNull() || m_unreadFrames > 0;
+    const bool themed = !m_idleIcon.isNull() || !m_themeUnread.isNull() || m_unreadFrames > 0;
     if (!themed) {
         m_idleIcon.load(QStringLiteral(":/krellmail/art/closed-mail.png"));
         if (m_unreadSprite.load(QStringLiteral(":/krellmail/art/envelope-strip.png"))) {
@@ -221,6 +224,7 @@ void KrellmailEnvelope::reloadArtwork()
 
 int KrellmailEnvelope::animationFrames() const
 {
+    if (!m_themeUnread.isNull()) return 1; // theme clock handles this artwork
     if (m_unreadFrames > 0)
         return m_unreadFrames;
     return m_idleIcon.isNull() ? kEnvelopeFrames : 1;
@@ -236,6 +240,8 @@ int KrellmailEnvelope::frameInterval() const
 
 void KrellmailEnvelope::syncAnimation()
 {
+    if (!m_count && m_theme && !m_themeUnread.isNull())
+        m_theme->stopAnimation(QStringLiteral("mail.new"), this);
     if (m_count > 0 && animationFrames() > 1) {
         if (!m_timer.isActive())
             m_timer.start(frameInterval());
@@ -248,6 +254,14 @@ void KrellmailEnvelope::syncAnimation()
 void KrellmailEnvelope::paintEvent(QPaintEvent *)
 {
     QPainter p(this);
+    if (m_count > 0 && !m_themeUnread.isNull()) {
+        QRect target(QPoint(), m_themeUnread.size().scaled(size(), Qt::KeepAspectRatio));
+        target.moveCenter(rect().center());
+        const auto frame = m_theme->animationFrame(QStringLiteral("mail.new"), this, target, m_themeUnread.size());
+        p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+        p.drawPixmap(target, frame.isNull() ? m_themeUnread : frame);
+        return;
+    }
     const bool unreadArtwork = m_count > 0 && m_unreadFrames > 0;
     const QPixmap &artwork = unreadArtwork ? m_unreadSprite : m_idleIcon;
     if (!artwork.isNull()) {
@@ -902,9 +916,9 @@ QString KrellmailPlugin::pluginName() const
 QString KrellmailPlugin::pluginVersion() const
 {
 #ifdef Q_OS_WIN
-    return QStringLiteral("0.1.5-windows.2");
+    return QStringLiteral("0.1.6-windows.1");
 #else
-    return QStringLiteral("0.1.5");
+    return QStringLiteral("0.1.6");
 #endif
 }
 

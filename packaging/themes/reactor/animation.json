@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "animations": {
+    "reactor-core": {
+      "sheet": "assets/animations/reactor-core.png",
+      "frame_width": 228,
+      "frame_height": 142,
+      "frames": 48,
+      "fps": 16,
+      "target": "surfaces.panel_bg_top",
+      "trigger": "continuous",
+      "fallback": "assets/optional-header.png",
+      "layout": "horizontal",
+      "loop": true,
+      "speed": {
+        "metric": "cpu_total_percent",
+        "min_multiplier": 0.65,
+        "max_multiplier": 1.8,
+        "smoothing_seconds": 2
+      }
+    },
+    "panel-energy": {
+      "sheet": "assets/animations/panel-energy.png",
+      "frame_width": 228,
+      "frame_height": 96,
+      "frames": 24,
+      "fps": 12,
+      "target": "surfaces.panel_bg",
+      "trigger": "continuous",
+      "fallback": "assets/panel.png",
+      "layout": "horizontal",
+      "loop": true
+    },
+    "host-energy": {
+      "sheet": "assets/animations/host-energy.png",
+      "frame_width": 228,
+      "frame_height": 64,
+      "frames": 24,
+      "fps": 12,
+      "target": "surfaces.panel_bg_host",
+      "trigger": "continuous",
+      "fallback": "assets/host-panel.png",
+      "layout": "horizontal",
+      "loop": true
+    },
+    "left-energy": {
+      "sheet": "assets/animations/left-energy.png",
+      "frame_width": 6,
+      "frame_height": 32,
+      "frames": 24,
+      "fps": 12,
+      "target": "images.frame_left",
+      "trigger": "continuous",
+      "fallback": "assets/frame-left.png",
+      "layout": "horizontal",
+      "loop": true
+    },
+    "right-energy": {
+      "sheet": "assets/animations/right-energy.png",
+      "frame_width": 6,
+      "frame_height": 32,
+      "frames": 24,
+      "fps": 12,
+      "target": "images.frame_right",
+      "trigger": "continuous",
+      "fallback": "assets/frame-right.png",
+      "layout": "horizontal",
+      "loop": true
+    },
+    "footer-cooling": {
+      "sheet": "assets/animations/footer-cooling.png",
+      "frame_width": 228,
+      "frame_height": 39,
+      "frames": 24,
+      "fps": 12,
+      "target": "images.frame_bottom",
+      "trigger": "continuous",
+      "fallback": "assets/optional-footer.png",
+      "layout": "horizontal",
+      "loop": true
+    },
+    "krell-energy": {
+      "sheet": "assets/animations/krell-energy.png",
+      "frame_width": 8,
+      "frame_height": 12,
+      "frames": 24,
+      "fps": 12,
+      "target": "images.krell",
+      "trigger": "continuous",
+      "fallback": "assets/krell.png",
+      "layout": "horizontal",
+      "loop": true
+    },
+    "mail-alert": {
+      "sheet": "assets/animations/mail-alert.png",
+      "frame_width": 32,
+      "frame_height": 32,
+      "frames": 24,
+      "fps": 12,
+      "target": "mail.new",
+      "trigger": "new_mail",
+      "fallback": "assets/mail-new.png",
+      "layout": "horizontal",
+      "loop": true
+    }
+  }
+}

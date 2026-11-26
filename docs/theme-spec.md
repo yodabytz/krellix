@@ -153,6 +153,23 @@ in Theme mode, such as `panel_icon_krellweather_clear` and
 `panel_icon_krellweather_clear_night`. These are static assets; missing
 keys keep the built-in vector icons.
 
+### Optional animation manifest
+
+A theme can include `animation.json` next to `theme.json`. The original
+static images still determine layout and remain the fallback. [Reactor's
+manifest](../packaging/themes/reactor/animation.json) shows a complete
+example. Only horizontal, looping PNG sheets are supported. Frame size
+must match the static asset; the full PNG must be exactly
+`frame_width * frames` by `frame_height` pixels. Paths must stay inside
+the theme directory. Invalid entries do not replace the static artwork.
+
+Supported targets: `surfaces.panel_bg_top`, `surfaces.panel_bg`,
+`surfaces.panel_bg_host`, `images.frame_left`, `images.frame_right`,
+`images.frame_bottom`, `images.krell`, and `mail.new`. Mail uses
+`panel_icon_krellmail_new` as its static counterpart and only runs with
+unread mail and Follow Theme. The `images.krell` animation replaces only
+single-frame artwork. Position still follows the measured value.
+
 ### `surfaces`
 
 Surfaces are the preferred way to theme panel and chart backgrounds. They

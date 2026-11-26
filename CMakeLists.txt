@@ -158,6 +158,13 @@ install(DIRECTORY themes/ DESTINATION share/krellix/themes)
 
 include(CTest)
 if(BUILD_TESTING)
+    qt_add_executable(theme-animation tests/theme-animation.cpp src/theme/Theme.cpp)
+    target_include_directories(theme-animation PRIVATE src)
+    target_link_libraries(theme-animation PRIVATE Qt6::Widgets)
+    add_test(NAME theme-animation COMMAND theme-animation)
+    set_tests_properties(theme-animation PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 10)
+endif()
+if(BUILD_TESTING)
     qt_add_executable(chart-panel-layout tests/chart-panel-layout.cpp
         src/monitors/MonitorBase.cpp src/monitors/CpuMonitor.cpp
         src/monitors/NetMonitor.cpp src/monitors/DiskMonitor.cpp

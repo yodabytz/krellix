@@ -1,5 +1,6 @@
 #include "CpuMonitor.h"
 
+#include "theme/Theme.h"
 #include "widgets/Chart.h"
 #include "widgets/Decal.h"
 #include "widgets/Krell.h"
@@ -210,7 +211,17 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
 void CpuMonitor::tick()
 {
     const QList<CpuSample> samples = CpuStat::read();
-    if (samples.isEmpty()) return;
+    if (samples.isEmpty()) {
+        theme()->setAnimationCpu(-1);
+        return;
+    }
+    if (m_havePrev && !m_prevSamples.isEmpty() && samples.first().index == -1
+        && m_prevSamples.first().index == -1
+        && samples.first().totalAll() > m_prevSamples.first().totalAll()) {
+        theme()->setAnimationCpu(CpuStat::utilization(m_prevSamples.first(), samples.first()));
+    } else {
+        theme()->setAnimationCpu(-1);
+    }
 #ifdef Q_OS_WIN
     if (m_panelsBuilt && m_containerLayout && m_layoutSettings != cpuLayoutSettings(samples)) {
         while (auto *item = m_containerLayout->takeAt(0)) {

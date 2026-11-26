@@ -121,7 +121,14 @@ void Krell::paintEvent(QPaintEvent *)
             const int xMax = qMax(0, r.width() - frameW);
             const int x    = static_cast<int>(m_value * xMax);
             const int y    = r.y() + (r.height() - frameH) / 2;
-            p.drawPixmap(QRect(x, y, frameW, frameH), krellPix, src);
+            const QRect indicator(x, y, frameW, frameH);
+            const auto animated = frames == 1
+                ? m_theme->animationFrame(QStringLiteral("images.krell"), this, indicator, indicator.size())
+                : QPixmap();
+            if (animated.isNull())
+                p.drawPixmap(indicator, krellPix, src);
+            else
+                p.drawPixmap(indicator, animated);
             return;
         }
     }

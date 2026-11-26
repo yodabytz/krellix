@@ -1,4 +1,5 @@
 #include "Theme.h"
+#include "ThemeAnimation.h"
 
 #include <QDir>
 #include <QCoreApplication>
@@ -202,6 +203,7 @@ bool Theme::load(const QString &name)
         m_name     = name;
         m_rootDir  = canonicalize(candidateDir);
         m_jsonPath = canonJson;
+        loadAnimation();
         m_watcher->addPath(canonJson);
         emit themeChanged();
         return true;
@@ -222,6 +224,7 @@ void Theme::onFileChanged(const QString &path)
     // Editors that save by atomic-rename break the inotify watch. Re-add it.
     loadDefaults();
     parseJsonFile(path);
+    loadAnimation();
     if (QFileInfo::exists(path) && !m_watcher->files().contains(path))
         m_watcher->addPath(path);
     emit themeChanged();
@@ -229,6 +232,8 @@ void Theme::onFileChanged(const QString &path)
 
 void Theme::loadDefaults()
 {
+    m_animation.reset();
+    m_surfaceImages.clear();
     m_imagePaths.clear();
     m_imageInts.clear();
     m_imageStrings.clear();
@@ -651,6 +656,71 @@ Theme::TextStyle Theme::textStyle(const QString &key,
 Theme::Surface Theme::surface(const QString &key,
                               const QString &fallbackKey) const
 {
+    return resolveSurface(key, fallbackKey, nullptr);
+}
+
+void Theme::loadAnimation()
+{
+    const auto path = assetPath(QStringLiteral("animation.json"));
+    if (path.isEmpty()) return;
+    auto animation = std::make_unique<ThemeAnimation>(*this);
+    if (!animation->load(path)) return;
+    animation->setMode(m_motion);
+    m_animation = std::move(animation);
+}
+
+void Theme::setMotion(Motion mode)
+{
+    m_motion = mode;
+    if (m_animation) m_animation->setMode(mode);
+}
+
+Theme::Motion Theme::motionFromKey(QStringView key)
+{
+    if (key == QLatin1String("off")) return Motion::Off;
+    if (key == QLatin1String("reduced")) return Motion::Reduced;
+    return Motion::Full;
+}
+
+void Theme::setAnimationCpu(double load)
+{
+    if (m_animation) m_animation->setCpu(load);
+}
+
+bool Theme::hasAnimation(const QString &target) const
+{
+    return m_animation && m_animation->hasTarget(target);
+}
+
+QPixmap Theme::animationFrame(const QString &target, QWidget *widget, const QRect &region, QSize size) const
+{
+    return m_animation ? m_animation->frame(target, widget, region, size) : QPixmap();
+}
+
+void Theme::stopAnimation(const QString &target, QWidget *widget) const
+{
+    if (m_animation) m_animation->unwatch(target, widget);
+}
+
+QPixmap Theme::surfaceImage(const QString &relativePath) const
+{
+    if (m_animation) {
+        const auto cached = m_surfaceImages.constFind(relativePath);
+        if (cached != m_surfaceImages.cend()) return cached.value();
+    }
+    const auto full = assetPath(relativePath);
+    const auto image = full.isEmpty() ? QPixmap() : loadBoundedPixmap(full);
+    if (m_animation) m_surfaceImages.insert(relativePath, image);
+    return image;
+}
+
+Theme::Surface Theme::paintedSurface(const QString &key, const QString &fallbackKey, QWidget *widget) const
+{
+    return resolveSurface(key, fallbackKey, widget);
+}
+
+Theme::Surface Theme::resolveSurface(const QString &key, const QString &fallbackKey, QWidget *widget) const
+{
     // Lookup chain: requested key, then caller-supplied fallback, then
     // the universal "panel_bg" base. First match wins; missing image
     // falls through to the next entry in the chain.
@@ -672,9 +742,7 @@ Theme::Surface Theme::surface(const QString &key,
             out.opacity = sp.opacity;
             out.tint    = sp.tint;
             for (const QString &relOverlay : sp.relOverlays) {
-                const QString full = assetPath(relOverlay);
-                if (full.isEmpty()) continue;
-                const QPixmap overlay = loadBoundedPixmap(full);
+                const auto overlay = surfaceImage(relOverlay);
                 if (!overlay.isNull())
                     out.overlays.append(overlay);
             }
@@ -682,10 +750,13 @@ Theme::Surface Theme::surface(const QString &key,
                 // Inline-resolve through the same hardened path-loader
                 // that pixmap() uses so the v2 entry doesn't bypass
                 // sandboxing.
-                const QString full = assetPath(sp.relImage);
-                if (!full.isEmpty())
-                    out.image = loadBoundedPixmap(full);
+                out.image = surfaceImage(sp.relImage);
                 if (!out.image.isNull()) {
+                    if (widget && m_animation) {
+                        const auto frame = animationFrame(QStringLiteral("surfaces.") + k, widget,
+                                                          widget->rect(), out.image.size());
+                        if (!frame.isNull()) out.image = frame;
+                    }
                     foundSpec = true;
                     break;
                 }
@@ -697,9 +768,7 @@ Theme::Surface Theme::surface(const QString &key,
         // v1 fallback: the legacy "images" entry.
         const QString rel = m_imagePaths.value(k);
         if (!rel.isEmpty()) {
-            const QString full = assetPath(rel);
-            if (!full.isEmpty())
-                out.image = loadBoundedPixmap(full);
+            out.image = surfaceImage(rel);
             if (!out.image.isNull()) {
                 foundSpec = true;
                 break;

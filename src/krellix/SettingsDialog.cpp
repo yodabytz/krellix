@@ -298,6 +298,21 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         m_chartHeight->setSuffix(QStringLiteral(" px"));
         form->addRow(QStringLiteral("Chart height:"), m_chartHeight);
 
+        auto *motion = new QComboBox(page);
+        motion->setObjectName(QStringLiteral("theme-motion"));
+        motion->addItem(QStringLiteral("Full"), QStringLiteral("full"));
+        motion->addItem(QStringLiteral("Reduced"), QStringLiteral("reduced"));
+        motion->addItem(QStringLiteral("Off"), QStringLiteral("off"));
+        sizeAppearanceSelector(motion, 12);
+        const auto saved = QSettings().value(QStringLiteral("appearance/theme_motion")).toString();
+        motion->setCurrentIndex(qMax(0, motion->findData(saved)));
+        connect(motion, &QComboBox::activated, this, [this, motion](int index) {
+            const auto key = motion->itemData(index).toString();
+            QSettings().setValue(QStringLiteral("appearance/theme_motion"), key);
+            m_theme->setMotion(Theme::motionFromKey(key));
+        });
+        form->addRow(QStringLiteral("Theme animation:"), motion);
+
         addPage(QStringLiteral("Appearance"), page);
     }
 

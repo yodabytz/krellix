@@ -1,0 +1,127 @@
+{
+  "name": "Reactor",
+  "version": "1.0",
+  "author": "Theme designer",
+  "description": "Dark titanium fusion reactor, blue containment rings and molten orange plasma.",
+  "colors": {
+    "panel_bg": "#0b1520",
+    "panel_border": "#17658a",
+    "chart_bg": "#080f19",
+    "chart_grid": "#123342",
+    "text_primary": "#e6f6ff",
+    "text_secondary": "#9dc6d9",
+    "text_accent": "#ffc02a",
+    "krell_track": "#0a1723",
+    "krell_indicator": "#00caff",
+    "chart_line_default": "#42caff",
+    "chart_line_cpu": "#26d7ff",
+    "chart_line_mem": "#42caff",
+    "chart_line_swap": "#d98aff",
+    "chart_line_net_rx": "#25d7ff",
+    "chart_line_net_tx": "#ffae20",
+    "chart_line_disk": "#ffae20",
+    "accent_ok": "#39ee91",
+    "accent_warning": "#ffc45b",
+    "accent_critical": "#ff6262"
+  },
+  "fonts": {
+    "label": {
+      "family": "Sans Serif",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Sans Serif",
+      "size": 10,
+      "bold": true
+    }
+  },
+  "metrics": {
+    "panel_padding": 6,
+    "panel_spacing": 2,
+    "panel_border": 0,
+    "krell_height": 12,
+    "chart_height": 64,
+    "chart_grid_lines": 4,
+    "top_strip_height": 142,
+    "top_strip_keep_aspect": 1
+  },
+  "surfaces": {
+    "panel_bg": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_host": {
+      "image": "assets/host-panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "slice": 4,
+      "opacity": 1.0
+    },
+    "panel_bg_top": {
+      "image": "assets/optional-header.png",
+      "slice": 0
+    }
+  },
+  "images": {
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "mode": "stretch"
+    },
+    "krell_track": {
+      "image": "assets/krell-track.png",
+      "mode": "tile"
+    },
+    "krell": {
+      "image": "assets/krell.png",
+      "frames": 1
+    },
+    "frame_top": "assets/frame-top.png",
+    "frame_bottom": {
+      "image": "assets/optional-footer.png",
+      "mode": "stretch"
+    },
+    "frame_left": "assets/frame-left.png",
+    "frame_right": "assets/frame-right.png",
+    "panel_icon_krellmail": "assets/mail.png",
+    "panel_icon_krellmail_new": "assets/mail-new.png",
+    "panel_icon_krellweather_unknown": "assets/weather/unknown.png",
+    "panel_icon_krellweather_clear": "assets/weather/sunny.png",
+    "panel_icon_krellweather_clear_night": "assets/weather/clear-night.png",
+    "panel_icon_krellweather_mostly_clear": "assets/weather/mostly-sunny.png",
+    "panel_icon_krellweather_partly_cloudy": "assets/weather/partly-cloudy.png",
+    "panel_icon_krellweather_partly_cloudy_night": "assets/weather/partly-cloudy-night.png",
+    "panel_icon_krellweather_mostly_cloudy": "assets/weather/mostly-cloudy.png",
+    "panel_icon_krellweather_mostly_cloudy_night": "assets/weather/cloudy-night.png",
+    "panel_icon_krellweather_cloudy": "assets/weather/cloudy.png",
+    "panel_icon_krellweather_cloudy_night": "assets/weather/cloudy-night.png",
+    "panel_icon_krellweather_overcast": "assets/weather/overcast.png",
+    "panel_icon_krellweather_drizzle": "assets/weather/drizzle.png",
+    "panel_icon_krellweather_light_rain": "assets/weather/light-rain.png",
+    "panel_icon_krellweather_rain": "assets/weather/rain.png",
+    "panel_icon_krellweather_rain_night": "assets/weather/rain-night.png",
+    "panel_icon_krellweather_heavy_rain": "assets/weather/heavy-rain.png",
+    "panel_icon_krellweather_rain_showers": "assets/weather/rain-showers.png",
+    "panel_icon_krellweather_freezing_rain": "assets/weather/freezing-rain.png",
+    "panel_icon_krellweather_sleet": "assets/weather/sleet.png",
+    "panel_icon_krellweather_light_snow": "assets/weather/light-snow.png",
+    "panel_icon_krellweather_snow": "assets/weather/snow.png",
+    "panel_icon_krellweather_snow_night": "assets/weather/snow-night.png",
+    "panel_icon_krellweather_heavy_snow": "assets/weather/heavy-snow.png",
+    "panel_icon_krellweather_blowing_snow": "assets/weather/blowing-snow.png",
+    "panel_icon_krellweather_hail": "assets/weather/hail.png",
+    "panel_icon_krellweather_fog": "assets/weather/fog.png",
+    "panel_icon_krellweather_fog_night": "assets/weather/fog-night.png",
+    "panel_icon_krellweather_mist": "assets/weather/mist.png",
+    "panel_icon_krellweather_haze": "assets/weather/haze.png",
+    "panel_icon_krellweather_wind": "assets/weather/windy.png",
+    "panel_icon_krellweather_strong_wind": "assets/weather/windy.png",
+    "panel_icon_krellweather_thunderstorm": "assets/weather/thunderstorm.png",
+    "panel_icon_krellweather_thunderstorm_night": "assets/weather/thunderstorm-night.png",
+    "panel_icon_krellweather_severe_thunderstorm": "assets/weather/severe-thunderstorm.png"
+  }
+}

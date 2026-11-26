@@ -1,8 +1,11 @@
-name: KrellMail and KrellWeather for Windows
+name: Reactor release for Windows
 on:
   workflow_dispatch:
   push:
     paths:
+      - 'src/theme/**'
+      - 'packaging/themes/reactor/**'
+      - 'tests/theme-animation.cpp'
       - 'plugins/krellmail/**'
       - 'plugins/krellweather/**'
       - 'tests/krellweather-*.cpp'
@@ -51,10 +54,10 @@ jobs:
           [[ "$(pacman -Q mingw-w64-ucrt-x86_64-qt6-base)" == 'mingw-w64-ucrt-x86_64-qt6-base 6.12.0-'* ]]
           [[ "$(g++ -dumpfullversion)" == 16.2.0 ]]
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
-            -DKRELLIX_PRERELEASE=windows-preview.8 \
+            -DKRELLIX_PRERELEASE=windows-preview.9 \
             "-DKRELLIX_SENSOR_DIR=$(cygpath -m "$portable/sensors")"
-          cmake --build build --target krellix settings-lifecycle krellmail-icon krellmail-integration krellweather krellweather-icons krellweather-layout krellweather-metar-test windows-core -j 4
-          ctest --test-dir build -R '^(krellmail-(icon|integration)|krellweather-(icons|layout|metar-test)|settings-lifecycle|windows-(core|remote-isolation))$' --output-on-failure
+          cmake --build build --target krellix settings-lifecycle krellmail-icon krellmail-integration krellweather krellweather-icons krellweather-layout krellweather-metar-test windows-core theme-animation -j 4
+          ctest --test-dir build -R '^(krellmail-(icon|integration)|krellweather-(icons|layout|metar-test)|theme-animation|settings-lifecycle|windows-(core|remote-isolation))$' --output-on-failure
           # Check the plugin against the DLLs shipped beside the published host.
           cp "$portable/"*.dll build/krellmail-icon-test-host/
           offscreen=$(find /ucrt64 -path '*/platforms/qoffscreen.dll' -type f -print -quit)
@@ -62,15 +65,16 @@ jobs:
           mkdir -p build/krellmail-icon-test-host/platforms
           cp "$offscreen" build/krellmail-icon-test-host/platforms/
           ctest --test-dir build -R '^krellmail-icon$' --output-on-failure
-      - name: Test the published portable host and package KrellWeather
+      - name: Test and package the updated portable host and plugin
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           $hostDir = "$env:RUNNER_TEMP\portable\Krellix"
           $sandbox = "$env:RUNNER_TEMP\mail-test"
+          Copy-Item build/sensors-candidate/krellix.exe "$hostDir\krellix.exe" -Force
           New-Item -ItemType Directory "$sandbox\plugins", "$sandbox\themes", "$env:APPDATA\krellix" -Force | Out-Null
           Copy-Item build/plugins/krellmail.dll, build/plugins/krellweather.dll "$sandbox\plugins"
-          Copy-Item packaging/themes/bluemask "$sandbox\themes" -Recurse
+          Copy-Item packaging/themes/reactor "$sandbox\themes" -Recurse
           "[plugins]`nkrellmail\enabled=true`nkrellmail\account_count=0`nkrellweather\enabled=true`nkrellweather\station=" |
             Set-Content "$env:APPDATA\krellix\krellix-krellmail-test.ini" -Encoding ASCII
           $env:QT_FORCE_STDERR_LOGGING = '1'
@@ -79,9 +83,9 @@ jobs:
           $env:KRELLIX_DEV_PLUGINS = '1'
           $log = "$sandbox\startup.log"
           $app = Start-Process "$hostDir\krellix.exe" -WorkingDirectory $sandbox -PassThru `
-            -ArgumentList '--instance', 'krellmail-test', '--theme', 'bluemask', '--monitors', 'host,krellmail,krellweather' `
+            -ArgumentList '--instance', 'krellmail-test', '--theme', 'reactor', '--monitors', 'host,krellmail,krellweather' `
             -RedirectStandardError $log
-          $mailPattern = 'io.krellix.krellmail.*0\.1\.5-windows\.2.*factory ready'
+          $mailPattern = 'io.krellix.krellmail.*0\.1\.6-windows\.1.*factory ready'
           $weatherPattern = 'loaded plugin.*"krellweather" "0\.1\.2-windows\.1".*factory ready'
           try {
             for ($i = 0; $i -lt 20; $i++) {
@@ -93,7 +97,7 @@ jobs:
             Get-Content $log
             if (!(Select-String -LiteralPath $log -Pattern $mailPattern -Quiet) -or
                 !(Select-String -LiteralPath $log -Pattern $weatherPattern -Quiet)) {
-              throw 'Published host did not load both plugins'
+              throw 'Portable host did not load both updated plugins'
             }
             if (Select-String -LiteralPath $log -Pattern 'krellix.theme:.*(not found|failed|refusing|missing)' -Quiet) {
               throw 'Theme loading failed'
@@ -101,10 +105,18 @@ jobs:
           } finally {
             if (-not $app.HasExited) { Stop-Process -Id $app.Id }
           }
-          ./packaging/windows/package-weather.ps1 -Build "$PWD/build" -HostDirectory $hostDir `
-            -Destination "$env:RUNNER_TEMP/weather-package" -UseReleasedHost
+          ./packaging/windows/package-mail.ps1 -Build "$PWD/build" -HostDirectory $hostDir `
+            -HostVersion '0.1.2-windows-preview.9' -Destination "$env:RUNNER_TEMP/mail-package"
+          $manifestPath = "$hostDir\extras\krelltop\manifest.json"
+          if (Test-Path -LiteralPath $manifestPath) {
+            $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+            $manifest.host_version = '0.1.2-windows-preview.9'
+            $manifest.host_sha256 = (Get-FileHash "$hostDir\krellix.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+            $manifest | ConvertTo-Json | Set-Content -LiteralPath $manifestPath -Encoding ASCII
+          }
+          Compress-Archive -LiteralPath $hostDir -DestinationPath "$env:RUNNER_TEMP/mail-package/krellix-0.1.2-windows-preview.9-x86_64.zip"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: krellweather-theme-overrides-preview8
-          path: ${{ runner.temp }}/weather-package/*.zip
+          name: krellix-reactor-preview9
+          path: ${{ runner.temp }}/mail-package/*.zip
           if-no-files-found: error

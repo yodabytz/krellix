@@ -766,6 +766,7 @@ void MainWindow::scheduleFitToPanelStack()
 void MainWindow::applySettingsOverridesToTheme()
 {
     QSettings s;
+    m_theme->setMotion(Theme::motionFromKey(s.value(QStringLiteral("appearance/theme_motion")).toString()));
 #ifdef Q_OS_WIN
     Decal::setScrollSettings(s.value(QStringLiteral("appearance/scroll_pps"), 30).toInt(),
                              s.value(QStringLiteral("appearance/scroll_fps"), 12).toInt());
@@ -870,9 +871,9 @@ void MainWindow::paintEvent(QPaintEvent *)
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
 
     const QPixmap topPix    = m_theme->pixmap(QStringLiteral("frame_top"));
-    const QPixmap bottomPix = m_theme->pixmap(QStringLiteral("frame_bottom"));
-    const QPixmap leftPix   = m_theme->pixmap(QStringLiteral("frame_left"));
-    const QPixmap rightPix  = m_theme->pixmap(QStringLiteral("frame_right"));
+    QPixmap bottomPix = m_theme->pixmap(QStringLiteral("frame_bottom"));
+    QPixmap leftPix   = m_theme->pixmap(QStringLiteral("frame_left"));
+    QPixmap rightPix  = m_theme->pixmap(QStringLiteral("frame_right"));
 
     const int topH    = topPix.isNull()    ? 0 : topPix.height();
     const int bottomH = m_layout->contentsMargins().bottom();
@@ -884,25 +885,34 @@ void MainWindow::paintEvent(QPaintEvent *)
 
     if (!topPix.isNull())
         p.drawTiledPixmap(QRect(0, 0, width(), topH), topPix);
+    const auto animate = [this](QPixmap &staticImage, const QString &target, const QRect &rect) {
+        const auto frame = m_theme->animationFrame(target, this, rect, staticImage.size());
+        if (!frame.isNull()) staticImage = frame;
+    };
     const bool scaledFooter = stretchBottomFrame(m_theme);
     if (!bottomPix.isNull() && bottomH > 0) {
+        const QRect footer = scaledFooter
+            ? QRect(leftW, height() - bottomH, width() - leftW - rightW, bottomH)
+            : QRect(0, height() - bottomH, width(), bottomH);
+        animate(bottomPix, QStringLiteral("images.frame_bottom"), footer);
         if (scaledFooter)
-            p.drawPixmap(QRect(leftW, height() - bottomH, width() - leftW - rightW, bottomH), bottomPix);
+            p.drawPixmap(footer, bottomPix);
         else
-            p.drawTiledPixmap(QRect(0, height() - bottomH, width(), bottomH), bottomPix);
+            p.drawTiledPixmap(footer, bottomPix);
     }
 
     const int sideTop    = topH;
     const int sideBottom = scaledFooter ? height() : height() - bottomH;
     if (sideBottom > sideTop) {
         if (!leftPix.isNull()) {
-            p.drawTiledPixmap(QRect(0, sideTop, leftW, sideBottom - sideTop),
-                              leftPix);
+            const QRect left(0, sideTop, leftW, sideBottom - sideTop);
+            animate(leftPix, QStringLiteral("images.frame_left"), left);
+            p.drawTiledPixmap(left, leftPix);
         }
         if (!rightPix.isNull()) {
-            p.drawTiledPixmap(QRect(width() - rightW, sideTop, rightW,
-                                    sideBottom - sideTop),
-                              rightPix);
+            const QRect right(width() - rightW, sideTop, rightW, sideBottom - sideTop);
+            animate(rightPix, QStringLiteral("images.frame_right"), right);
+            p.drawTiledPixmap(right, rightPix);
         }
     }
 }

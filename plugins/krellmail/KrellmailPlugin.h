@@ -58,6 +58,7 @@ private:
 
     Theme *m_theme = nullptr;
     QPixmap m_idleIcon;
+    QPixmap m_themeUnread;
     QPixmap m_unreadSprite;
     QPixmap m_tuxIcon;
     QTimer m_timer;

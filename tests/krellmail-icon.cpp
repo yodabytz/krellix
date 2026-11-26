@@ -15,6 +15,7 @@
 #include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QThread>
+#include <QTimer>
 #include <QToolButton>
 #include <QWidget>
 #include <cstdio>
@@ -204,6 +205,33 @@ int main(int argc, char **argv)
         return centerColor() == Qt::green;
     }), "Zero unread did not bring back the static icon");
     require(!until([&] { return centerColor() != Qt::green; }, 200), "Animation kept running after zero unread");
+    makeTheme(QStringLiteral("gallery-mail-shared"), Qt::blue, 3);
+    const QString shared = QStringLiteral("themes/gallery-mail-shared/");
+    writeTheme(shared, QByteArrayLiteral(R"({"images":{"panel_icon_krellmail":"idle.png","panel_icon_krellmail_new":"new.png"}})"));
+    QImage fallback(16, 16, QImage::Format_ARGB32);
+    fallback.fill(Qt::magenta);
+    require(fallback.save(shared + QStringLiteral("new.png")), "Cannot save shared mail fallback");
+    QFile manifest(shared + QStringLiteral("animation.json"));
+    require(manifest.open(QIODevice::WriteOnly)
+            && manifest.write(R"({"version":1,"animations":{"alert":{
+                "sheet":"unread.png","fallback":"new.png","frame_width":16,"frame_height":16,
+                "frames":3,"fps":20,"target":"mail.new","trigger":"new_mail","layout":"horizontal","loop":true
+            }}})") > 0, "Cannot create shared mail manifest");
+    manifest.close();
+    require(theme.load(QStringLiteral("gallery-mail-shared")), "Cannot load shared mail theme");
+    const auto clock = theme.findChild<QTimer *>(QStringLiteral("theme-frame-clock"));
+    require(clock && !clock->isActive() && centerColor() == Qt::blue, "Idle mail started the shared clock");
+    mailCount = 2;
+    monitor->tick();
+    require(until([&] { return centerColor() == Qt::cyan; }), "Unread mail did not use the shared clock");
+    theme.setMotion(Theme::Motion::Off);
+    require(!clock->isActive() && centerColor() == Qt::magenta, "Motion off did not use the static unread icon");
+    theme.setMotion(Theme::Motion::Full);
+    centerColor();
+    mailCount = 0;
+    monitor->tick();
+    require(until([&] { return centerColor() == Qt::blue && !clock->isActive(); }),
+            "Reading mail did not return to static artwork and stop the shared clock");
     require(theme.load(QStringLiteral("gallery-mail-plain")), "Cannot switch back to the plain theme");
     require(pixels() == defaultIdle, "Plain theme did not restore the existing default icon");
     monitor->shutdown();

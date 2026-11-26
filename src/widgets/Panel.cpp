@@ -203,7 +203,7 @@ void Panel::paintEvent(QPaintEvent *)
     // "panel_bg_cpu" for the CPU monitor) → "panel_bg" → empty. When
     // there's no image, fall back to the panel_bg color.
     const Theme::Surface surf =
-        m_theme->surface(m_surfaceKey, QStringLiteral("panel_bg"));
+        m_theme->paintedSurface(m_surfaceKey, QStringLiteral("panel_bg"), this);
     if (!surf.image.isNull() && r.width() > 0 && r.height() > 0) {
         const qreal prevOpacity = p.opacity();
         if (surf.opacity < 1.0) p.setOpacity(prevOpacity * surf.opacity);
