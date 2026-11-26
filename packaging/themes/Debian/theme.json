@@ -15,6 +15,7 @@
     "krell_indicator": "#d70748",
     "chart_line_default": "#d70748",
     "chart_line_cpu": "#ff2860",
+    "chart_line_cpu_series": "#ff2860",
     "chart_line_mem": "#d70748",
     "chart_line_swap": "#a82b55",
     "chart_line_net_rx": "#ff2860",
