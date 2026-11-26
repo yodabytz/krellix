@@ -107,9 +107,9 @@ void checkCombinedCpuFill(const QString &configPath)
         if (!json.open(QIODevice::WriteOnly) || json.write(data) != data.size())
             qFatal("Could not write the CPU fill theme");
     };
-    make(QStringLiteral("combined-unfilled"), {});
+    make(QStringLiteral("combined-default-fill"), {});
     make(QStringLiteral("combined-filled"), R"(,"chart_fill_cpu_series":"#aa2248")");
-    if (!theme.load(QStringLiteral("combined-unfilled"))) qFatal("Could not load unfilled theme");
+    if (!theme.load(QStringLiteral("combined-default-fill"))) qFatal("Could not load default CPU fill theme");
 
     Chart cpu(&theme, QStringLiteral("chart_line_cpu"));
     Chart net(&theme, QStringLiteral("chart_line_net_rx"));
@@ -117,20 +117,26 @@ void checkCombinedCpuFill(const QString &configPath)
         chart->resize(120, 80);
         chart->setMaxValue(1.0);
         chart->setRainbowSeries(2);
+    }
+    const auto idleCpu = cpu.grab().toImage();
+    if (idleCpu.pixelColor(idleCpu.width() / 2, idleCpu.height() - 3) != QColor("#121416"))
+        qFatal("An idle combined CPU chart should not fill above its baseline");
+    for (auto *chart : {&cpu, &net}) {
         for (int i = 0; i < 200; ++i) {
             chart->appendSampleAt(0, .32);
             chart->appendSampleAt(1, .68);
         }
     }
-    const auto plain = cpu.grab().toImage();
+    const auto defaultFill = cpu.grab().toImage();
     const auto plainNet = net.grab().toImage();
     if (!theme.load(QStringLiteral("combined-filled"))) qFatal("Could not load CPU fill theme");
     const auto filled = cpu.grab().toImage();
     const int x = filled.width() / 2;
-    const int bottom = filled.height() - 3;
+    const int bottom = filled.height() - 1;
     if (filled.pixelColor(x, bottom) != QColor("#aa2248")
         || filled.pixelColor(x, filled.height() / 8) != QColor("#121416")
-        || plain.pixelColor(x, bottom) != QColor("#121416"))
+        || defaultFill.pixelColor(x, bottom) == QColor("#121416")
+        || defaultFill.pixelColor(x, filled.height() / 8) != QColor("#121416"))
         qFatal("Combined CPU fill did not rise from the baseline to the outline");
     const QColor base("#ff426a");
     QSet<QRgb> outline;
@@ -141,7 +147,7 @@ void checkCombinedCpuFill(const QString &configPath)
     }
     if (outline.size() != 2 || net.grab().toImage() != plainNet)
         qFatal("CPU fill hid an outline or changed another monitor");
-    if (!theme.load(QStringLiteral("combined-unfilled")) || cpu.grab().toImage() != plain)
+    if (!theme.load(QStringLiteral("combined-default-fill")) || cpu.grab().toImage() != defaultFill)
         qFatal("Switching fill removed combined chart history");
     if (!QDir::setCurrent(originalPath)) qFatal("Could not restore the working directory");
 }

@@ -125,9 +125,10 @@ Map of name → integer (clamped to `0..4096`).
 For combined charts, a color such as `chart_line_cpu_series` or
 `chart_line_net_rx_series` opts into several shades of that color. A grayscale
 series palette takes precedence if both options are configured.
-Set `colors.chart_fill_cpu_series` to a color or gradient to fill beneath
-the highest combined CPU trace at each sample. Individual core lines remain
-visible and other multi-series charts stay outline-only.
+Combined CPU charts fill from the bottom to the highest core trace at each
+sample, using a translucent gradient derived from `colors.chart_line_cpu`.
+Override it with a color or gradient in `colors.chart_fill_cpu_series`.
+Individual core lines remain visible, and other multi-series charts stay outline-only.
 In current builds, sliders and the Memory and Swap indicators render at
 two-thirds of their base height, rounded to logical pixels. Text-only
 meters and charts are not reduced.

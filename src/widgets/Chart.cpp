@@ -372,24 +372,27 @@ void Chart::paintEvent(QPaintEvent *)
 
         QPolygonF poly;
         poly.reserve(n);
-        const double yScale = static_cast<double>(graphRect.height() - 1);
+        // The area reaches the bottom edge; history strokes stay on pixel centers.
+        const int edge = drawStroke ? 0 : 1;
+        const double yScale = static_cast<double>(graphRect.height() - 1 + edge);
         for (int i = 0; i < n; ++i) {
             const int idx = (m_head + i) % n;
             const double v = ring[static_cast<std::size_t>(idx)] / displayMax;
             const double clamped = std::clamp(v, 0.0, 1.0);
             const double x = graphRect.left()
                 + (static_cast<double>(i) * (graphRect.width() - 1)) / (n - 1);
-            const double y = graphRect.top()
-                + (graphRect.height() - 1) - clamped * yScale;
+            const double y = graphRect.top() + (1.0 - clamped) * yScale;
             poly << QPointF(x, y);
         }
 
         if (areaPaint.style() != Qt::NoBrush) {
             QPolygonF area = poly;
-            area << QPointF(static_cast<double>(graphRect.right()),
-                            static_cast<double>(graphRect.bottom()))
+            const int bottom = graphRect.bottom() + edge;
+            if (!drawStroke)
+                area << QPointF(graphRect.right() + 1, poly.back().y());
+            area << QPointF(graphRect.right() + edge, bottom)
                  << QPointF(static_cast<double>(graphRect.left()),
-                            static_cast<double>(graphRect.bottom()));
+                            bottom);
             p.setRenderHint(QPainter::Antialiasing, false);
             p.setPen(Qt::NoPen);
             p.setBrush(areaPaint);
@@ -415,13 +418,22 @@ void Chart::paintEvent(QPaintEvent *)
         drawSeries(m_samples, lineBrush, QBrush(fill));
     } else {
         // Fill the upper envelope once so separate core outlines stay legible.
-        const auto fillKey = QStringLiteral("chart_fill_cpu_series");
-        if (m_colorKey == QStringLiteral("chart_line_cpu") && m_theme->color(fillKey).isValid()) {
+        if (m_colorKey == QStringLiteral("chart_line_cpu")) {
             std::vector<double> envelope(m_multiSamples.front().size(), 0.0);
             for (const auto &series : m_multiSamples)
                 for (std::size_t i = 0; i < qMin(envelope.size(), series.size()); ++i)
                     envelope[i] = qMax(envelope[i], series[i]);
-            drawSeries(envelope, QBrush(), m_theme->brush(fillKey, r), /*drawStroke=*/false);
+            QBrush fill = m_theme->brush(QStringLiteral("chart_fill_cpu_series"), r);
+            if (fill.style() == Qt::NoBrush) {
+                QLinearGradient gradient(0, graphRect.top(), 0, graphRect.bottom() + 1);
+                QColor accent = line;
+                accent.setAlpha(155);
+                gradient.setColorAt(0, accent);
+                accent.setAlpha(75);
+                gradient.setColorAt(1, accent);
+                fill = QBrush(gradient);
+            }
+            drawSeries(envelope, QBrush(), fill, /*drawStroke=*/false);
         }
         const bool grayscale = m_theme->metric(QStringLiteral("chart_series_grayscale"), 0) != 0;
         const QColor seriesColor = m_theme->color(m_colorKey + QStringLiteral("_series"));
