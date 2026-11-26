@@ -1,0 +1,119 @@
+{
+  "name": "Ubuntu-Ember",
+  "version": "1.0",
+  "author": "Theme designer",
+  "description": "Flat Ubuntu orange and aubergine",
+  "colors": {
+    "panel_bg": "#00000000",
+    "panel_border": "#E95420",
+    "chart_bg": "#111014",
+    "chart_grid": "#342b35",
+    "text_primary": "#f7f3f2",
+    "text_secondary": "#c8b9c8",
+    "text_accent": "#ff8a43",
+    "krell_track": "#302830",
+    "krell_indicator": "#E95420",
+    "chart_line_default": "#E95420",
+    "chart_line_cpu": "#ff8a43",
+    "chart_line_cpu_series": "#E95420",
+    "chart_line_mem": "#E95420",
+    "chart_line_swap": "#a85a91",
+    "chart_line_net_rx": "#ff8a43",
+    "chart_line_net_tx": "#ffd0a0",
+    "chart_line_disk": "#E95420",
+    "accent_ok": "#38d54a",
+    "accent_warning": "#ffd34d",
+    "accent_critical": "#ff3449"
+  },
+  "fonts": {
+    "label": {
+      "family": "Arial",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Arial",
+      "size": 10,
+      "bold": true
+    }
+  },
+  "metrics": {
+    "window_shadow": 0,
+    "panel_padding": 6,
+    "panel_spacing": 2,
+    "panel_border": 0,
+    "krell_height": 12,
+    "chart_height": 100,
+    "chart_grid_lines": 4,
+    "host_clock_shared_casing": 1,
+    "panel_icon_size": 19,
+    "panel_icon_krellhealth_heart_size": 32,
+    "panel_icon_krellhealth_status_size": 48,
+    "top_strip_height": 61,
+    "top_strip_keep_aspect": 1
+  },
+  "surfaces": {
+    "panel_bg": {
+      "image": "assets/panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_host": {
+      "image": "assets/host-panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "panel_bg_host_clock": {
+      "image": "assets/host-panel.png",
+      "slice": 6,
+      "opacity": 1.0
+    },
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "slice": 4,
+      "opacity": 1.0
+    },
+    "panel_bg_top": {
+      "image": "assets/optional-header.png",
+      "slice": 0
+    }
+  },
+  "images": {
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "mode": "stretch"
+    },
+    "krell_track": {
+      "image": "assets/krell-track.png",
+      "mode": "tile"
+    },
+    "krell": {
+      "image": "assets/krell.png",
+      "frames": 1
+    },
+    "frame_bottom": {
+      "image": "assets/optional-footer.png",
+      "mode": "stretch"
+    },
+    "panel_icon_cpu": "assets/monitor-icons/cpu.png",
+    "panel_icon_proc": "assets/monitor-icons/proc.png",
+    "panel_icon_mem": "assets/monitor-icons/memory.png",
+    "panel_icon_disk": "assets/monitor-icons/disk.png",
+    "panel_icon_net": "assets/monitor-icons/network.png",
+    "panel_icon_netports": "assets/monitor-icons/ports.png",
+    "panel_icon_sensors": "assets/monitor-icons/sensors.png",
+    "panel_icon_uptime": "assets/monitor-icons/clock.png",
+    "panel_icon_krelltop": "assets/monitor-icons/top.png",
+    "panel_icon_krellhealth": "assets/monitor-icons/health.png",
+    "panel_icon_krellhealth_heart": "assets/health/ok-128.png",
+    "panel_icon_krellhealth_status_healthy": "assets/health/ok-128.png",
+    "panel_icon_krellhealth_status_info": "assets/health/info-128.png",
+    "panel_icon_krellhealth_status_warning": "assets/health/warning-128.png",
+    "panel_icon_krellhealth_status_critical": "assets/health/critical-128.png",
+    "panel_icon_krellhealth_status_check": "assets/health/unknown-128.png",
+    "panel_icon_krellpkg": "assets/monitor-icons/packages.png",
+    "panel_icon_krellstock": "assets/monitor-icons/stocks.png",
+    "panel_icon_krellstock_ticker": "assets/monitor-icons/stocks.png",
+    "panel_icon_krellweather": "assets/monitor-icons/weather.png"
+  }
+}
