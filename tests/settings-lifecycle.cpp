@@ -12,6 +12,7 @@
 #include <QLayout>
 #include <QListWidget>
 #include <QMouseEvent>
+#include <QPalette>
 #include <QPushButton>
 #include <QScreen>
 #include <QSpinBox>
@@ -24,6 +25,7 @@
 #include "sysdep/SensorDisplay.h"
 #include "monitors/ClockMonitor.h"
 #include "monitors/DiskMonitor.h"
+#include "monitors/SensorsMonitor.h"
 #include "widgets/Chart.h"
 #include "widgets/Decal.h"
 #include "widgets/Panel.h"
@@ -482,6 +484,110 @@ static void verifyWidthOnlyResize()
     qInfo("PASS: changing only width preserves the header, footer, chart, and window heights after reload and restart");
 }
 
+static void verifySettingsPalette()
+{
+    QTemporaryDir fixture;
+    const QDir previous = QDir::current();
+    if (!fixture.isValid() || !QDir::setCurrent(fixture.path()))
+        qFatal("Could not prepare settings palette fixture");
+    const auto write = [](const QString &name, const QByteArray &colors) {
+        const auto path = QStringLiteral("themes/") + name;
+        if (!QDir().mkpath(path)) qFatal("Could not create palette fixture");
+        QFile file(path + QStringLiteral("/theme.json"));
+        const auto json = QByteArray(R"({"colors":{"panel_bg":"#00000000","panel_border":"#00000000","text_primary":"#f1efff")")
+            + colors + "}}";
+        if (!file.open(QIODevice::WriteOnly) || file.write(json) != json.size())
+            qFatal("Could not write palette fixture");
+    };
+    write(QStringLiteral("transparent-monitor"), {});
+    write(QStringLiteral("violet-settings"), R"(,"settings_bg":"#25223a","settings_border":"#635b88")");
+    Theme theme;
+    if (!theme.load(QStringLiteral("transparent-monitor"))) qFatal("Could not load transparent fixture");
+    SettingsDialog dialog(&theme, nullptr);
+    dialog.show();
+    QApplication::processEvents();
+    if (dialog.palette().color(QPalette::Window) != QColor("#222436")
+        || dialog.palette().color(QPalette::WindowText) != QColor("#f1efff"))
+        qFatal("Transparent monitor colors leaked into Settings");
+    if (!theme.load(QStringLiteral("violet-settings"))) qFatal("Could not load violet fixture");
+    QApplication::processEvents();
+    if (dialog.palette().color(QPalette::Window) != QColor("#25223a")
+        || !dialog.styleSheet().contains(QStringLiteral("#ff635b88"))
+        || dialog.grab().toImage().pixelColor(3, 3) != QColor("#25223a"))
+        qFatal("Settings colors did not apply to an open dialog");
+    if (theme.color(QStringLiteral("panel_bg")).alpha() != 0)
+        qFatal("Applying settings colors changed the monitor backdrop");
+    if (!QDir::setCurrent(previous.absolutePath())) qFatal("Could not restore working directory");
+}
+
+static QList<SensorReading> testSensorReadings;
+
+static void verifySensorHeatColors()
+{
+    QSettings settings;
+    const QHash<QString, QVariant> fixture {
+        {QStringLiteral("monitors/sensors/display_mode"), 0},
+        {QStringLiteral("monitors/sensors/show_all"), true},
+        {QStringLiteral("monitors/sensors/warn_celsius"), 70},
+        {QStringLiteral("monitors/sensors/crit_celsius"), 85},
+    };
+    QHash<QString, QVariant> previous;
+    for (auto it = fixture.constBegin(); it != fixture.constEnd(); ++it) {
+        previous.insert(it.key(), settings.value(it.key()));
+        settings.setValue(it.key(), it.value());
+    }
+    const auto chip = QStringLiteral("probe");
+    const auto label = QStringLiteral("Sample");
+    const SensorReading temp{chip, label, 50, 60, 75, SensorReading::Temp};
+    const SensorReading load{chip, label, 20, 0, 0, SensorReading::Percent};
+    testSensorReadings = {temp, load};
+    SensorStat::setReadOverride([] { return testSensorReadings; });
+    Theme theme;
+    SensorsMonitor monitor(&theme);
+    const std::unique_ptr<QWidget> panel(monitor.createWidget(nullptr));
+    panel->resize(230, 90);
+    panel->show();
+    QApplication::processEvents();
+    Decal *row = nullptr;
+    for (auto *decal : panel->findChildren<Decal *>())
+        if (decal->text().startsWith(label)) row = decal;
+    if (!row) qFatal("Sensor reading did not produce a row");
+    const auto expect = [&](const QString &key) {
+        monitor.tick();
+        const QColor expected = theme.color(key);
+        const auto image = row->grab().toImage();
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                const auto pixel = image.pixelColor(x, y);
+                if (qAbs(pixel.red() - expected.red()) <= 10
+                    && qAbs(pixel.green() - expected.green()) <= 10
+                    && qAbs(pixel.blue() - expected.blue()) <= 10)
+                    return;
+            }
+        }
+        qFatal("Sensor row did not paint with %s", qPrintable(key));
+    };
+    expect(QStringLiteral("accent_ok"));
+    testSensorReadings[0].value = 60;
+    expect(QStringLiteral("accent_warning"));
+    testSensorReadings[0].value = 75;
+    expect(QStringLiteral("accent_critical"));
+    testSensorReadings[0] = temp;
+    testSensorReadings[1].value = 74;
+    expect(QStringLiteral("accent_warning"));
+    testSensorReadings[1].value = 90;
+    expect(QStringLiteral("accent_critical"));
+    testSensorReadings[1] = load;
+    expect(QStringLiteral("accent_ok"));
+    testSensorReadings = {{chip, label, 1400, 0, 0, SensorReading::Fan}};
+    expect(QStringLiteral("text_primary"));
+    SensorStat::setReadOverride(nullptr);
+    for (auto it = previous.constBegin(); it != previous.constEnd(); ++it) {
+        if (it.value().isValid()) settings.setValue(it.key(), it.value());
+        else settings.remove(it.key());
+    }
+}
+
 static void verifyThemeWindowShadow()
 {
     QTemporaryDir fixture;
@@ -634,6 +740,8 @@ static void exercise()
         verifyMailAnimationSetting(existing->theme());
         verifyFooterFrame();
         verifyWidthOnlyResize();
+        verifySettingsPalette();
+        verifySensorHeatColors();
         verifyThemeWindowShadow();
         verifyChassisBackground();
         DiskMonitor disk(existing->theme());

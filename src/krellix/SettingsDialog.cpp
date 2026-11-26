@@ -154,37 +154,26 @@ void sizeAppearanceSelector(QComboBox *combo, int characters)
 
 } // namespace
 
-// Build a category page that's a QWidget the caller adds to the stack.
-// Each "section" inside the page is a QGroupBox so labels keep their grouping
-// even though there's typically just one section per page now.
-
-SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAuth, QWidget *parent)
-    : QDialog(parent)
-    , m_theme(theme)
-    , m_krellmailOAuth(krellmailOAuth)
+void SettingsDialog::applyThemePalette()
 {
-    Q_ASSERT(m_theme);
-    setWindowTitle(QStringLiteral("krellix — Settings"));
-    setWindowFlag(Qt::Window, true);
-    setWindowModality(Qt::NonModal);
-    setModal(false);
-    const QScreen *screen = parent ? parent->screen() : QGuiApplication::primaryScreen();
-    const QSize preferred(920, 740);
-    const QSize available = screen
-        ? (screen->availableGeometry().size() - QSize(24, 56)).expandedTo(QSize(1, 1))
-        : preferred;
-    setMinimumSize(QSize(560, 380).boundedTo(available));
-    resize(preferred.boundedTo(available));
-    setSizeGripEnabled(true);
-
-    const QColor panel = m_theme->color(QStringLiteral("panel_bg"), palette().window().color());
-    const QColor text = m_theme->color(QStringLiteral("text_primary"), palette().windowText().color());
+    QPalette pal = QApplication::palette(this);
+    const QColor text = m_theme->color(QStringLiteral("text_primary"), pal.windowText().color());
     const QColor text2 = m_theme->color(QStringLiteral("text_secondary"), text);
-    const QColor border = m_theme->color(QStringLiteral("panel_border"), panel.darker(140));
-    QPalette pal = palette();
+    const auto opaque = [](const QColor &color, const QColor &fallback) {
+        return color.isValid() && color.alpha() == 255 ? color : fallback;
+    };
+    // Monitor artwork can be transparent, but the separate settings window cannot.
+    const QColor monitor = m_theme->color(QStringLiteral("panel_bg"), pal.window().color());
+    const QColor backdrop = text.lightnessF() >= .5 ? QColor(34, 36, 54) : QColor(241, 243, 248);
+    const QColor panel = opaque(m_theme->color(QStringLiteral("settings_bg")), opaque(monitor, backdrop));
+    const QColor monitorBorder = m_theme->color(QStringLiteral("panel_border"), panel.darker(140));
+    const QColor backdropBorder = panel.lightnessF() >= .5 ? panel.darker(150) : panel.lighter(175);
+    const QColor border = opaque(m_theme->color(QStringLiteral("settings_border")),
+                                 opaque(monitorBorder, backdropBorder));
     pal.setColor(QPalette::Window, panel);
     pal.setColor(QPalette::Base, panel.darker(115));
     pal.setColor(QPalette::AlternateBase, panel.darker(125));
+    pal.setColor(QPalette::Button, panel.lighter(115));
     pal.setColor(QPalette::WindowText, text);
     pal.setColor(QPalette::Text, text);
     pal.setColor(QPalette::ButtonText, text);
@@ -205,7 +194,29 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
              panel.darker(115).name(QColor::HexArgb),
              panel.lighter(115).name(QColor::HexArgb),
              panel.lighter(130).name(QColor::HexArgb));
-    setStyleSheet(themeStyle);
+    if (styleSheet() != themeStyle) setStyleSheet(themeStyle);
+}
+
+SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAuth, QWidget *parent)
+    : QDialog(parent)
+    , m_theme(theme)
+    , m_krellmailOAuth(krellmailOAuth)
+{
+    Q_ASSERT(m_theme);
+    setWindowTitle(QStringLiteral("krellix — Settings"));
+    setWindowFlag(Qt::Window, true);
+    setWindowModality(Qt::NonModal);
+    setModal(false);
+    const QScreen *screen = parent ? parent->screen() : QGuiApplication::primaryScreen();
+    const QSize preferred(920, 740);
+    const QSize available = screen
+        ? (screen->availableGeometry().size() - QSize(24, 56)).expandedTo(QSize(1, 1))
+        : preferred;
+    setMinimumSize(QSize(560, 380).boundedTo(available));
+    resize(preferred.boundedTo(available));
+    setSizeGripEnabled(true);
+    applyThemePalette();
+    connect(m_theme, &Theme::themeChanged, this, &SettingsDialog::applyThemePalette);
 
     // ---------------- Outer layout: sidebar + stack + buttons ----------------
     auto *root = new QVBoxLayout(this);

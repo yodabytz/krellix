@@ -1,11 +1,13 @@
 {
   "name": "Cerberix",
-  "version": "1.0",
+  "version": "1.1",
   "author": "Theme designer",
   "description": "Tokyo Night inspired violet panels and pulsing lime footer LEDs",
   "colors": {
     "panel_bg": "#00000000",
     "panel_border": "#00000000",
+    "settings_bg": "#25223a",
+    "settings_border": "#635b88",
     "chart_bg": "#00000000",
     "chart_grid": "#302951",
     "text_primary": "#f1efff",
@@ -21,18 +23,18 @@
     "chart_line_net_tx": "#82aaff",
     "chart_line_disk": "#a99af7",
     "accent_ok": "#bdf584",
-    "accent_warning": "#ffc45b",
+    "accent_warning": "#ffad65",
     "accent_critical": "#ff6262"
   },
   "fonts": {
     "label": {
       "family": "Sans Serif",
-      "size": 9,
+      "size": 8,
       "bold": false
     },
     "value": {
       "family": "Sans Serif",
-      "size": 10,
+      "size": 9,
       "bold": true
     }
   },
@@ -102,6 +104,7 @@
     "panel_icon_krellstock": "assets/monitor-icons/stocks.png",
     "panel_icon_krellpkg": "assets/monitor-icons/packages.png",
     "panel_icon_krelltop": "assets/monitor-icons/top.png",
-    "panel_icon_krellhealth_heart": "assets/health/ok.png"
+    "panel_icon_krellhealth_heart": "assets/health/ok.png",
+    "panel_icon_krellstock_ticker": "assets/monitor-icons/stocks.png"
   }
 }

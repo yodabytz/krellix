@@ -9,6 +9,7 @@
 #include <QSettings>
 #include <QString>
 #include <QSet>
+#include <cmath>
 
 namespace {
 
@@ -26,17 +27,19 @@ double effectiveCritC(const SensorReading &r, double settingCritC)
     return settingCritC;
 }
 
-QString colorKeyForTemp(double tempC, double warnC, double critC)
+enum class Heat { Normal, Warning, Critical };
+
+Heat classifyHeat(double value, double warning, double critical)
 {
-    if (tempC >= critC) return QStringLiteral("accent_critical");
-    if (tempC >= warnC) return QStringLiteral("accent_warning");
-    return QStringLiteral("accent_ok");
+    if (value >= critical) return Heat::Critical;
+    if (value >= warning) return Heat::Warning;
+    return Heat::Normal;
 }
 
-QString colorKeyForPct(double pct)
+QString heatColor(Heat heat)
 {
-    if (pct >= 85) return QStringLiteral("accent_critical");
-    if (pct >= 70) return QStringLiteral("accent_warning");
+    if (heat == Heat::Critical) return QStringLiteral("accent_critical");
+    if (heat == Heat::Warning) return QStringLiteral("accent_warning");
     return QStringLiteral("accent_ok");
 }
 
@@ -85,8 +88,13 @@ void SensorsMonitor::tick()
     QSettings s;
     const bool useFahrenheit = s.value(QStringLiteral("monitors/sensors/use_fahrenheit"), false).toBool();
     const int  displayMode   = s.value(QStringLiteral("monitors/sensors/display_mode"), kModeTempOnly).toInt();
-    const double warnC       = s.value(QStringLiteral("monitors/sensors/warn_celsius"),  70).toDouble();
-    const double critC       = s.value(QStringLiteral("monitors/sensors/crit_celsius"),  85).toDouble();
+    const auto threshold = [&s](const QString &key, double fallback) {
+        bool ok = false;
+        const double value = s.value(key, fallback).toDouble(&ok);
+        return ok && std::isfinite(value) && value > 0 ? value : fallback;
+    };
+    const double warnC = threshold(QStringLiteral("monitors/sensors/warn_celsius"), 70);
+    const double critC = threshold(QStringLiteral("monitors/sensors/crit_celsius"), 85);
 
     QHash<QString, GroupedReading> grouped;
     QStringList order;
@@ -142,12 +150,21 @@ void SensorsMonitor::tick()
 
         if (g.hasTemp) {
             const SensorReading &r = g.temp;
-            d->setToolTip(QStringLiteral("%1: %2").arg(r.chip, r.label));
             const double hwCrit = effectiveCritC(r, critC);
+            const double critLimit = r.critC > 0 ? qMin(critC, r.critC) : critC;
+            const double warnLimit = qMin(critLimit, r.maxC > 0 ? qMin(warnC, r.maxC) : warnC);
             const int pct = g.hasPercent
                                 ? qBound(0, qRound(g.percent.value), 100)
                                 : qBound(0, qRound(r.value / hwCrit * 100.0), 100);
-            colorKey = colorKeyForTemp(r.value, warnC, critC);
+            const Heat temp = classifyHeat(r.value, warnLimit, critLimit);
+            // Reported pressure is independent from the percentage estimated from Celsius.
+            const Heat pressure = g.hasPercent ? classifyHeat(g.percent.value, 70, 85) : Heat::Normal;
+            colorKey = heatColor(qMax(temp, pressure));
+            auto tip = QStringLiteral("%1: %2\nWarn at %3 °C; critical at %4 °C.")
+                           .arg(r.chip, r.label).arg(warnLimit).arg(critLimit);
+            if (g.hasPercent)
+                tip += QStringLiteral("\nReported thermal load: %1% (warning at 70%, critical at 85%).").arg(pct);
+            d->setToolTip(tip);
 
             const double displayTemp = useFahrenheit ? r.value * 9.0 / 5.0 + 32.0
                                                      : r.value;
@@ -169,7 +186,7 @@ void SensorsMonitor::tick()
             }
         } else if (g.hasPercent) {
             const SensorReading &r = g.percent;
-            colorKey = colorKeyForPct(r.value);
+            colorKey = heatColor(classifyHeat(r.value, 70, 85));
             text     = QStringLiteral("%1  %2%")
                            .arg(r.label)
                            .arg(r.value, 0, 'f', 0);
@@ -186,7 +203,7 @@ void SensorsMonitor::tick()
         }
 
         d->setText(text);
-        if (g.hasTemp || g.hasPercent)
-            d->setColorKey(colorKey);
+        if (!g.hasTemp) d->setToolTip({});
+        d->setColorKey(colorKey);
     }
 }

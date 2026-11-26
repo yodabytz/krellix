@@ -51,6 +51,7 @@ protected:
     void closeEvent(QCloseEvent *event) override;
 
 private:
+    void applyThemePalette();
     void loadFromSettings();
     void saveToSettings();
     void populatePlugins();

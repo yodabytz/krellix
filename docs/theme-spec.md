@@ -50,6 +50,8 @@ colors like `"red"`). Recognized keys:
 | ------------------ | ---------------------------------------- |
 | `panel_bg`         | Panel fill                               |
 | `panel_border`     | Panel outer border                       |
+| `settings_bg`     | Optional opaque Settings backdrop. Falls back to the panel color if opaque, or to a readable light or dark backdrop. |
+| `settings_border` | Optional opaque Settings borders. A visible border is derived from the backdrop if the panel's border is transparent. |
 | `panel_highlight`  | Reserved for future hover/selection      |
 | `chart_bg`         | Chart background                         |
 | `chart_grid`       | Chart horizontal grid lines              |
@@ -64,6 +66,11 @@ colors like `"red"`). Recognized keys:
 
 When set, the `net_krell_*` colors replace the corresponding general Krell
 color or image on Network bars only.
+
+The Sensors monitor uses `accent_ok`, `accent_warning`, and
+`accent_critical`. It uses the earlier of the saved temperature thresholds
+and reported hardware limits, and can also warn based on reported thermal
+load. A percentage estimated from temperature is display-only.
 
 Any unrecognized key is loaded but unused — safe for theme authors to add
 custom tokens for use by future plugins.
