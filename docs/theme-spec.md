@@ -128,6 +128,7 @@ series palette takes precedence if both options are configured.
 Combined CPU charts fill from the bottom to the highest core trace at each
 sample, using a translucent gradient derived from `colors.chart_line_cpu`.
 Override it with a color or gradient in `colors.chart_fill_cpu_series`.
+Use `"#00000000"` (transparent ARGB) to keep only the individual core lines.
 Individual core lines remain visible, and other multi-series charts stay outline-only.
 In current builds, sliders and the Memory and Swap indicators render at
 two-thirds of their base height, rounded to logical pixels. Text-only
