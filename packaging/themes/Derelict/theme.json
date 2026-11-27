@@ -94,10 +94,9 @@
       "frames": 1
     },
     "window_bg_cap_top": "assets/header-cap-compact.png",
-    "window_bg_cap_bottom": "assets/footer-cap-compact.png",
     "frame_bottom": {
-      "image": "assets/optional-footer.png",
-      "mode": "stretch"
+      "image": "assets/footer-combined.png",
+      "mode": "tile"
     },
     "frame_left": "assets/frame-left.png",
     "frame_right": "assets/frame-right.png",

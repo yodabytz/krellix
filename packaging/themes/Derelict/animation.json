@@ -16,11 +16,11 @@
     "footer": {
       "target": "images.frame_bottom",
       "trigger": "continuous",
-      "sheet": "assets/animation/footer-compatible-strip.png",
-      "fallback": "assets/optional-footer.png",
-      "frame_width": 96,
+      "sheet": "assets/animation/footer-combined-strip.png",
+      "fallback": "assets/footer-combined.png",
+      "frame_width": 120,
       "frame_height": 64,
-      "frames": 40,
+      "frames": 66,
       "fps": 10,
       "layout": "horizontal",
       "loop": true
