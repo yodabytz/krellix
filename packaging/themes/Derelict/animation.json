@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "animations": {
+    "header": {
+      "target": "surfaces.panel_bg_top",
+      "trigger": "continuous",
+      "sheet": "assets/animation/header-center-strip.png",
+      "fallback": "assets/header-center.png",
+      "frame_width": 96,
+      "frame_height": 14,
+      "frames": 48,
+      "fps": 12,
+      "layout": "horizontal",
+      "loop": true
+    },
+    "footer": {
+      "target": "images.frame_bottom",
+      "trigger": "continuous",
+      "sheet": "assets/animation/footer-compatible-strip.png",
+      "fallback": "assets/optional-footer.png",
+      "frame_width": 96,
+      "frame_height": 64,
+      "frames": 40,
+      "fps": 10,
+      "layout": "horizontal",
+      "loop": true
+    },
+    "left": {
+      "target": "images.frame_left",
+      "trigger": "continuous",
+      "sheet": "assets/animation/left-strip.png",
+      "fallback": "assets/frame-left.png",
+      "frame_width": 12,
+      "frame_height": 128,
+      "frames": 12,
+      "fps": 6,
+      "layout": "horizontal",
+      "loop": true
+    },
+    "right": {
+      "target": "images.frame_right",
+      "trigger": "continuous",
+      "sheet": "assets/animation/right-strip.png",
+      "fallback": "assets/frame-right.png",
+      "frame_width": 12,
+      "frame_height": 128,
+      "frames": 12,
+      "fps": 6,
+      "layout": "horizontal",
+      "loop": true
+    }
+  }
+}

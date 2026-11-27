@@ -1,0 +1,124 @@
+{
+  "name": "Derelict",
+  "author": "Theme designer",
+  "description": "Salvaged graphite CRT stack with slim exterior cable rails",
+  "colors": {
+    "panel_bg": "#00000000",
+    "panel_border": "#00000000",
+    "chart_bg": "#00000000",
+    "chart_grid": "#303a32",
+    "text_primary": "#d8ebcf",
+    "text_secondary": "#a8b6a4",
+    "text_accent": "#b6e88a",
+    "text_meter_bg": "#152119",
+    "krell_track": "#26312a",
+    "krell_indicator": "#b6e88a",
+    "chart_line_default": "#b6e88a",
+    "chart_line_cpu": "#b6e88a",
+    "chart_line_mem": "#b6e88a",
+    "chart_line_swap": "#9daaa1",
+    "chart_line_net_rx": "#b6e88a",
+    "chart_line_net_tx": "#73c6d4",
+    "chart_line_disk": "#e6a75c",
+    "accent_ok": "#bdf584",
+    "accent_warning": "#ffc45b",
+    "accent_critical": "#ff6262"
+  },
+  "fonts": {
+    "label": {
+      "family": "Helvetica Neue",
+      "size": 8,
+      "bold": false
+    },
+    "value": {
+      "family": "Helvetica Neue",
+      "size": 9,
+      "bold": true
+    }
+  },
+  "metrics": {
+    "panel_padding": 6,
+    "panel_spacing": 2,
+    "panel_border": 0,
+    "window_shadow": 0,
+    "krell_height": 12,
+    "chart_height": 112,
+    "chart_glass": 1,
+    "chart_grid_lines": 4,
+    "top_strip_height": 14,
+    "panel_icon_size": 12,
+    "panel_icon_krellhealth_heart_size": 32,
+    "panel_icon_krellhealth_status_size": 32
+  },
+  "surfaces": {
+    "panel_bg": {
+      "image": "assets/panel.png",
+      "mode": "vertical-caps", "cap_top": 24, "cap_bottom": 21
+    },
+    "panel_bg_host": {
+      "image": "assets/host-panel.png",
+      "mode": "vertical-caps", "cap_top": 23, "cap_bottom": 19
+    },
+    "panel_bg_clock": { "image": "assets/clock-panel.png", "mode": "vertical-caps", "cap_top": 23, "cap_bottom": 18 },
+    "panel_bg_proc": { "image": "assets/panel-short.png", "mode": "vertical-caps", "cap_top": 18, "cap_bottom": 15 },
+    "panel_bg_mem": { "image": "assets/memory-panel.png", "mode": "vertical-caps", "cap_top": 22, "cap_bottom": 18 },
+    "panel_bg_disk": { "image": "assets/disk-panel.png", "mode": "vertical-caps", "cap_top": 21, "cap_bottom": 18 },
+    "panel_bg_net": { "image": "assets/network-panel.png", "mode": "vertical-caps", "cap_top": 20, "cap_bottom": 17 },
+    "panel_bg_netports": { "image": "assets/ports-panel.png", "mode": "vertical-caps", "cap_top": 18, "cap_bottom": 15 },
+    "panel_bg_uptime": { "image": "assets/uptime-panel.png", "mode": "vertical-caps", "cap_top": 13, "cap_bottom": 12 },
+    "panel_bg_krellweather": { "image": "assets/weather-panel.png", "mode": "vertical-caps", "cap_top": 21, "cap_bottom": 18 },
+    "panel_bg_krellhealth": { "image": "assets/health-panel.png", "mode": "vertical-caps", "cap_top": 21, "cap_bottom": 18 },
+    "panel_bg_krelltop": { "image": "assets/top-panel.png", "mode": "vertical-caps", "cap_top": 22, "cap_bottom": 18 },
+    "panel_bg_krellpkg": { "image": "assets/packages-panel.png", "mode": "vertical-caps", "cap_top": 16, "cap_bottom": 14 },
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "slice": 0,
+      "opacity": 0
+    },
+    "panel_bg_top": {
+      "image": "assets/header-center.png",
+      "slice": 0
+    }
+  },
+  "images": {
+    "chart_bg": {
+      "image": "assets/meter-track.png",
+      "mode": "stretch"
+    },
+    "krell_track": {
+      "image": "assets/krell-track.png",
+      "mode": "tile"
+    },
+    "krell": {
+      "image": "assets/krell.png",
+      "frames": 1
+    },
+    "window_bg_cap_top": "assets/header-cap-compact.png",
+    "window_bg_cap_bottom": "assets/footer-cap-compact.png",
+    "frame_bottom": {
+      "image": "assets/optional-footer.png",
+      "mode": "stretch"
+    },
+    "frame_left": "assets/frame-left.png",
+    "frame_right": "assets/frame-right.png",
+    "panel_icon_cpu": "assets/monitor-icons/cpu.png",
+    "panel_icon_proc": "assets/monitor-icons/proc.png",
+    "panel_icon_mem": "assets/monitor-icons/memory.png",
+    "panel_icon_disk": "assets/monitor-icons/disk.png",
+    "panel_icon_net": "assets/monitor-icons/network.png",
+    "panel_icon_sensors": "assets/monitor-icons/sensors.png",
+    "panel_icon_netports": "assets/monitor-icons/ports.png",
+    "panel_icon_uptime": "assets/monitor-icons/uptime.png",
+    "panel_icon_krellhealth": "assets/monitor-icons/health.png",
+    "panel_icon_krellweather": "assets/monitor-icons/weather.png",
+    "panel_icon_krellstock": "assets/monitor-icons/stocks.png",
+    "panel_icon_krellpkg": "assets/monitor-icons/packages.png",
+    "panel_icon_krelltop": "assets/monitor-icons/top.png",
+    "panel_icon_krellhealth_heart": "assets/health/ok.png",
+    "panel_icon_krellhealth_status_info": "assets/health/info.png",
+    "panel_icon_krellhealth_status_warning": "assets/health/warning.png",
+    "panel_icon_krellhealth_status_critical": "assets/health/critical.png",
+    "panel_icon_krellhealth_status_check": "assets/health/unknown.png",
+    "panel_icon_krellstock_ticker": "assets/monitor-icons/stocks.png"
+  }
+}
