@@ -7,12 +7,15 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QElapsedTimer>
+#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
 #include <QLayout>
 #include <QListWidget>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QPalette>
 #include <QPushButton>
 #include <QScreen>
@@ -789,6 +792,136 @@ static void verifyChassisBackground()
     if (!QDir::setCurrent(previous)) qFatal("Could not restore working directory");
 }
 
+static void verifyTransparentWindow()
+{
+    QTemporaryDir fixture;
+    const auto previous = QDir::currentPath();
+    if (!fixture.isValid() || !QDir::setCurrent(fixture.path()))
+        qFatal("Could not isolate the transparency test");
+    const auto legacy = QStringLiteral("legacy-frame-test");
+    const auto clear = QStringLiteral("transparent-frame-test");
+    const auto legacyClear = QStringLiteral("transparent-color-test");
+    for (const auto &name : {legacy, clear, legacyClear}) {
+        const auto dir = QStringLiteral("themes/") + name + QLatin1Char('/');
+        if (!QDir().mkpath(dir)) qFatal("Could not create transparency theme");
+        QImage rail(8, 8, QImage::Format_ARGB32_Premultiplied);
+        rail.fill(Qt::transparent);
+        QPainter edge(&rail);
+        edge.fillRect(QRect(7, 0, 1, 8), Qt::cyan);
+        edge.end();
+        QImage sheet(16, 8, QImage::Format_ARGB32_Premultiplied);
+        sheet.fill(Qt::transparent);
+        QPainter frames(&sheet);
+        frames.drawImage(0, 0, rail);
+        frames.drawImage(8, 0, rail);
+        frames.fillRect(QRect(2, 0, 3, 8), Qt::red);
+        frames.end();
+        if (!rail.save(dir + QStringLiteral("rail.png")) || !sheet.save(dir + QStringLiteral("blink.png")))
+            qFatal("Could not write transparency artwork");
+        QFile json(dir + QStringLiteral("theme.json"));
+        const QByteArray manifest = R"({"metrics":{"panel_border":0,"window_shadow":0,"window_transparent":)"
+            + QByteArray(name == clear ? "1" : "0") + R"(},"colors":{"panel_bg":")"
+            + QByteArray(name == legacyClear ? "#00000000" : "#15231c")
+            + R"("},"images":{"frame_left":"rail.png"}})";
+        if (!json.open(QIODevice::WriteOnly) || json.write(manifest) != manifest.size())
+            qFatal("Could not write transparency theme");
+        QFile animation(dir + QStringLiteral("animation.json"));
+        const QByteArray motion = R"({"version":1,"animations":{"rail":{"target":"images.frame_left",
+            "trigger":"continuous","sheet":"blink.png","fallback":"rail.png","frame_width":8,
+            "frame_height":8,"frames":2,"fps":10,"layout":"horizontal","loop":true}}})";
+        if (!animation.open(QIODevice::WriteOnly) || animation.write(motion) != motion.size())
+            qFatal("Could not write animated transparency fixture");
+    }
+    QSettings settings;
+    const auto motionKey = QStringLiteral("appearance/theme_motion");
+    const auto savedMotion = settings.value(motionKey);
+    settings.setValue(motionKey, QStringLiteral("off"));
+    Theme theme;
+    if (!theme.load(legacy)) qFatal("Could not load legacy transparency fixture");
+    MainWindow window(&theme, {QStringLiteral("host")});
+    window.show();
+    QApplication::processEvents();
+    const auto makeBacking = [&] {
+        QImage result(window.size() * 2, QImage::Format_ARGB32_Premultiplied);
+        result.setDevicePixelRatio(2);
+        result.fill(Qt::magenta);
+        return result;
+    };
+    const auto paint = [&](QImage &backing, const QRegion &region = {}) {
+        QPainter painter(&backing);
+        window.render(&painter, QPoint(), region, QWidget::DrawChildren);
+    };
+    const QColor panelColor("#15231c");
+    auto backing = makeBacking();
+    paint(backing);
+    if (backing.pixelColor(6, 8) != panelColor)
+        qFatal("Legacy theme lost its opaque backing (%s at 6,8; window %dx%d)",
+               qPrintable(backing.pixelColor(6, 8).name(QColor::HexArgb)), window.width(), window.height());
+    if (!theme.load(clear)) qFatal("Could not opt into a clear window");
+    QApplication::processEvents();
+    paint(backing);
+    if (backing.pixelColor(0, 8).alpha() || backing.pixelColor(6, 8).alpha()
+        || backing.pixelColor(15, 8) != Qt::cyan || backing.pixelColor(17, 2) != panelColor)
+        qFatal("Bad 2x window, rail or panel alpha: %s %s %s %s",
+               qPrintable(backing.pixelColor(0, 8).name(QColor::HexArgb)),
+               qPrintable(backing.pixelColor(6, 8).name(QColor::HexArgb)),
+               qPrintable(backing.pixelColor(15, 8).name(QColor::HexArgb)),
+               qPrintable(backing.pixelColor(17, 2).name(QColor::HexArgb)));
+
+    theme.setMotion(Theme::Motion::Full);
+    QElapsedTimer clock;
+    clock.start();
+    bool lit = false;
+    bool cleared = false;
+    const QRegion strip(0, 0, 8, window.height());
+    while (!cleared && clock.elapsed() < 1800) {
+        paint(backing, strip);
+        const auto led = backing.pixelColor(6, 8);
+        lit |= led == Qt::red;
+        cleared |= lit && led.alpha() == 0;
+        if (backing.pixelColor(0, 8).alpha() || backing.pixelColor(17, 2) != panelColor)
+            qFatal("Partial frame repaint damaged the perimeter or neighboring panel");
+        QEventLoop wait;
+        QTimer::singleShot(22, &wait, &QEventLoop::quit);
+        wait.exec();
+    }
+    if (!cleared) qFatal("A transparent animation frame did not erase the previous LED");
+    theme.setMotion(Theme::Motion::Off);
+
+    const auto appearance = QStringLiteral("appearance");
+    const auto savedWidth = settings.value(appearance + QStringLiteral("/panel_width"));
+    const auto savedRef = settings.value(appearance + QStringLiteral("/frame_reference_width"));
+    const auto oldWidth = window.width();
+    if (!QMetaObject::invokeMethod(&window, "showSettings", Qt::DirectConnection))
+        qFatal("Could not open resize controls");
+    auto *width = window.findChild<QSpinBox *>(QStringLiteral("panel-width"));
+    if (!width) qFatal("Resize control missing");
+    width->setValue(oldWidth + 40);
+    QApplication::processEvents();
+    backing = makeBacking();
+    paint(backing);
+    if (window.width() != oldWidth + 40 || backing.pixelColor(0, 8).alpha()
+        || backing.pixelColor(17, 2) != panelColor)
+        qFatal("Resizing lost window transparency or panel color");
+    if (!theme.load(legacy)) qFatal("Could not restore legacy transparency fixture");
+    paint(backing);
+    if (backing.pixelColor(6, 8) != panelColor)
+        qFatal("Switching back did not restore the legacy opaque backing");
+    if (!theme.load(legacyClear)) qFatal("Could not load the alpha-zero legacy fixture");
+    paint(backing);
+    if (backing.pixelColor(0, 8).alpha() || backing.pixelColor(6, 8).alpha())
+        qFatal("The legacy transparent panel color left an opaque window backing");
+    const auto restore = [&](const QString &key, const QVariant &value) {
+        if (value.isValid()) settings.setValue(key, value);
+        else settings.remove(key);
+    };
+    restore(appearance + QStringLiteral("/panel_width"), savedWidth);
+    restore(appearance + QStringLiteral("/frame_reference_width"), savedRef);
+    restore(motionKey, savedMotion);
+    if (!QDir::setCurrent(previous)) qFatal("Could not restore transparency test working directory");
+    qInfo("PASS: transparent perimeter, opaque panels, HiDPI rail edges, animated repaint, resize and theme switching");
+}
+
 static void exercise()
 {
     MainWindow *window = nullptr;
@@ -817,6 +950,7 @@ static void exercise()
         verifySensorHeatColors();
         verifyThemeWindowShadow();
         verifyChassisBackground();
+        verifyTransparentWindow();
         DiskMonitor disk(existing->theme());
         DiskStat::setReadOverride([]() { return QList<DiskSample>{}; });
         QWidget *panel = disk.createWidget(nullptr);

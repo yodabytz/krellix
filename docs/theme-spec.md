@@ -129,6 +129,14 @@ Map of name → integer (clamped to `0..4096`).
 | `panel_icon_size` | 16 | Maximum panel title icon width or height (8 to 32 logical pixels) |
 | `top_strip_keep_aspect` | 0 | Derive an enabled top strip's height from its image proportions at the profile's reference width |
 | `window_shadow` | 1 | Set to `0` to suppress the desktop window shadow on supported platforms. It does not affect the artwork or panel opacity. |
+| `window_transparent` | 0 | Set to `1` to clear the outer window backing to transparent, even when `panel_bg` is opaque. Panel, chart, and frame artwork still paint normally. |
+
+For transparent cables or rounded frames around opaque panels, set
+`"metrics": {"window_transparent": 1, "window_shadow": 0}`. Keep the
+`panel_bg` and chart colors you want inside the monitor panels. Leave
+`images.window_bg` unset unless you want chassis artwork behind the panels.
+Themes without `window_transparent` keep their existing window backing
+color. A fully transparent `panel_bg` still makes the backing transparent.
 
 Proportional headers and stretched footers derive their heights from the
 profile's starting width. The app remembers that reference when the window

@@ -925,6 +925,23 @@ void MainWindow::paintEvent(QPaintEvent *)
     QPainter p(this);
     p.setRenderHint(QPainter::SmoothPixmapTransform, true);
 
+    const QColor backing = m_theme->color(QStringLiteral("panel_bg"), QColor(0, 0, 0));
+    const bool transparent = m_theme->metric(QStringLiteral("window_transparent"), 0) != 0
+        || backing.alpha() == 0;
+    if (transparent) {
+        // Clear the dirty region, including pixels an earlier animation frame painted.
+        p.setCompositionMode(QPainter::CompositionMode_Source);
+        p.fillRect(rect(), Qt::transparent);
+        p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+    }
+    const auto drawFrameTiles = [&](const QRect &area, const QPixmap &pix, QPoint offset = {}) {
+        // At HiDPI, smooth tiling can wrap the inside edge of a rail onto
+        // its transparent outside edge. These strips are not scaled.
+        if (transparent) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
+        p.drawTiledPixmap(area, pix, offset);
+        if (transparent) p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+    };
+
     const QPixmap topPix    = m_theme->pixmap(QStringLiteral("frame_top"));
     QPixmap bottomPix = m_theme->pixmap(QStringLiteral("frame_bottom"));
     QPixmap leftPix   = m_theme->pixmap(QStringLiteral("frame_left"));
@@ -942,7 +959,6 @@ void MainWindow::paintEvent(QPaintEvent *)
             ? qMin(qRound(cap.deviceIndependentSize().height()), height() / 2) : 0;
     };
     const int topCapH = capHeight(topCap), bottomCapH = capHeight(bottomCap);
-    const QColor backing = m_theme->color(QStringLiteral("panel_bg"), QColor(0, 0, 0));
     QRegion backingRegion;
     if (topCapH || bottomCapH) {
         // The caps replace only the ends of the side strips, not the header/footer.
@@ -965,12 +981,16 @@ void MainWindow::paintEvent(QPaintEvent *)
         drawCaps(topCap, 0, topCapH);
         drawCaps(bottomCap, height() - bottomCapH, bottomCapH);
         p.restore();
-        p.save();
-        p.setClipRegion(backingRegion, Qt::IntersectClip);
-        p.fillRect(rect(), backing);
-        p.restore();
-    } else {
-        p.fillRect(rect(), backing);
+    }
+    if (!transparent) {
+        if (topCapH || bottomCapH) {
+            p.save();
+            p.setClipRegion(backingRegion, Qt::IntersectClip);
+            p.fillRect(rect(), backing);
+            p.restore();
+        } else {
+            p.fillRect(rect(), backing);
+        }
     }
     const auto chassis = m_theme->pixmap(QStringLiteral("window_bg"));
     if (!chassis.isNull()) {
@@ -996,7 +1016,7 @@ void MainWindow::paintEvent(QPaintEvent *)
             p.save();
             p.setClipRegion(backingRegion, Qt::IntersectClip);
         }
-        p.drawTiledPixmap(QRect(0, 0, width(), topH), topPix);
+        drawFrameTiles(QRect(0, 0, width(), topH), topPix);
         if (topCapH) p.restore();
     }
     const auto animate = [this](QPixmap &staticImage, const QString &target, const QRect &rect) {
@@ -1016,7 +1036,7 @@ void MainWindow::paintEvent(QPaintEvent *)
         if (scaledFooter)
             p.drawPixmap(footer, bottomPix);
         else
-            p.drawTiledPixmap(footer, bottomPix);
+            drawFrameTiles(footer, bottomPix);
         if (bottomCapH) p.restore();
     }
 
@@ -1026,12 +1046,12 @@ void MainWindow::paintEvent(QPaintEvent *)
         if (!leftPix.isNull()) {
             const QRect left(0, sideTop, leftW, sideBottom - sideTop);
             animate(leftPix, QStringLiteral("images.frame_left"), left);
-            p.drawTiledPixmap(left, leftPix, QPoint(0, sideTop - topH));
+            drawFrameTiles(left, leftPix, QPoint(0, sideTop - topH));
         }
         if (!rightPix.isNull()) {
             const QRect right(width() - rightW, sideTop, rightW, sideBottom - sideTop);
             animate(rightPix, QStringLiteral("images.frame_right"), right);
-            p.drawTiledPixmap(right, rightPix, QPoint(0, sideTop - topH));
+            drawFrameTiles(right, rightPix, QPoint(0, sideTop - topH));
         }
     }
 }
