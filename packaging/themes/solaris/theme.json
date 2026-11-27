@@ -1,0 +1,73 @@
+{
+  "name": "solaris",
+  "version": "1.1",
+  "author": "krellix",
+  "description": "Solaris — classic CDE/Solaris inspired gray-purple UI using only colors and gradients.",
+
+  "text_styles": {
+    "text_primary":   { "color": "#000000", "shadow": { "x": 1, "y": 1, "color": "#aaffffff" } },
+    "text_secondary": { "color": "#202020", "shadow": { "x": 1, "y": 1, "color": "#aaffffff" } },
+    "text_accent":    { "color": "#3b3f7a", "shadow": { "x": 1, "y": 1, "color": "#aaffffff" } },
+    "chart_line_default": { "color": "#3b3f7a", "shadow": { "x": 1, "y": 1, "color": "#aa000000" } }
+  },
+
+  "colors": {
+    "panel_bg": {
+      "gradient": "linear",
+      "angle": 180,
+      "stops": [[0.0, "#b7b9c9"], [0.5, "#9ea1b6"], [1.0, "#7e819a"]]
+    },
+    "panel_border":       "#5c5f74",
+    "panel_highlight":    "#d6d8e6",
+
+    "chart_bg":           "#c7c9d8",
+    "chart_grid":         "#8a8da6",
+
+    "text_primary":       "#000000",
+    "text_secondary":     "#202020",
+    "text_accent":        "#3b3f7a",
+
+    "krell_track":        "#8a8da6",
+    "krell_indicator":    "#3b3f7a",
+
+    "chart_line_default": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [[0.0, "#3b3f7a"], [1.0, "#6a6ea8"]]
+    },
+    "chart_line_cpu": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [[0.0, "#3b3f7a"], [1.0, "#6a6ea8"]]
+    },
+    "chart_line_mem": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [[0.0, "#6a6ea8"], [1.0, "#9ea1d0"]]
+    },
+    "chart_line_swap":    "#7a5c7a",
+    "chart_line_net_rx":  "#3b3f7a",
+    "chart_line_net_tx":  "#6a6ea8",
+    "chart_line_disk":    "#5c5f74",
+
+    "accent_warning":     "#b89c4a",
+    "accent_critical":    "#a04a4a"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 8, "bold": false },
+    "value": { "family": "Monospace", "size": 9, "bold": false },
+    "time":  { "family": "Monospace", "size": 9, "bold": false }
+  },
+
+  "metrics": {
+    "panel_padding":    3,
+    "panel_spacing":    1,
+    "panel_border":     1,
+    "panel_min_width":  80,
+    "krell_height":     8,
+    "chart_height":     48,
+    "chart_grid_lines": 6,
+    "panel_bg_slice":   0
+  }
+}

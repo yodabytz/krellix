@@ -1,0 +1,58 @@
+{
+  "name": "matrix",
+  "version": "1.8",
+  "author": "krellix",
+  "description": "Matrix — Redesigned using high-fidelity reference colors. Features ghostly green symbols (15%) on a 50% opaque black background.",
+
+  "surfaces": {
+    "panel_bg":    { "image": "assets/matrix_bg.png", "opacity": 1.0 },
+    "chart_bg":    { "image": "assets/matrix_bg.png", "opacity": 1.0 }
+  },
+
+  "images": {
+    "panel_bg": { "image": "assets/matrix_bg.png", "mode": "tile" },
+    "chart_bg": { "image": "assets/matrix_bg.png", "mode": "tile" }
+  },
+
+  "colors": {
+    "panel_bg":           "#80000000",
+    "panel_border":       "#133d21",
+    "panel_highlight":    "#0d2b17",
+    "chart_bg":           "#80000000",
+    "chart_grid":         "#133d21",
+    "text_primary":       "#42d169",
+    "text_secondary":     "#36ae57",
+    "text_accent":        "#58916e",
+    "krell_track":        "#001a0d",
+    "krell_indicator":    "#42d169",
+    "chart_line_default": "#42d169",
+    "chart_line_cpu":     "#42d169",
+    "chart_line_mem":     "#36ae57",
+    "chart_line_swap":    "#225b32",
+    "chart_line_net_rx":  "#42d169",
+    "chart_line_net_tx":  "#225b32",
+    "chart_line_disk":    "#42d169",
+    "accent_warning":     "#42d169",
+    "accent_critical":    "#42d169"
+  },
+
+  "text_styles": {
+    "text_primary":   { "color": "#42d169", "shadow": { "x": 0, "y": 0, "blur": 6, "color": "#aa42d169" } },
+    "text_secondary": { "color": "#36ae57", "shadow": { "x": 0, "y": 0, "blur": 3, "color": "#8036ae57" } }
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  110,
+    "krell_height":     10,
+    "chart_height":     48,
+    "chart_grid_lines": 5
+  }
+}

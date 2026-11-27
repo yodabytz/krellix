@@ -1,0 +1,43 @@
+{
+  "name": "night-city",
+  "version": "1.0",
+  "author": "krellix",
+  "description": "Night City — High-contrast Cyberpunk 2077 inspired theme with neon yellow and aggressive magenta accents.",
+
+  "colors": {
+    "panel_bg":           "#0d0d0d",
+    "panel_border":       "#f3e600",
+    "panel_highlight":    "#1a1a1a",
+    "chart_bg":           "#050505",
+    "chart_grid":         "#2a2a2a",
+    "text_primary":       "#f3e600",
+    "text_secondary":     "#00f0ff",
+    "text_accent":        "#ff0055",
+    "krell_track":        "#1a1a1a",
+    "krell_indicator":    "#f3e600",
+    "chart_line_default": "#00f0ff",
+    "chart_line_cpu":     "#f3e600",
+    "chart_line_mem":     "#ff0055",
+    "chart_line_swap":    "#9d00ff",
+    "chart_line_net_rx":  "#00f0ff",
+    "chart_line_net_tx":  "#f3e600",
+    "chart_line_disk":    "#ff0055",
+    "accent_warning":     "#ff8a00",
+    "accent_critical":    "#ff0000"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": true  },
+    "value": { "family": "Monospace", "size": 10, "bold": true  }
+  },
+
+  "metrics": {
+    "panel_padding":    4,
+    "panel_spacing":    2,
+    "panel_border":     1,
+    "panel_min_width":  100,
+    "krell_height":     8,
+    "chart_height":     32,
+    "chart_grid_lines": 4
+  }
+}

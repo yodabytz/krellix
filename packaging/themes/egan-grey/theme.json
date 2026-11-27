@@ -1,0 +1,309 @@
+{
+  "name": "egan-grey",
+  "version": "1.1",
+  "author": "krellix",
+  "description": "Egan Grey \u2014 port of the GKrellM Egan Grey look. Charcoal panels with amber accents.",
+  "text_styles": {
+    "text_primary": {
+      "color": "#f1efe8",
+      "shadow": {
+        "x": 1,
+        "y": 1,
+        "color": "#aa000000"
+      }
+    },
+    "text_secondary": {
+      "color": "#f1efe8",
+      "shadow": {
+        "x": 1,
+        "y": 1,
+        "color": "#aa000000"
+      }
+    },
+    "text_accent": {
+      "color": "#7eb8ec",
+      "shadow": {
+        "x": 1,
+        "y": 1,
+        "color": "#aa000000"
+      }
+    },
+    "chart_overlay": {
+      "color": "#e8c54a",
+      "shadow": {
+        "x": 1,
+        "y": 1,
+        "color": "#aa000000"
+      }
+    }
+  },
+  "colors": {
+    "panel_bg": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#6a7180"
+        ],
+        [
+          0.1,
+          "#525864"
+        ],
+        [
+          0.55,
+          "#3d424b"
+        ],
+        [
+          1.0,
+          "#1f2227"
+        ]
+      ]
+    },
+    "panel_bg_host": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#6c7382"
+        ],
+        [
+          0.1,
+          "#545b66"
+        ],
+        [
+          0.55,
+          "#3f444d"
+        ],
+        [
+          1.0,
+          "#202329"
+        ]
+      ]
+    },
+    "panel_bg_clock": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#6b7281"
+        ],
+        [
+          0.1,
+          "#535965"
+        ],
+        [
+          0.55,
+          "#3e434c"
+        ],
+        [
+          1.0,
+          "#1f2228"
+        ]
+      ]
+    },
+    "panel_bg_cpu": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#6a7180"
+        ],
+        [
+          0.1,
+          "#525864"
+        ],
+        [
+          0.55,
+          "#3d424b"
+        ],
+        [
+          1.0,
+          "#1f2227"
+        ]
+      ]
+    },
+    "panel_bg_mem": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#6b7282"
+        ],
+        [
+          0.1,
+          "#535a66"
+        ],
+        [
+          0.55,
+          "#3e434d"
+        ],
+        [
+          1.0,
+          "#202327"
+        ]
+      ]
+    },
+    "panel_bg_net": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#697080"
+        ],
+        [
+          0.1,
+          "#515763"
+        ],
+        [
+          0.55,
+          "#3c414a"
+        ],
+        [
+          1.0,
+          "#1d2026"
+        ]
+      ]
+    },
+    "panel_bg_disk": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#6a7180"
+        ],
+        [
+          0.1,
+          "#525864"
+        ],
+        [
+          0.55,
+          "#3d424b"
+        ],
+        [
+          1.0,
+          "#1f2227"
+        ]
+      ]
+    },
+    "panel_bg_uptime": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#6b7281"
+        ],
+        [
+          0.1,
+          "#535965"
+        ],
+        [
+          0.55,
+          "#3e434c"
+        ],
+        [
+          1.0,
+          "#1f2228"
+        ]
+      ]
+    },
+    "panel_bg_battery": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#6a7180"
+        ],
+        [
+          0.1,
+          "#525864"
+        ],
+        [
+          0.55,
+          "#3d424b"
+        ],
+        [
+          1.0,
+          "#1f2227"
+        ]
+      ]
+    },
+    "panel_bg_sensors": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#6a7180"
+        ],
+        [
+          0.1,
+          "#525864"
+        ],
+        [
+          0.55,
+          "#3d424b"
+        ],
+        [
+          1.0,
+          "#1f2227"
+        ]
+      ]
+    },
+    "panel_border": "#161a20",
+    "panel_highlight": "#7a8290",
+    "chart_bg": "#2a2a2d",
+    "chart_grid": "#3c3c40",
+    "krell_track": "#2a2a2d",
+    "krell_indicator": "#4a8ed8",
+    "text_primary": "#f1efe8",
+    "text_secondary": "#f1efe8",
+    "text_accent": "#7eb8ec",
+    "chart_line_default": "#4a8ed8",
+    "chart_line_cpu": "#4a8ed8",
+    "chart_line_mem": "#5a8fc8",
+    "chart_line_swap": "#5a8fc8",
+    "chart_line_net_rx": "#3e9bd6",
+    "chart_line_net_tx": "#79b6e8",
+    "chart_line_disk": "#5a8fc8",
+    "accent_warning": "#e8a13a",
+    "accent_critical": "#cc4d35",
+    "chart_overlay": "#e8c54a"
+  },
+  "fonts": {
+    "label": {
+      "family": "Monospace",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Monospace",
+      "size": 10,
+      "bold": true
+    },
+    "time": {
+      "family": "Monospace",
+      "size": 11,
+      "bold": false
+    }
+  },
+  "metrics": {
+    "panel_padding": 4,
+    "panel_spacing": 2,
+    "panel_border": 1,
+    "panel_min_width": 100,
+    "krell_height": 10,
+    "chart_height": 70,
+    "chart_grid_lines": 4,
+    "panel_bg_slice": 0
+  },
+  "comment_colors": "Panel base is a brushed-charcoal vertical gradient: a hint of warm highlight at the top, mid-grey body, deeper graphite at the bottom. Per-monitor variants nudge the body shade to break up the stack so cpu/mem/net don't look like one tall panel."
+}

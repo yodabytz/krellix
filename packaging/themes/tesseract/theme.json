@@ -1,0 +1,87 @@
+{
+  "name": "tesseract",
+  "version": "1.1",
+  "author": "krellix",
+  "description": "Tesseract with custom panel and chart artwork, based on the Krellix adaptation of Daniel Erat's GKrellM BlueSteel theme.",
+
+  "surfaces": {
+    "panel_bg":         { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_host":    { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_clock":   { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_cpu":     { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_mem":     { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_proc":    { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_net":     { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_disk":    { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_uptime":  { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_battery": { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 },
+    "panel_bg_sensors": { "image": "assets/panel.png", "slice": 5, "opacity": 1.0 }
+  },
+
+  "text_styles": {
+    "text_primary":   { "color": "#61c9fa", "shadow": { "x": 2, "y": 2, "color": "#ff000000" } },
+    "text_secondary": { "color": "#FFFFFF", "shadow": { "x": 1, "y": 1, "color": "#ff000000" } },
+    "text_accent":    { "color": "#93dbff", "shadow": { "x": 1, "y": 1, "color": "#ff000000" } },
+    "chart_line_default": { "color": "#61c9fa", "shadow": { "x": 1, "y": 1, "color": "#ff000000" } }
+  },
+
+  "images": {
+    "panel_bg":     { "image": "assets/panel.png", "mode": "nine-slice" },
+    "chart_bg":     { "image": "assets/chart_bg.png", "mode": "stretch" }
+  },
+
+  "colors": {
+    "panel_bg":           "#252e38",
+    "panel_border":       "#55576b",
+    "panel_highlight":    "#77798f",
+    "chart_bg":           "#03070e",
+    "chart_grid":         "#05080d",
+    "text_primary":       "#ffffff",
+    "text_secondary":     "#99e38e",
+    "text_accent":        "#93dbff",
+    "krell_track":        "#071722",
+    "krell_indicator":    "#279aa1",
+    "chart_line_default": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [[0.0, "#61c9fa"], [0.55, "#94dafb"], [1.0, "#94dafb"]]
+    },
+    "chart_line_cpu": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [[0.0, "#61c9fa"], [0.55, "#94dafb"], [1.0, "#94dafb"]]
+    },
+    "chart_line_mem": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [[0.0, "#0081c4"], [1.0, "#00b084"]]
+    },
+    "chart_line_swap":    "#743544",
+    "chart_line_net_rx": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [[0.0, "#0081c4"], [1.0, "#00b084"]]
+    },
+    "chart_line_net_tx":  "#0081c4",
+    "chart_line_disk":    "#9aa8b5",
+    "accent_warning":     "#d6bf69",
+    "accent_critical":    "#d86a6a"
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 8, "bold": false },
+    "value": { "family": "Monospace", "size": 9, "bold": false },
+    "time":  { "family": "Monospace", "size": 9, "bold": false }
+  },
+
+  "metrics": {
+    "panel_padding":    3,
+    "panel_spacing":    1,
+    "panel_border":     0,
+    "panel_min_width":  80,
+    "krell_height":     8,
+    "chart_height":     48,
+    "chart_grid_lines": 6,
+    "panel_bg_slice":   5
+  }
+}

@@ -1,0 +1,429 @@
+{
+  "name": "frosted-glass",
+  "version": "1.0",
+  "author": "yodabytz",
+  "description": "Frostglass \u2014 translucent panels for compositor blur. Backgrounds are low-alpha; text + krells stay fully opaque so nothing looks blurred but the surfaces themselves.",
+  "comment_compositor": "For the frosted look you need a compositor that blurs translucent windows. KWin: System Settings -> Window Management -> Window Rules -> add a rule matching window class 'krellix' with 'Force Blur Behind = Yes'. picom (X11): add 'blur-background = true' and a 'blur-background-include' rule for the krellix window. Hyprland: decoration { blur { enabled = true; size = 8; passes = 2; }; xray = false; } and 'blurls = krellix'. Without compositor blur the panels just look transparent \u2014 text + krell + chart trace remain crisp either way.",
+  "comment_alpha": "Every translucent value uses 8-digit hex (#RRGGBBAA). 30 = ~19% opacity for very subtle frosted overlay; 50 = 31% for a more present surface; cc = 80% nearly opaque for the chart canvas so trace lines read clearly. Increase the alpha values everywhere if your background is busy and the panels disappear into it.",
+  "surfaces": {
+    "panel_bg": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_host": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_clock": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_cpu": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_mem": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_net": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_disk": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_uptime": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_battery": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_sensors": {
+      "slice": 0,
+      "opacity": 1.0
+    },
+    "panel_bg_proc": {
+      "slice": 0,
+      "opacity": 1.0
+    }
+  },
+  "text_styles": {
+    "text_primary": {
+      "color": "#ffffff",
+      "shadow": {
+        "x": 1,
+        "y": 1,
+        "color": "#d8000000"
+      }
+    },
+    "text_secondary": {
+      "color": "#dceaff",
+      "shadow": {
+        "x": 1,
+        "y": 1,
+        "color": "#c8000000"
+      }
+    },
+    "text_accent": {
+      "color": "#7df5ff",
+      "shadow": {
+        "x": 1,
+        "y": 1,
+        "color": "#d8000000"
+      }
+    },
+    "chart_overlay": {
+      "color": "#ffffff",
+      "shadow": {
+        "x": 1,
+        "y": 1,
+        "color": "#d8000000"
+      }
+    }
+  },
+  "colors": {
+    "panel_bg": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#18ffffff"
+        ],
+        [
+          0.5,
+          "#14e0ecf8"
+        ],
+        [
+          1.0,
+          "#1cc0d4e8"
+        ]
+      ]
+    },
+    "panel_bg_host": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#30ffffff"
+        ],
+        [
+          0.5,
+          "#2ce0ecf8"
+        ],
+        [
+          1.0,
+          "#34c0d4e8"
+        ]
+      ]
+    },
+    "panel_bg_clock": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#30ffffff"
+        ],
+        [
+          0.5,
+          "#2ce0ecf8"
+        ],
+        [
+          1.0,
+          "#34c0d4e8"
+        ]
+      ]
+    },
+    "panel_bg_cpu": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#30ffffff"
+        ],
+        [
+          0.5,
+          "#2ce0ecf8"
+        ],
+        [
+          1.0,
+          "#34c0d4e8"
+        ]
+      ]
+    },
+    "panel_bg_mem": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#30ffffff"
+        ],
+        [
+          0.5,
+          "#2ce0ecf8"
+        ],
+        [
+          1.0,
+          "#34c0d4e8"
+        ]
+      ]
+    },
+    "panel_bg_net": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#30ffffff"
+        ],
+        [
+          0.5,
+          "#2ce0ecf8"
+        ],
+        [
+          1.0,
+          "#34c0d4e8"
+        ]
+      ]
+    },
+    "panel_bg_disk": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#30ffffff"
+        ],
+        [
+          0.5,
+          "#2ce0ecf8"
+        ],
+        [
+          1.0,
+          "#34c0d4e8"
+        ]
+      ]
+    },
+    "panel_bg_uptime": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#30ffffff"
+        ],
+        [
+          0.5,
+          "#2ce0ecf8"
+        ],
+        [
+          1.0,
+          "#34c0d4e8"
+        ]
+      ]
+    },
+    "panel_bg_battery": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#30ffffff"
+        ],
+        [
+          0.5,
+          "#2ce0ecf8"
+        ],
+        [
+          1.0,
+          "#34c0d4e8"
+        ]
+      ]
+    },
+    "panel_bg_sensors": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#30ffffff"
+        ],
+        [
+          0.5,
+          "#2ce0ecf8"
+        ],
+        [
+          1.0,
+          "#34c0d4e8"
+        ]
+      ]
+    },
+    "panel_bg_proc": {
+      "gradient": "linear",
+      "angle": 90,
+      "stops": [
+        [
+          0.0,
+          "#30ffffff"
+        ],
+        [
+          0.5,
+          "#2ce0ecf8"
+        ],
+        [
+          1.0,
+          "#34c0d4e8"
+        ]
+      ]
+    },
+    "panel_border": "#601a2638",
+    "panel_highlight": "#601a2a3e",
+    "chart_bg": "#18ffffff",
+    "chart_grid": "#287da7d0",
+    "krell_track": "#00000000",
+    "krell_indicator": {
+      "gradient": "linear",
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#3a8edb"
+        ],
+        [
+          0.4,
+          "#7df5ff"
+        ],
+        [
+          0.75,
+          "#c8a8ff"
+        ],
+        [
+          1.0,
+          "#ffd0e8"
+        ]
+      ]
+    },
+    "text_primary": "#ffffff",
+    "text_secondary": "#dceaff",
+    "text_accent": "#7df5ff",
+    "chart_overlay": "#ffffff",
+    "chart_line_default": "#7df5ff",
+    "chart_line_cpu": {
+      "gradient": "linear",
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#3a8edb"
+        ],
+        [
+          0.55,
+          "#7df5ff"
+        ],
+        [
+          1.0,
+          "#aeffe0"
+        ]
+      ]
+    },
+    "chart_line_mem": {
+      "gradient": "linear",
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#a96cff"
+        ],
+        [
+          0.55,
+          "#dcb4ff"
+        ],
+        [
+          1.0,
+          "#ffd0e8"
+        ]
+      ]
+    },
+    "chart_line_swap": "#ff7abd",
+    "chart_line_net_rx": {
+      "gradient": "linear",
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#36e0a0"
+        ],
+        [
+          0.55,
+          "#7df5ff"
+        ],
+        [
+          1.0,
+          "#aeffe0"
+        ]
+      ]
+    },
+    "chart_line_net_tx": "#7df5ff",
+    "chart_line_disk": {
+      "gradient": "linear",
+      "angle": 0,
+      "stops": [
+        [
+          0.0,
+          "#a96cff"
+        ],
+        [
+          0.55,
+          "#ff7abd"
+        ],
+        [
+          1.0,
+          "#ffd0e8"
+        ]
+      ]
+    },
+    "accent_warning": "#ffd252",
+    "accent_critical": "#ff5c7a"
+  },
+  "fonts": {
+    "label": {
+      "family": "Monospace",
+      "size": 9,
+      "bold": false
+    },
+    "value": {
+      "family": "Monospace",
+      "size": 10,
+      "bold": true
+    },
+    "time": {
+      "family": "Monospace",
+      "size": 11,
+      "bold": false
+    }
+  },
+  "metrics": {
+    "panel_padding": 4,
+    "panel_spacing": 2,
+    "panel_border": 1,
+    "panel_min_width": 100,
+    "krell_height": 10,
+    "chart_height": 74,
+    "chart_grid_lines": 4,
+    "panel_bg_slice": 0
+  },
+  "images": {
+    "frame_top": "assets/frame_top.png",
+    "frame_bottom": "assets/frame_bottom.png",
+    "frame_left": "assets/frame_left.png",
+    "frame_right": "assets/frame_right.png"
+  }
+}

@@ -3,6 +3,8 @@
 Fenrir, Leviathan, Anubis, Nucleo, Kronix, Obsidian, Arctic, Spectrum,
 BlueHeart, Bluemask, Arch Azure, Alienverse, Blackrock, and Cerberix are
 [separate downloads](https://cerberix.org/extras/krellix/themes/).
+Carbon Fiber, Egan Grey, Frosted Glass, Ghostwire, Matrix, Night City,
+Solaris, and Tesseract are also standalone themes listed there.
 The default theme set is in `../../themes/` and includes Cheese. Do not copy
 the directories here into an application bundle or a system package.
 

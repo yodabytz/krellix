@@ -1,0 +1,54 @@
+{
+  "name": "ghostwire",
+  "version": "3.1",
+  "author": "krellix",
+  "description": "Ghostwire — Spectral Tokyo HUD. Deep urban shadows and electric teal energy mapping directly from game reference visuals.",
+
+  "colors": {
+    "panel_bg":           "#e0080615",
+    "panel_border":       "#205566",
+    "panel_highlight":    "#150D46",
+    "chart_bg":           "#080615",
+    "chart_grid":         "#150D46",
+    "text_primary":       "#E8EDF1",
+    "text_secondary":     "#41ACC3",
+    "text_accent":        "#41ACC3",
+    "krell_track":        "#080615",
+    "krell_indicator":    "#41ACC3",
+    "chart_line_default": "#41ACC3",
+    "chart_line_cpu":     "#41ACC3",
+    "chart_line_mem":     "#561960",
+    "chart_line_swap":    "#2B1148",
+    "chart_line_net_rx":  "#41ACC3",
+    "chart_line_net_tx":  "#202A5C",
+    "chart_line_disk":    "#554D63",
+    "accent_warning":     "#E8EDF1",
+    "accent_critical":    "#41ACC3"
+  },
+
+  "surfaces": {
+    "panel_bg": { "image": "assets/spectral_panel.png", "slice": 16, "opacity": 1.0 }
+  },
+
+  "text_styles": {
+    "text_primary":   { "color": "#E8EDF1", "shadow": { "x": 0, "y": 0, "blur": 4, "color": "#6041ACC3" } },
+    "text_secondary": { "color": "#41ACC3", "shadow": { "x": 0, "y": 0, "blur": 2, "color": "#4041ACC3" } },
+    "text_accent":    { "color": "#41ACC3", "shadow": { "x": 0, "y": 0, "blur": 6, "color": "#41ACC3" } }
+  },
+
+  "fonts": {
+    "label": { "family": "Monospace", "size": 9,  "bold": false },
+    "value": { "family": "Monospace", "size": 10, "bold": true  },
+    "time":  { "family": "Monospace", "size": 12, "bold": false }
+  },
+
+  "metrics": {
+    "panel_padding":    6,
+    "panel_spacing":    2,
+    "panel_border":     0,
+    "panel_min_width":  120,
+    "krell_height":     10,
+    "chart_height":     32,
+    "chart_grid_lines": 4
+  }
+}
