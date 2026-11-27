@@ -3,6 +3,7 @@
 #undef main
 #include "krellix/SettingsDialog.h"
 #include <QAbstractItemView>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDir>
@@ -24,6 +25,7 @@
 #include <memory>
 #include "sysdep/SensorDisplay.h"
 #include "monitors/ClockMonitor.h"
+#include "monitors/CpuMonitor.h"
 #include "monitors/DiskMonitor.h"
 #include "monitors/SensorsMonitor.h"
 #include "widgets/Chart.h"
@@ -484,6 +486,76 @@ static void verifyWidthOnlyResize()
     qInfo("PASS: changing only width preserves the header, footer, chart, and window heights after reload and restart");
 }
 
+static void verifyLiveCpuModes()
+{
+    const auto modeKey = QStringLiteral("monitors/cpu/mode");
+    const auto secondCoreKey = QStringLiteral("monitors/cpu/7");
+    QSettings settings;
+    const auto savedMode = settings.value(modeKey);
+    const auto savedSecondCore = settings.value(secondCoreKey);
+    settings.setValue(modeKey, QStringLiteral("aggregate"));
+    settings.setValue(secondCoreKey, true);
+    CpuStat::setReadOverride(+[] {
+        return QList<CpuSample>{{QStringLiteral("cpu"), -1, 500, 0, 0, 500},
+                                {QStringLiteral("cpu2"), 2, 250, 0, 0, 250},
+                                {QStringLiteral("cpu7"), 7, 250, 0, 0, 250}};
+    });
+    Theme theme;
+    MainWindow window(&theme, {QStringLiteral("host"), QStringLiteral("cpu")});
+    window.show();
+    auto *cpu = window.findChild<CpuMonitor *>();
+    auto *host = window.findChild<Panel *>(QStringLiteral("krellixHostnamePanel"));
+    if (!cpu || !host || !QMetaObject::invokeMethod(&window, "showSettings", Qt::DirectConnection))
+        qFatal("Could not open the live CPU settings fixture");
+    auto *mode = window.findChild<QComboBox *>(QStringLiteral("cpu-mode"));
+    auto *dialog = window.findChild<SettingsDialog *>();
+    if (!mode || !dialog) qFatal("Missing CPU settings dialog");
+    QCheckBox *secondCore = nullptr;
+    for (auto *cb : dialog->findChildren<QCheckBox *>()) {
+        if (cb->text() == QStringLiteral("cpu1")) secondCore = cb;
+    }
+    if (!secondCore) qFatal("Missing CPU core checkbox");
+
+    const auto check = [&](int count, bool combined) {
+        QApplication::processEvents();
+        QList<Chart *> visible;
+        for (auto *chart : window.findChildren<Chart *>()) {
+            if (chart->isVisible()) visible.append(chart);
+        }
+        if (visible.size() != count
+            || (count == 1 && visible.first()->accessibleName().contains(QStringLiteral("Avg  x2")) != combined))
+            qFatal("Live CPU mode %s: expected %d visible charts, got %lld; first readout: %s",
+                   qPrintable(mode->currentData().toString()), count, static_cast<long long>(visible.size()),
+                   visible.isEmpty() ? "(none)" : qPrintable(visible.first()->accessibleName()));
+        if (window.findChild<CpuMonitor *>() != cpu
+            || window.findChild<Panel *>(QStringLiteral("krellixHostnamePanel")) != host)
+            qFatal("CPU settings replaced the monitor or unrelated panel");
+    };
+    check(1, false);
+    const auto select = [&](const QString &key, int count, bool combined = false) {
+        const int row = mode->findData(key);
+        if (row < 0) qFatal("CPU mode missing");
+        mode->setCurrentIndex(row);
+        if (settings.value(modeKey).toString() != key) qFatal("CPU mode did not save");
+        check(count, combined);
+    };
+    select(QStringLiteral("combined"), 1, true);
+    select(QStringLiteral("per-core"), 2);
+    secondCore->setChecked(false);
+    if (settings.value(secondCoreKey).toBool())
+        qFatal("Core checkbox did not save the kernel CPU index");
+    check(1, false);
+    secondCore->setChecked(true);
+    check(2, false);
+    select(QStringLiteral("aggregate"), 1);
+    select(QStringLiteral("combined"), 1, true);
+    if (savedMode.isValid()) settings.setValue(modeKey, savedMode);
+    else settings.remove(modeKey);
+    if (savedSecondCore.isValid()) settings.setValue(secondCoreKey, savedSecondCore);
+    else settings.remove(secondCoreKey);
+    CpuStat::setReadOverride(nullptr);
+}
+
 static void verifySettingsPalette()
 {
     QTemporaryDir fixture;
@@ -740,6 +812,7 @@ static void exercise()
         verifyMailAnimationSetting(existing->theme());
         verifyFooterFrame();
         verifyWidthOnlyResize();
+        verifyLiveCpuModes();
         verifySettingsPalette();
         verifySensorHeatColors();
         verifyThemeWindowShadow();

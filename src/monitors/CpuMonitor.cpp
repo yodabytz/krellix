@@ -14,7 +14,6 @@
 #include <algorithm>
 
 namespace {
-#ifdef Q_OS_WIN
 QString cpuLayoutSettings(const QList<CpuSample> &samples)
 {
     QSettings settings;
@@ -27,7 +26,6 @@ QString cpuLayoutSettings(const QList<CpuSample> &samples)
     }
     return signature;
 }
-#endif
 
 QList<CpuSample> sortedCoreSamples(const QList<CpuSample> &samples)
 {
@@ -203,9 +201,7 @@ void CpuMonitor::buildPanels(const QList<CpuSample> &samples)
     m_prevSamples = samples;
     m_havePrev    = true;
     m_panelsBuilt = true;
-#ifdef Q_OS_WIN
     m_layoutSettings = cpuLayoutSettings(samples);
-#endif
 }
 
 void CpuMonitor::tick()
@@ -222,7 +218,8 @@ void CpuMonitor::tick()
     } else {
         theme()->setAnimationCpu(-1);
     }
-#ifdef Q_OS_WIN
+    // MainWindow keeps this monitor alive when settings or panel order changes.
+    // Rebuild only its CPU panels when their configuration has changed.
     if (m_panelsBuilt && m_containerLayout && m_layoutSettings != cpuLayoutSettings(samples)) {
         while (auto *item = m_containerLayout->takeAt(0)) {
             if (auto *widget = item->widget()) {
@@ -241,7 +238,6 @@ void CpuMonitor::tick()
         m_havePrev = false;
         m_prevSamples.clear();
     }
-#endif
 
     // First sample arrived after createWidget — build the real panels
     // now (typical in --host mode where the remote sample lands a tick

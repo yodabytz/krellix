@@ -454,6 +454,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         auto *layout = new QVBoxLayout(page);
         auto *modeForm = new QFormLayout;
         cpuModeCombo = new QComboBox(page);
+        cpuModeCombo->setObjectName(QStringLiteral("cpu-mode"));
         cpuModeCombo->addItem(QStringLiteral("Per-core (one panel each)"),
                               QStringLiteral("per-core"));
         cpuModeCombo->addItem(QStringLiteral("Aggregate (single panel for all cores)"),

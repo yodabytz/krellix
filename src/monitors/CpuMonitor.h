@@ -50,9 +50,7 @@ private:
     QPointer<QVBoxLayout>  m_containerLayout;
     QPointer<QWidget>      m_placeholderPanel;     // "(waiting for data...)" panel
     bool                   m_panelsBuilt = false;
-#ifdef Q_OS_WIN
     QString m_layoutSettings;
-#endif
 
     QList<CoreUI>    m_cores;
     QList<int>       m_visibleCoreIndices;   // /proc/stat indices we actually show
