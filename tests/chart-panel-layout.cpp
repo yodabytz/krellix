@@ -311,6 +311,56 @@ Chart *checkPanel(QWidget &container, const QString &title, int tracks)
     return chart;
 }
 
+void checkSavedAggregateCpu()
+{
+    const auto modeKey = QStringLiteral("monitors/cpu/mode");
+    const auto originalName = QCoreApplication::applicationName();
+    const auto originalMode = QSettings().value(modeKey);
+    QCoreApplication::setApplicationName(originalName + QStringLiteral("-remote"));
+    {
+        QSettings saved;
+        saved.setValue(modeKey, QStringLiteral("aggregate"));
+        saved.sync();
+        if (saved.status() != QSettings::NoError) qFatal("Could not save the remote CPU profile");
+    }
+
+    // One saturated core and three idle cores: the host is at 25%, not 100%.
+    CpuStat::setReadOverride(+[]() -> QList<CpuSample> {
+        return {{QStringLiteral("cpu"), -1, ticks, 0, 0, 3 * ticks},
+                {QStringLiteral("cpu0"), 0, ticks, 0, 0, 0},
+                {QStringLiteral("cpu1"), 1, 0, 0, 0, ticks},
+                {QStringLiteral("cpu2"), 2, 0, 0, 0, ticks},
+                {QStringLiteral("cpu3"), 3, 0, 0, 0, ticks}};
+    });
+    for (const int glass : {0, 1}) {
+        Theme theme;
+        theme.setMetric(QStringLiteral("chart_glass"), glass);
+        theme.setMetric(QStringLiteral("chart_grid_lines"), 0);
+        CpuMonitor cpu(&theme);
+        std::unique_ptr<QWidget> panel(cpu.createWidget(nullptr));
+        auto *chart = checkPanel(*panel, QStringLiteral("CPU"), 1);
+        chart->resize(120, 64);
+        const auto idle = chart->grab().toImage();
+        for (int i = 0; i < 200; ++i) {
+            ++ticks;
+            cpu.tick();
+        }
+        if (chart->accessibleName() != QStringLiteral("25%"))
+            qFatal("The saved remote profile must show aggregate CPU usage after reopening");
+        const auto busy = chart->grab().toImage();
+        const int x = busy.width() * 3 / 4;
+        const int upper = busy.height() / 2;
+        const int lower = busy.height() - qRound(2 * busy.devicePixelRatio());
+        if (idle.pixelColor(x, upper) != busy.pixelColor(x, upper)
+            || idle.pixelColor(x, lower) == busy.pixelColor(x, lower))
+            qFatal("The aggregate CPU chart must fill from the bottom without drawing hot-core spikes");
+    }
+    CpuStat::setReadOverride(cpuSamples);
+    QCoreApplication::setApplicationName(originalName);
+    if (QSettings().value(modeKey) != originalMode)
+        qFatal("Saving the remote CPU mode changed the default profile");
+}
+
 void checkTitleFont(Theme &theme, const QString &configPath)
 {
     Panel panel(&theme);
@@ -517,6 +567,7 @@ int main(int argc, char **argv)
     checkTitleFont(theme, config.path());
     checkMemoryMeters();
     checkCombinedCpuFill(config.path());
+    checkSavedAggregateCpu();
     checkOptInSurfaces(config.path());
     qInfo("PASS: chart layout, live readouts, moving tracks, and compact Memory and Swap meters");
 }
