@@ -6,7 +6,6 @@
 #include "widgets/Panel.h"
 
 #include <QSettings>
-#include <QDebug>
 #include <QString>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -26,28 +25,16 @@ constexpr double kMinAdaptiveBps = 1024.0;
 constexpr double kAdaptiveDecay  = 0.99;
 constexpr double kAdaptiveGrow   = 1.10;
 
-bool diskEnabled(const QString &name)
+bool diskEnabled(const QSettings &settings, const QString &name)
 {
-    return QSettings().value(QStringLiteral("monitors/disk/devices/") + name,
-                             !name.startsWith(QStringLiteral("loop"))).toBool();
+    return settings.value(QStringLiteral("monitors/disk/devices/") + name,
+                          !name.startsWith(QStringLiteral("loop"))).toBool();
 }
 
-#ifdef Q_OS_WIN
-QList<DiskSample> displayDiskSamples(const QList<DiskSample> &raw)
+double sectorDelta(quint64 previous, quint64 current)
 {
-    if (QSettings().value(QStringLiteral("monitors/disk/mode")).toString() != QStringLiteral("composite")) return raw;
-    DiskSample total;
-    total.name = QStringLiteral("All disks");
-    bool any = false;
-    for (const auto &s : raw) {
-        if (!diskEnabled(s.name)) continue;
-        total.sectorsRead += s.sectorsRead;
-        total.sectorsWritten += s.sectorsWritten;
-        any = true;
-    }
-    return any ? QList<DiskSample>{total} : QList<DiskSample>{};
+    return current >= previous ? static_cast<double>(current - previous) : 0.0;
 }
-#endif
 
 } // namespace
 
@@ -67,15 +54,12 @@ QWidget *DiskMonitor::createWidget(QWidget *parent)
     vbox->setSpacing(0);
 
     m_container = container;
-#ifdef Q_OS_WIN
-    rebuildDisks(displayDiskSamples(DiskStat::read()));
-#else
-    rebuildDisks(DiskStat::read());
-#endif
+    m_lastReadTimer.invalidate();
+    tick();
     return container;
 }
 
-void DiskMonitor::rebuildDisks(const QList<DiskSample> &samples)
+void DiskMonitor::rebuildDisks(const QList<DiskSample> &enabled)
 {
     auto *container = m_container.data();
     if (!container) return;
@@ -85,28 +69,13 @@ void DiskMonitor::rebuildDisks(const QList<DiskSample> &samples)
         delete item;
     }
     m_disks.clear();
+    m_compositeUI = {};
     m_prevSamples.clear();
-    m_visibleDisks.clear();
-    m_havePrev = false;
-    if (samples.isEmpty()) {
+
+    const auto addDisk = [&](const QString &title) {
         auto *p = new Panel(theme(), container);
         p->setSurfaceKey(QStringLiteral("panel_bg_disk"));
-        p->setTitle(QStringLiteral("Disk"));
-        Decal *d = p->addDecal(QStringLiteral("label"),
-                               QStringLiteral("text_secondary"));
-        d->setText(QStringLiteral("(no whole disks found)"));
-        vbox->addWidget(p);
-        return;
-    }
-
-    bool added = false;
-    for (const DiskSample &s : samples) {
-        if (!diskEnabled(s.name))
-            continue;
-
-        auto *p = new Panel(theme(), container);
-        p->setSurfaceKey(QStringLiteral("panel_bg_disk"));
-        p->setTitle(s.name);
+        p->setTitle(title);
 
         DiskUI ui;
         ui.chart      = p->addChart(QStringLiteral("chart_line_disk"));
@@ -115,72 +84,63 @@ void DiskMonitor::rebuildDisks(const QList<DiskSample> &samples)
         ui.readKrell  = p->addKrell();
         ui.writeKrell = p->addKrell();
 
-        m_visibleDisks.append(s.name);
-        m_disks.insert(s.name, ui);
-        m_prevSamples.insert(s.name, s);
         vbox->addWidget(p);
-        added = true;
-    }
+        return ui;
+    };
 
-    if (!added) {
+    if (enabled.isEmpty()) {
         auto *p = new Panel(theme(), container);
         p->setSurfaceKey(QStringLiteral("panel_bg_disk"));
         p->setTitle(QStringLiteral("Disk"));
         Decal *d = p->addDecal(QStringLiteral("label"),
                                QStringLiteral("text_secondary"));
-        d->setText(QStringLiteral("(no disks enabled)"));
+        d->setText(m_hasDisks ? QStringLiteral("(no disks enabled)")
+                             : QStringLiteral("(no whole disks found)"));
         vbox->addWidget(p);
+    } else if (m_composite) {
+        m_compositeUI = addDisk(QStringLiteral("All disks"));
+    } else {
+        for (const DiskSample &s : enabled)
+            m_disks.insert(s.name, addDisk(s.name));
     }
 
-    m_havePrev = true;
+    for (const DiskSample &s : enabled)
+        m_prevSamples.insert(s.name, s);
     m_lastReadTimer.start();
-    qInfo() << "Disk panels updated:" << m_visibleDisks;
     container->updateGeometry();
 }
 
 void DiskMonitor::tick()
 {
-#ifdef Q_OS_WIN
-    const auto raw = DiskStat::read();
-    const QList<DiskSample> samples = displayDiskSamples(raw);
-    QString signature = QSettings().value(QStringLiteral("monitors/disk/mode")).toString();
-    for (const auto &s : raw) if (diskEnabled(s.name)) signature += QLatin1Char('|') + s.name;
-    if (signature != m_layoutSettings) {
-        rebuildDisks(samples);
-        m_layoutSettings = signature;
-    }
-#else
+    if (!m_container) return;
     const QList<DiskSample> samples = DiskStat::read();
-#endif
+    const QSettings settings;
+    const bool composite = settings.value(QStringLiteral("monitors/disk/mode")).toString()
+        == QStringLiteral("composite");
+    const bool hasDisks = !samples.isEmpty();
+    QList<DiskSample> enabled;
     QStringList visible;
-    for (const auto &sample : samples)
-        if (diskEnabled(sample.name)) visible.append(sample.name);
-    if (visible != m_visibleDisks) rebuildDisks(samples);
-    if (samples.isEmpty()) return;
+    for (const auto &sample : samples) {
+        if (!diskEnabled(settings, sample.name)) continue;
+        enabled.append(sample);
+        visible.append(sample.name);
+    }
+    if (!m_lastReadTimer.isValid() || composite != m_composite
+        || hasDisks != m_hasDisks || visible != m_visibleDisks) {
+        m_composite = composite;
+        m_hasDisks = hasDisks;
+        m_visibleDisks = visible;
+        rebuildDisks(enabled);
+        return;
+    }
+    if (enabled.isEmpty()) return;
 
     const qint64 elapsedMs = m_lastReadTimer.isValid() ? m_lastReadTimer.elapsed() : 1000;
     m_lastReadTimer.restart();
     const double dt = (elapsedMs > 0) ? (elapsedMs / 1000.0) : 1.0;
 
-    for (const DiskSample &s : samples) {
-        auto itUI = m_disks.find(s.name);
-        if (itUI == m_disks.end()) continue;
-        DiskUI &ui = *itUI;
-
-        double readBps = 0.0, writeBps = 0.0;
-        if (m_havePrev) {
-            const auto itPrev = m_prevSamples.constFind(s.name);
-            if (itPrev != m_prevSamples.constEnd()) {
-                const quint64 dR = (s.sectorsRead >= itPrev->sectorsRead)
-                    ? (s.sectorsRead - itPrev->sectorsRead) : 0;
-                const quint64 dW = (s.sectorsWritten >= itPrev->sectorsWritten)
-                    ? (s.sectorsWritten - itPrev->sectorsWritten) : 0;
-                readBps  = static_cast<double>(dR * DiskStat::kSectorSize) / dt;
-                writeBps = static_cast<double>(dW * DiskStat::kSectorSize) / dt;
-            }
-        }
-
-        const double peakBps = qMax(readBps, writeBps);
+    const auto updatePanel = [composite](DiskUI &ui, double readBps, double writeBps) {
+        const double peakBps = composite ? readBps + writeBps : qMax(readBps, writeBps);
         ui.maxBps = qMax(kMinAdaptiveBps,
                          qMax(ui.maxBps * kAdaptiveDecay, peakBps * kAdaptiveGrow));
 
@@ -193,7 +153,22 @@ void DiskMonitor::tick()
                                   .arg(humanBps(readBps), humanBps(writeBps)));
         }
 
+    };
+
+    double totalRead = 0.0, totalWrite = 0.0;
+    for (const DiskSample &s : enabled) {
+        const auto previous = m_prevSamples.value(s.name, s);
+        const double readBps = sectorDelta(previous.sectorsRead, s.sectorsRead) * DiskStat::kSectorSize / dt;
+        const double writeBps = sectorDelta(previous.sectorsWritten, s.sectorsWritten) * DiskStat::kSectorSize / dt;
+        if (composite) {
+            // Delta each drive before adding; a reset on one drive must not wipe out the others.
+            totalRead += readBps;
+            totalWrite += writeBps;
+        } else {
+            auto panel = m_disks.find(s.name);
+            if (panel != m_disks.end()) updatePanel(*panel, readBps, writeBps);
+        }
         m_prevSamples.insert(s.name, s);
     }
-    m_havePrev = true;
+    if (composite) updatePanel(m_compositeUI, totalRead, totalWrite);
 }

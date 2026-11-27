@@ -20,6 +20,7 @@
 #include <QSet>
 #include <QSettings>
 #include <QTemporaryDir>
+#include <QThread>
 #include <memory>
 
 namespace {
@@ -311,6 +312,62 @@ Chart *checkPanel(QWidget &container, const QString &title, int tracks)
     return chart;
 }
 
+void checkCompositeDisk()
+{
+    static QList<DiskSample> sample;
+    const auto mode = QStringLiteral("monitors/disk/mode");
+    const auto diskKey = QStringLiteral("monitors/disk/devices/");
+    QSettings settings;
+    settings.setValue(mode, QStringLiteral("composite"));
+    settings.setValue(diskKey + QStringLiteral("excluded"), false);
+    sample = {{QStringLiteral("drive-a"), 100000, 100000},
+              {QStringLiteral("drive-b"), 100000, 100000},
+              {QStringLiteral("excluded"), 100000, 100000}};
+    DiskStat::setReadOverride(+[] { return sample; });
+    Theme theme;
+    DiskMonitor monitor(&theme);
+    std::unique_ptr<QWidget> panel(monitor.createWidget(nullptr));
+    auto *chart = checkPanel(*panel, QStringLiteral("All disks"), 2);
+    const auto tracks = panel->findChildren<Krell *>();
+    const auto checkRates = [&] {
+        QThread::msleep(20);
+        monitor.tick();
+        if (panel->findChild<Chart *>() != chart || tracks.size() != 2
+            || tracks[1]->value() <= 0.0
+            || qAbs(tracks[0]->value() / tracks[1]->value() - 0.5) > 1e-6)
+            qFatal("Composite rates did not sum the enabled drives correctly");
+    };
+    sample[0].sectorsRead += 2;
+    sample[0].sectorsWritten += 5;
+    sample[1].sectorsRead += 6;
+    sample[1].sectorsWritten += 11;
+    sample[2].sectorsRead += 280;
+    checkRates();
+
+    // The other drive's I/O remains visible when a physical counter resets.
+    sample[0].sectorsRead = sample[0].sectorsWritten = 1;
+    sample[1].sectorsRead += 11;
+    sample[1].sectorsWritten += 22;
+    checkRates();
+
+    settings.setValue(mode, QStringLiteral("per-disk"));
+    monitor.tick();
+    if (panel->findChildren<Chart *>().size() != 2) qFatal("Per-drive mode did not return");
+    settings.setValue(mode, QStringLiteral("composite"));
+    settings.setValue(diskKey + QStringLiteral("drive-a"), false);
+    settings.setValue(diskKey + QStringLiteral("drive-b"), false);
+    monitor.tick();
+    if (panel->findChild<Chart *>()) qFatal("Disabled drives left a composite chart");
+    settings.setValue(diskKey + QStringLiteral("drive-b"), true);
+    monitor.tick();
+    checkPanel(*panel, QStringLiteral("All disks"), 2);
+    DiskStat::setReadOverride(diskSamples);
+    settings.remove(mode);
+    settings.remove(diskKey + QStringLiteral("excluded"));
+    settings.remove(diskKey + QStringLiteral("drive-a"));
+    settings.remove(diskKey + QStringLiteral("drive-b"));
+}
+
 void checkSavedAggregateCpu()
 {
     const auto modeKey = QStringLiteral("monitors/cpu/mode");
@@ -551,8 +608,6 @@ int main(int argc, char **argv)
     auto *netChart = checkPanel(*link, QStringLiteral("Uplink"), 2);
     DiskMonitor disk(&theme);
     std::unique_ptr<QWidget> device(disk.createWidget(nullptr));
-    // Let Windows initialize its disk layout signature before obtaining the chart.
-    disk.tick();
     auto *diskChart = checkPanel(*device, QStringLiteral("testdisk"), 2);
     ++ticks;
     net.tick();
@@ -568,6 +623,7 @@ int main(int argc, char **argv)
     checkMemoryMeters();
     checkCombinedCpuFill(config.path());
     checkSavedAggregateCpu();
+    checkCompositeDisk();
     checkOptInSurfaces(config.path());
     qInfo("PASS: chart layout, live readouts, moving tracks, and compact Memory and Swap meters");
 }

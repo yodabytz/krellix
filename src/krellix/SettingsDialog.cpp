@@ -30,6 +30,7 @@
 #include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
+#include <QSizeGrip>
 #include <QSet>
 #include <QSettings>
 #include <QSignalBlocker>
@@ -170,10 +171,16 @@ void SettingsDialog::applyThemePalette()
     const QColor backdropBorder = panel.lightnessF() >= .5 ? panel.darker(150) : panel.lighter(175);
     const QColor border = opaque(m_theme->color(QStringLiteral("settings_border")),
                                  opaque(monitorBorder, backdropBorder));
+    const QColor button = panel.lighter(115);
+    const QColor field = panel.darker(115);
+    // Monitor palettes can use nearly invisible panel borders. Interactive controls cannot.
+    const QColor controlBorder = qMin(qAbs(border.lightness() - button.lightness()),
+                                      qAbs(border.lightness() - field.lightness())) >= 36
+        ? border : (panel.lightness() >= 128 ? QColor(72, 77, 92) : QColor(145, 151, 170));
     pal.setColor(QPalette::Window, panel);
-    pal.setColor(QPalette::Base, panel.darker(115));
+    pal.setColor(QPalette::Base, field);
     pal.setColor(QPalette::AlternateBase, panel.darker(125));
-    pal.setColor(QPalette::Button, panel.lighter(115));
+    pal.setColor(QPalette::Button, button);
     pal.setColor(QPalette::WindowText, text);
     pal.setColor(QPalette::Text, text);
     pal.setColor(QPalette::ButtonText, text);
@@ -184,16 +191,18 @@ void SettingsDialog::applyThemePalette()
         "QGroupBox{border:1px solid %3;margin-top:8px;padding-top:8px;}"
         "QGroupBox::title{subcontrol-origin:margin;left:6px;color:%4;}"
         "QListWidget{border:1px solid %3;background:%5;}"
-        "QLineEdit,QComboBox,QSpinBox,QDoubleSpinBox{border:1px solid %3;background:%5;color:%2;padding:3px;}"
-        "QPushButton{border:1px solid %3;background:%6;color:%2;padding:4px 8px;}"
-        "QPushButton:hover{background:%7;}")
+        "QLineEdit,QComboBox,QSpinBox,QDoubleSpinBox{border:1px solid %8;background:%5;color:%2;padding:3px;}"
+        "QPushButton{border:1px solid %8;background:%6;color:%2;padding:4px 8px;}"
+        "QPushButton:hover{background:%7;}"
+        "QPushButton:focus,QLineEdit:focus,QComboBox:focus,QSpinBox:focus,QDoubleSpinBox:focus{border-color:%2;}")
         .arg(panel.name(QColor::HexArgb),
              text.name(QColor::HexArgb),
              border.name(QColor::HexArgb),
              text2.name(QColor::HexArgb),
-             panel.darker(115).name(QColor::HexArgb),
-             panel.lighter(115).name(QColor::HexArgb),
-             panel.lighter(130).name(QColor::HexArgb));
+             field.name(QColor::HexArgb),
+             button.name(QColor::HexArgb),
+             panel.lighter(130).name(QColor::HexArgb),
+             controlBorder.name(QColor::HexArgb));
     if (styleSheet() != themeStyle) setStyleSheet(themeStyle);
 }
 
@@ -214,7 +223,6 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         : preferred;
     setMinimumSize(QSize(560, 380).boundedTo(available));
     resize(preferred.boundedTo(available));
-    setSizeGripEnabled(true);
     applyThemePalette();
     connect(m_theme, &Theme::themeChanged, this, &SettingsDialog::applyThemePalette);
 
@@ -363,6 +371,7 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
         layout->addWidget(m_netPortsEnabled);
         layout->addWidget(m_diskEnabled);
         m_diskMode = new QComboBox(page);
+        m_diskMode->setObjectName(QStringLiteral("disk-mode"));
         m_diskMode->addItem(QStringLiteral("Per-drive panels"), QStringLiteral("per-disk"));
         m_diskMode->addItem(QStringLiteral("Composite panel"), QStringLiteral("composite"));
         layout->addWidget(new QLabel(QStringLiteral("Disk display:"), page));
@@ -1242,11 +1251,14 @@ SettingsDialog::SettingsDialog(Theme *theme, KrellmailOAuthBroker *krellmailOAut
     QFont hintFont = liveHint->font();
     hintFont.setItalic(true);
     liveHint->setFont(hintFont);
-    root->addWidget(liveHint);
-
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
     connect(buttons, &QDialogButtonBox::rejected, this, &SettingsDialog::onAccept);
-    root->addWidget(buttons);
+    auto *footer = new QHBoxLayout;
+    footer->addWidget(liveHint, 1);
+    footer->addWidget(buttons);
+    // The dialog's floating corner grip can paint over the Close button.
+    footer->addWidget(new QSizeGrip(this), 0, Qt::AlignBottom);
+    root->addLayout(footer);
 
     // ---------------- Initial values + live wiring ----------------
     {

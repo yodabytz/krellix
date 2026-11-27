@@ -19,6 +19,7 @@
 #include <QPalette>
 #include <QPushButton>
 #include <QScreen>
+#include <QSizeGrip>
 #include <QSpinBox>
 #include <QStyleOptionComboBox>
 #include <QTimer>
@@ -559,6 +560,41 @@ static void verifyLiveCpuModes()
     CpuStat::setReadOverride(nullptr);
 }
 
+static void verifyLiveDiskModes()
+{
+    const auto modeKey = QStringLiteral("monitors/disk/mode");
+    const auto diskKey = QStringLiteral("monitors/disk");
+    QSettings settings;
+    const auto oldMode = settings.value(modeKey);
+    const auto oldDisk = settings.value(diskKey);
+    settings.setValue(modeKey, QStringLiteral("per-disk"));
+    settings.setValue(diskKey, true);
+    DiskStat::setReadOverride(+[] {
+        return QList<DiskSample>{{QStringLiteral("fixture-drive-a"), 100, 100},
+                                 {QStringLiteral("fixture-drive-b"), 200, 200}};
+    });
+    Theme theme;
+    MainWindow window(&theme, {QStringLiteral("disk")});
+    window.show();
+    if (!QMetaObject::invokeMethod(&window, "showSettings", Qt::DirectConnection))
+        qFatal("Could not open live disk settings");
+    auto *mode = window.findChild<QComboBox *>(QStringLiteral("disk-mode"));
+    if (!mode || window.findChildren<Chart *>().size() != 2)
+        qFatal("Missing disk mode selector or the two original drive charts");
+    mode->setCurrentIndex(mode->findData(QStringLiteral("composite")));
+    if (settings.value(modeKey).toString() != QStringLiteral("composite")
+        || window.findChildren<Chart *>().size() != 1)
+        qFatal("Disk selection did not apply Composite immediately");
+    mode->setCurrentIndex(mode->findData(QStringLiteral("per-disk")));
+    if (window.findChildren<Chart *>().size() != 2)
+        qFatal("Disk selection did not restore Per-drive panels immediately");
+    DiskStat::setReadOverride(nullptr);
+    if (oldMode.isValid()) settings.setValue(modeKey, oldMode);
+    else settings.remove(modeKey);
+    if (oldDisk.isValid()) settings.setValue(diskKey, oldDisk);
+    else settings.remove(diskKey);
+}
+
 static void verifySettingsPalette()
 {
     QTemporaryDir fixture;
@@ -592,6 +628,22 @@ static void verifySettingsPalette()
         qFatal("Settings colors did not apply to an open dialog");
     if (theme.color(QStringLiteral("panel_bg")).alpha() != 0)
         qFatal("Applying settings colors changed the monitor backdrop");
+    dialog.resize(dialog.minimumSize());
+    QApplication::processEvents();
+    auto *buttons = dialog.findChild<QDialogButtonBox *>();
+    auto *close = buttons ? buttons->button(QDialogButtonBox::Close) : nullptr;
+    auto *grip = dialog.findChild<QSizeGrip *>();
+    if (!close || !grip || !close->isVisible()
+        || QRect(close->mapTo(&dialog, QPoint()), close->size()).intersects(
+            QRect(grip->mapTo(&dialog, QPoint()), grip->size())))
+        qFatal("Settings Close button is missing or overlaps the resize grip");
+    const auto button = close->grab().toImage();
+    const QColor outline = button.pixelColor(button.width() / 2, 0);
+    if (outline == button.pixelColor(button.width() / 3, button.height() / 3)
+        || outline != button.pixelColor(button.width() / 2, button.height() - 1)
+        || outline != button.pixelColor(0, button.height() / 2)
+        || outline != button.pixelColor(button.width() - 1, button.height() / 2))
+        qFatal("Close did not paint its outline on all four sides");
     if (!QDir::setCurrent(previous.absolutePath())) qFatal("Could not restore working directory");
 }
 
@@ -946,6 +998,7 @@ static void exercise()
         verifyFooterFrame();
         verifyWidthOnlyResize();
         verifyLiveCpuModes();
+        verifyLiveDiskModes();
         verifySettingsPalette();
         verifySensorHeatColors();
         verifyThemeWindowShadow();

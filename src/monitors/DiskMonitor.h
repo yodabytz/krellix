@@ -11,8 +11,7 @@ class Chart;
 class Decal;
 class Krell;
 
-// One panel per whole disk: text decal "R 4.5M  W 0", read krell, write
-// krell, combined-throughput chart. Adaptive scale per disk.
+// Per-drive or composite disk I/O, with a throughput chart and read/write tracks.
 class DiskMonitor : public MonitorBase
 {
     Q_OBJECT
@@ -29,12 +28,11 @@ public:
     void     tick() override;
 
 private:
-    void rebuildDisks(const QList<DiskSample> &samples);
+    void rebuildDisks(const QList<DiskSample> &enabled);
     QPointer<QWidget> m_container;
     QStringList m_visibleDisks;
-#ifdef Q_OS_WIN
-    QString m_layoutSettings;
-#endif
+    bool m_composite = false;
+    bool m_hasDisks = false;
 
     struct DiskUI {
         QPointer<Krell> readKrell;
@@ -44,9 +42,9 @@ private:
     };
 
     QHash<QString, DiskUI>      m_disks;
+    DiskUI                      m_compositeUI;
     QHash<QString, DiskSample>  m_prevSamples;
     QElapsedTimer               m_lastReadTimer;
-    bool                        m_havePrev = false;
 
     Q_DISABLE_COPY_MOVE(DiskMonitor)
 };
