@@ -1,0 +1,124 @@
+{
+  "name": "Aetherium",
+  "author": "Theme designer",
+  "description": "Victorian brass clockwork and animated steam",
+  "colors": {
+    "panel_bg": "#00000000",
+    "panel_border": "#00000000",
+    "chart_bg": "#00000000",
+    "chart_grid": "#483323",
+    "text_primary": "#f5dfb4",
+    "text_secondary": "#c9ae82",
+    "text_accent": "#ffc052",
+    "text_meter_bg": "#21160e",
+    "krell_track": "#352317",
+    "krell_indicator": "#ffb02e",
+    "chart_line_default": "#ffb02e",
+    "chart_line_cpu": "#ffb02e",
+    "chart_line_cpu_series": "#ffb02e",
+    "chart_fill_cpu_series": "#33ffb02e",
+    "chart_line_mem": "#ffb02e",
+    "chart_line_swap": "#b87b48",
+    "chart_line_net_rx": "#ffb02e",
+    "chart_line_net_tx": "#b87b48",
+    "chart_line_disk": "#ffb02e",
+    "accent_ok": "#a8df62",
+    "accent_warning": "#ffc45b",
+    "accent_critical": "#ff6262"
+  },
+  "fonts": {
+    "label": {
+      "family": "Georgia",
+      "size": 8,
+      "bold": false
+    },
+    "value": {
+      "family": "Helvetica Neue",
+      "size": 9,
+      "bold": true
+    },
+    "panel_title": {
+      "family": "Georgia",
+      "size": 8,
+      "bold": true
+    }
+  },
+  "metrics": {
+    "panel_padding": 6,
+    "panel_spacing": 2,
+    "panel_border": 0,
+    "window_shadow": 0,
+    "krell_height": 12,
+    "chart_height": 64,
+    "chart_glass": 1,
+    "chart_grid_lines": 4,
+    "top_strip_height": 149,
+    "top_strip_keep_aspect": 1,
+    "panel_icon_size": 16,
+    "panel_icon_krellhealth_heart_size": 32,
+    "panel_icon_krellhealth_status_size": 32
+  },
+  "surfaces": {
+    "panel_bg": {
+      "image": "assets/panel.png",
+      "slice": 9,
+      "opacity": 1.0
+    },
+    "panel_bg_host": {
+      "image": "assets/host-panel.png",
+      "slice": 9,
+      "opacity": 1.0
+    },
+    "panel_bg_uptime": {
+      "image": "assets/panel-short.png",
+      "slice": 9
+    },
+    "chart_bg": {
+      "image": "assets/chart-bg.png",
+      "slice": 0,
+      "opacity": 0
+    },
+    "panel_bg_top": {
+      "image": "assets/optional-header.png",
+      "slice": 0
+    }
+  },
+  "images": {
+    "chart_bg": {
+      "image": "assets/meter-track.png",
+      "mode": "stretch"
+    },
+    "krell_track": {
+      "image": "assets/krell-track.png",
+      "mode": "tile"
+    },
+    "krell": {
+      "image": "assets/krell.png",
+      "frames": 1
+    },
+    "frame_bottom": {
+      "image": "assets/optional-footer.png",
+      "mode": "stretch"
+    },
+    "window_bg": "assets/chassis-rails.png",
+    "panel_icon_cpu": "assets/monitor-icons/cpu.png",
+    "panel_icon_proc": "assets/monitor-icons/proc.png",
+    "panel_icon_mem": "assets/monitor-icons/memory.png",
+    "panel_icon_disk": "assets/monitor-icons/disk.png",
+    "panel_icon_net": "assets/monitor-icons/network.png",
+    "panel_icon_sensors": "assets/monitor-icons/sensors.png",
+    "panel_icon_netports": "assets/monitor-icons/ports.png",
+    "panel_icon_uptime": "assets/monitor-icons/uptime.png",
+    "panel_icon_krellhealth": "assets/monitor-icons/health.png",
+    "panel_icon_krellweather": "assets/monitor-icons/weather.png",
+    "panel_icon_krellstock": "assets/monitor-icons/stocks.png",
+    "panel_icon_krellpkg": "assets/monitor-icons/packages.png",
+    "panel_icon_krelltop": "assets/monitor-icons/top.png",
+    "panel_icon_krellhealth_heart": "assets/health/ok.png",
+    "panel_icon_krellhealth_status_info": "assets/health/info.png",
+    "panel_icon_krellhealth_status_warning": "assets/health/warning.png",
+    "panel_icon_krellhealth_status_critical": "assets/health/critical.png",
+    "panel_icon_krellhealth_status_check": "assets/health/unknown.png",
+    "panel_icon_krellstock_ticker": "assets/monitor-icons/stocks.png"
+  }
+}

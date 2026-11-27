@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "animations": {
+    "header": {
+      "target": "surfaces.panel_bg_top",
+      "trigger": "continuous",
+      "sheet": "assets/animation/header-strip.png",
+      "fallback": "assets/optional-header.png",
+      "frame_width": 240,
+      "frame_height": 149,
+      "frames": 60,
+      "fps": 6,
+      "layout": "horizontal",
+      "loop": true
+    },
+    "footer": {
+      "target": "images.frame_bottom",
+      "trigger": "continuous",
+      "sheet": "assets/animation/footer-strip.png",
+      "fallback": "assets/optional-footer.png",
+      "frame_width": 240,
+      "frame_height": 182,
+      "frames": 60,
+      "fps": 6,
+      "layout": "horizontal",
+      "loop": true
+    }
+  }
+}
