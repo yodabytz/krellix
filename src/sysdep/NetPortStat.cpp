@@ -10,12 +10,97 @@
 #include <QLoggingCategory>
 #include <QProcess>
 
+#if defined(Q_OS_FREEBSD)
+#include <QDeadlineTimer>
+#include <QElapsedTimer>
+#include <QRegularExpression>
+#include <QSet>
+#endif
+
 Q_LOGGING_CATEGORY(lcNetPortStat, "krellix.sysdep.netport")
 
 namespace {
 
-constexpr qint64 kProcNetSocketMaxBytes = 1024 * 1024;
 NetPortStat::ReadFn g_readOverride = nullptr;
+
+#if defined(Q_OS_FREEBSD)
+QList<NetPortSample> readFreeBsdPorts()
+{
+    // The daemon and monitor may request more than one sample per second.
+    static QElapsedTimer age;
+    static QList<NetPortSample> cache;
+    if (age.isValid() && age.elapsed() < 1000)
+        return cache;
+    age.start();
+    cache.clear();
+
+    QProcess process;
+    process.setStandardErrorFile(QProcess::nullDevice());
+    process.start(QStringLiteral("/usr/bin/sockstat"),
+                  {QStringLiteral("-46sinw"), QStringLiteral("-P"), QStringLiteral("tcp,udp")});
+    QDeadlineTimer deadline(500);
+    if (!process.waitForStarted(200))
+        return cache;
+    constexpr qsizetype maxBytes = 4 * 1024 * 1024;
+    QByteArray data;
+    while (true) {
+        data += process.read(maxBytes - data.size());
+        if (data.size() >= maxBytes || deadline.hasExpired()) {
+            process.kill();
+            process.waitForFinished(100);
+            return cache;
+        }
+        if (process.state() == QProcess::NotRunning)
+            break;
+        process.waitForReadyRead(static_cast<int>(deadline.remainingTime()));
+    }
+    if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0)
+        return cache;
+
+    // Parse the tail of the row; the process name may contain spaces.
+    static const QRegularExpression rowPattern(
+        QStringLiteral(R"(\s(tcp[46]+|udp[46]+)\s+(\S+)\s+(\S+)\s+([0-9]+)(?:\s+(\S+))?\s*$)"));
+    QSet<QString> seen;
+    for (const auto &row : data.split('\n')) {
+        if (row.size() > 4096)
+            continue;
+        const auto m = rowPattern.match(QString::fromLocal8Bit(row));
+        if (!m.hasMatch())
+            continue;
+        const QString proto = m.captured(1);
+        const bool tcp = proto.startsWith(QLatin1String("tcp"));
+        if (tcp && m.captured(5) != QLatin1String("ESTABLISHED"))
+            continue;
+        const QString local = m.captured(2);
+        const QString peer = m.captured(3);
+        const qsizetype localSplit = local.lastIndexOf(QLatin1Char(':'));
+        const qsizetype peerSplit = peer.lastIndexOf(QLatin1Char(':'));
+        if (localSplit < 0 || peerSplit < 0)
+            continue;
+        const auto localPort = local.mid(localSplit + 1).toUShort();
+        const auto peerPort = peer.mid(peerSplit + 1).toUShort();
+        QString address = peer.left(peerSplit);
+        if (address.startsWith(QLatin1Char('[')) && address.endsWith(QLatin1Char(']')))
+            address = address.mid(1, address.size() - 2);
+        const QHostAddress peerAddress(address);
+        if (localPort == 0 || (tcp && (peerPort == 0 || peerAddress.isNull())))
+            continue;
+
+        // sockstat emits a row per descriptor; forked processes can share a socket.
+        const QString key = proto + QLatin1Char('|') + m.captured(4)
+            + QLatin1Char('|') + local + QLatin1Char('|') + peer;
+        if (seen.contains(key))
+            continue;
+        seen.insert(key);
+        cache.append({tcp ? QStringLiteral("tcp") : QStringLiteral("udp"), localPort, peerPort,
+                      peerPort ? peerAddress.toString() : QString(),
+                      tcp ? QStringLiteral("01") : QString()});
+    }
+    return cache;
+}
+#else
+
+constexpr qint64 kProcNetSocketMaxBytes = 1024 * 1024;
 
 quint16 hexPort(const QByteArray &address)
 {
@@ -180,6 +265,7 @@ void readMacSocketTable(const QString &protocol, QList<NetPortSample> &out)
     }
 }
 #endif
+#endif
 
 } // namespace
 
@@ -198,6 +284,8 @@ QList<NetPortSample> NetPortStat::read()
 #elif defined(Q_OS_MACOS)
     readMacSocketTable(QStringLiteral("tcp"), out);
     readMacSocketTable(QStringLiteral("udp"), out);
+#elif defined(Q_OS_FREEBSD)
+    return readFreeBsdPorts();
 #else
     readSocketFile(QStringLiteral("/proc/net/tcp"),  QStringLiteral("tcp"), out);
     readSocketFile(QStringLiteral("/proc/net/tcp6"), QStringLiteral("tcp"), out);

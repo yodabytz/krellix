@@ -13,7 +13,7 @@
 #include <QLoggingCategory>
 #include <QStringList>
 
-#if defined(Q_OS_MACOS)
+#if defined(Q_OS_MACOS) || defined(Q_OS_FREEBSD)
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -22,8 +22,10 @@
 Q_LOGGING_CATEGORY(lcNetStat, "krellix.sysdep.net")
 
 namespace {
-constexpr qint64 kProcNetDevMaxBytes = 1024 * 1024;  // generous cap
 NetStat::ReadFn g_readOverride = nullptr;
+
+#if !defined(Q_OS_FREEBSD)
+constexpr qint64 kProcNetDevMaxBytes = 1024 * 1024;  // generous cap
 
 // A Linux bridge's own /proc/net/dev counters do not include traffic
 // that the bridge merely forwards between member ports — and on Docker,
@@ -42,9 +44,10 @@ QStringList bridgeMembers(const QString &bridgeName)
     if (!d.exists()) return {};
     return d.entryList(QDir::AllEntries | QDir::NoDotAndDotDot);
 }
+#endif
 
-#if defined(Q_OS_MACOS)
-QList<NetSample> readMacNetStat()
+#if defined(Q_OS_MACOS) || defined(Q_OS_FREEBSD)
+QList<NetSample> readBsdNetStat()
 {
     QList<NetSample> samples;
     ifaddrs *ifaddr = nullptr;
@@ -109,8 +112,8 @@ QList<NetSample> NetStat::read()
     if (g_readOverride) return g_readOverride();
 #if defined(Q_OS_WIN)
     return WindowsStats::network();
-#elif defined(Q_OS_MACOS)
-    return readMacNetStat();
+#elif defined(Q_OS_MACOS) || defined(Q_OS_FREEBSD)
+    return readBsdNetStat();
 #else
     QFile f(QStringLiteral("/proc/net/dev"));
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {

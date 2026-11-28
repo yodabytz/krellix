@@ -10,6 +10,12 @@
 #if defined(Q_OS_MACOS)
 #include <IOKit/IOKitLib.h>
 #include <CoreFoundation/CoreFoundation.h>
+#elif defined(Q_OS_FREEBSD)
+#include <devstat.h>
+
+#include <cstdlib>
+#include <cstring>
+#include <memory>
 #endif
 
 #if defined(Q_OS_WIN)
@@ -22,7 +28,9 @@
 Q_LOGGING_CATEGORY(lcDiskStat, "krellix.sysdep.disk")
 
 namespace {
+#if defined(Q_OS_LINUX)
 constexpr qint64 kProcDiskstatsMaxBytes = 1024 * 1024;
+#endif
 DiskStat::ReadFn g_readOverride = nullptr;
 }
 
@@ -118,6 +126,33 @@ QList<DiskSample> DiskStat::read()
         IOObjectRelease(device);
     }
     IOObjectRelease(devices);
+    return samples;
+#elif defined(Q_OS_FREEBSD)
+    devinfo devices{};
+    statinfo snapshot{};
+    snapshot.dinfo = &devices;
+    if (devstat_checkversion(nullptr) != 0)
+        return {};
+    const int result = devstat_getdevs(nullptr, &snapshot);
+    const std::unique_ptr<unsigned char, decltype(&std::free)> buffer(devices.mem_ptr, std::free);
+    if (result < 0)
+        return {};
+
+    QList<DiskSample> samples;
+    for (int i = 0; i < devices.numdevs; ++i) {
+        const auto &device = devices.devices[i];
+        const int type = device.device_type & DEVSTAT_TYPE_MASK;
+        if ((device.device_type & DEVSTAT_TYPE_PASS)
+            || (type != DEVSTAT_TYPE_DIRECT && type != DEVSTAT_TYPE_STORARRAY))
+            continue;
+        const auto length = strnlen(device.device_name, sizeof(device.device_name));
+        if (length == 0 || device.unit_number < 0)
+            continue;
+        const QString name = QString::fromLocal8Bit(device.device_name, static_cast<qsizetype>(length))
+                           + QString::number(device.unit_number);
+        samples.append({name, device.bytes[DEVSTAT_READ] / kSectorSize,
+                        device.bytes[DEVSTAT_WRITE] / kSectorSize});
+    }
     return samples;
 #elif defined(Q_OS_LINUX)
     QFile f(QStringLiteral("/proc/diskstats"));

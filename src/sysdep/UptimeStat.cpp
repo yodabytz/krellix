@@ -9,6 +9,8 @@
 
 #if defined(Q_OS_MACOS)
 #include <sys/sysctl.h>
+#elif defined(Q_OS_FREEBSD)
+#include <time.h>
 #endif
 
 namespace { UptimeStat::ReadFn g_readOverride = nullptr; }
@@ -20,6 +22,9 @@ qint64 UptimeStat::secondsSinceBoot()
     if (g_readOverride) return g_readOverride();
 #if defined(Q_OS_WIN)
     return static_cast<qint64>(GetTickCount64() / 1000ULL);
+#elif defined(Q_OS_FREEBSD)
+    timespec elapsed{};
+    return clock_gettime(CLOCK_UPTIME, &elapsed) == 0 ? static_cast<qint64>(elapsed.tv_sec) : -1;
 #elif defined(Q_OS_MACOS)
     timeval boottime{};
     size_t size = sizeof(boottime);

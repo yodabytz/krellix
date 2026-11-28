@@ -14,6 +14,8 @@
 #if defined(Q_OS_MACOS) || defined(Q_OS_DARWIN)
 #include <IOKit/IOKitLib.h>
 #include <cstring>
+#elif defined(Q_OS_FREEBSD)
+#include "FreeBsdSysctl.h"
 #endif
 
 Q_LOGGING_CATEGORY(lcSensor, "krellix.sysdep.sensor")
@@ -22,6 +24,28 @@ namespace {
 
 SensorStat::ReadFn g_readOverride = nullptr;
 
+#if defined(Q_OS_FREEBSD)
+QList<SensorReading> readFreeBsdSensors()
+{
+    QList<SensorReading> readings;
+    const auto append = [&](const QByteArray &key, const QString &chip, const QString &label) {
+        const auto value = FreeBsdSysctl::read<int>(key.constData());
+        // ACPI and coretemp expose tenths of kelvins. No driver means no reading.
+        if (value && *value > 0 && *value < 5000)
+            readings.append({chip, label, (*value - 2732) / 10.0});
+    };
+    const int cpus = qBound(0, FreeBsdSysctl::read<int>("hw.ncpu").value_or(0), 4096);
+    for (int i = 0; i < cpus; ++i) {
+        append(QByteArray("dev.cpu.") + QByteArray::number(i) + ".temperature",
+               QStringLiteral("cpu"), QStringLiteral("CPU %1").arg(i));
+    }
+    for (int i = 0; i < 32; ++i) {
+        append(QByteArray("hw.acpi.thermal.tz") + QByteArray::number(i) + ".temperature",
+               QStringLiteral("acpi"), QStringLiteral("Thermal zone %1").arg(i));
+    }
+    return readings;
+}
+#else
 QString readTrimmed(const QString &path)
 {
     QFile f(path);
@@ -385,6 +409,8 @@ QList<SensorReading> readDarwinSensors()
 }
 #endif
 
+#endif
+
 } // namespace
 
 void SensorStat::setReadOverride(SensorStat::ReadFn fn) { g_readOverride = fn; }
@@ -393,16 +419,18 @@ QList<SensorReading> SensorStat::read()
 {
     if (g_readOverride) return g_readOverride();
 
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN)
     return WindowsSensors::read();
-#endif
-
+#elif defined(Q_OS_FREEBSD)
+    return readFreeBsdSensors();
+#else
     QList<SensorReading> out = readLinuxHwmon();
 #if defined(Q_OS_MACOS) || defined(Q_OS_DARWIN)
     if (out.isEmpty())
         out = readDarwinSensors();
 #endif
     return out;
+#endif
 }
 
 #ifdef Q_OS_WIN
