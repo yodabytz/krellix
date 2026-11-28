@@ -68,8 +68,11 @@ This installs binaries, themes and plugins, but does not start a daemon.
 Verified on FreeBSD 15.1 (amd64). The app and `krellixd` use native collectors for CPU, RAM and
 swap, processes, uptime, disk I/O, network traffic, and TCP/UDP ports.
 No Linux compatibility layer or procfs mount is required. Temperature and
-battery readings depend on available drivers and hardware; they may be
-absent in a virtual machine.
+battery readings depend on available drivers and hardware. For temperatures,
+Krellix reads `dev.cpu.*.temperature` (for example, from `coretemp(4)` on Intel
+or `amdtemp(4)` on supported AMD hardware) and ACPI thermal zones. If the
+hypervisor exposes no sensors, Krellix shows **No VM sensors** rather than
+displaying host temperatures or estimating guest temperatures from CPU usage.
 
 ## Themes
 

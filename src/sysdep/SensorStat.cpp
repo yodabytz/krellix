@@ -16,6 +16,8 @@
 #include <cstring>
 #elif defined(Q_OS_FREEBSD)
 #include "FreeBsdSysctl.h"
+
+#include <QByteArrayView>
 #endif
 
 Q_LOGGING_CATEGORY(lcSensor, "krellix.sysdep.sensor")
@@ -439,5 +441,17 @@ QString SensorStat::windowsStatus()
     // An empty remote stream must never initialize or fall back to local probes.
     if (g_readOverride) return QStringLiteral("No remote sensors");
     return WindowsSensors::status();
+}
+#elif defined(Q_OS_FREEBSD)
+QString SensorStat::freeBsdEmptyStatus()
+{
+    if (g_readOverride) return QStringLiteral("No remote sensors");
+
+    static const bool isGuest = [] {
+        const auto name = FreeBsdSysctl::readArray<char>("kern.vm_guest", 64);
+        return name.size() > 1 && name.back() == '\0'
+            && QByteArrayView(name.data(), qsizetype(name.size() - 1)) != "none";
+    }();
+    return isGuest ? QStringLiteral("No VM sensors") : QStringLiteral("No sensors available");
 }
 #endif

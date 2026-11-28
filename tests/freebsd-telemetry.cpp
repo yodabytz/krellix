@@ -17,6 +17,7 @@
 #include <QUdpSocket>
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 
 int main(int argc, char **argv)
@@ -50,6 +51,24 @@ int main(int argc, char **argv)
     const auto disks = DiskStat::read();
     const auto sensors = SensorStat::read();
     const auto battery = BatteryStat::read();
+    for (const auto &sensor : sensors)
+        check(sensor.type == SensorReading::Temp && std::isfinite(sensor.value),
+              "Invalid native temperature reading");
+    const auto localStatus = SensorStat::freeBsdEmptyStatus();
+    check(localStatus == QLatin1String("No VM sensors")
+              || localStatus == QLatin1String("No sensors available"),
+          "Incorrect local sensor status");
+    SensorStat::setReadOverride([] { return QList<SensorReading>{}; });
+    check(SensorStat::read().isEmpty()
+              && SensorStat::freeBsdEmptyStatus() == QLatin1String("No remote sensors"),
+          "Remote empty sensor data fell back to the local sensor backend");
+    SensorStat::setReadOverride([] {
+        return QList<SensorReading>{{QStringLiteral("remote"), QStringLiteral("CPU"), 52.5}};
+    });
+    check(SensorStat::read().size() == 1 && SensorStat::read().front().value == 52.5,
+          "Remote temperature was not preserved");
+    SensorStat::setReadOverride(nullptr);
+    check(SensorStat::freeBsdEmptyStatus() == localStatus, "Local sensor status did not recover");
     check(mem.valid() && mem.availableKb <= mem.totalKb && mem.swapFreeKb <= mem.swapTotalKb,
           "Invalid physical memory or swap counters");
     check(uptime >= 0, "No native uptime sample");
@@ -119,5 +138,6 @@ int main(int argc, char **argv)
             << "uptime seconds:" << uptime << "interfaces:" << net.size()
             << "disks:" << disks.size() << "ports:" << ports.size()
             << "sensors:" << sensors.size() << "battery available:" << battery.present;
+    if (sensors.isEmpty()) qInfo() << localStatus;
     return failures ? 1 : 0;
 }

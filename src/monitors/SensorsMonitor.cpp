@@ -130,6 +130,14 @@ void SensorsMonitor::tick()
     if (!m_panel) return;
 #ifdef Q_OS_WIN
     if (m_empty && order.isEmpty()) m_empty->setText(SensorStat::windowsStatus());
+#elif defined(Q_OS_FREEBSD)
+    if (m_empty && order.isEmpty()) {
+        const auto status = SensorStat::freeBsdEmptyStatus();
+        m_empty->setText(status);
+        m_empty->setToolTip(status == QStringLiteral("No VM sensors")
+            ? QStringLiteral("FreeBSD reports no temperature sensors in this VM. Host temperatures are not guest readings.")
+            : QString());
+    }
 #endif
     if (m_empty) m_empty->setVisible(order.isEmpty());
     for (auto it = m_rows.begin(); it != m_rows.end(); ++it)

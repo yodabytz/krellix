@@ -23,6 +23,8 @@ public:
     static QList<SensorReading> read();
 #ifdef Q_OS_WIN
     static QString windowsStatus();
+#elif defined(Q_OS_FREEBSD)
+    static QString freeBsdEmptyStatus();
 #endif
 
     using ReadFn = QList<SensorReading> (*)();
