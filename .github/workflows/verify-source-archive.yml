@@ -1,0 +1,43 @@
+name: Verify shared Krellix source archive
+on:
+  push:
+    branches: [verify/krellix-source-380b1b6]
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download and verify the exact archives
+        shell: pwsh
+        run: |
+          $src = Join-Path $env:RUNNER_TEMP 'krellix-source.tar.gz'
+          $hostZip = Join-Path $env:RUNNER_TEMP 'krellix-host.zip'
+          Invoke-WebRequest 'https://repo.cerberix.org/source/krellix-0.1.2-source-380b1b6.tar.gz' -OutFile $src
+          Invoke-WebRequest 'https://repo.cerberix.org/windows/krellix-0.1.2-windows-preview.18-x86_64.zip' -OutFile $hostZip
+          if ((Get-FileHash $src).Hash -ne 'f5c8afe8c42be1faa0c6ef33a422e33d700ed0daf09ce5060c563afdfa4daffa') { throw 'Unexpected source archive' }
+          if ((Get-FileHash $hostZip).Hash -ne '6c631eeb0f15fe40dffa3c1ff946550f5dffd301955ebc3c65dbe8c052346112') { throw 'Unexpected sensor helper archive' }
+          tar -xzf $src
+          if ($LASTEXITCODE -ne 0) { throw 'Could not extract source archive' }
+          Expand-Archive -LiteralPath $hostZip -DestinationPath "$env:RUNNER_TEMP\portable"
+      - uses: msys2/setup-msys2@3c51bf698df1e37b2261f53cb67797b97761185c
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-qt6-base
+      - name: Build and test the Windows desktop client
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          export QT_FORCE_STDERR_LOGGING=1
+          cmake -S krellix-0.1.2-source-380b1b6 -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
+            "-DKRELLIX_SENSOR_DIR=$(cygpath -m "$RUNNER_TEMP")/portable/Krellix/sensors"
+          cmake --build build --target krellix windows-sensors windows-core -j 4
+          ctest --test-dir build -R '^windows-(sensors|core|remote-isolation)$' --output-on-failure
