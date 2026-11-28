@@ -46,6 +46,31 @@ Run with a specific theme:
 ./build/bin/krellix --theme default
 ```
 
+### FreeBSD
+
+On FreeBSD, use the system C++ compiler and install the Qt and build tools:
+
+```sh
+pkg install git cmake ninja pkgconf qt6-base
+git clone https://github.com/yodabytz/krellix.git
+cd krellix
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel 2
+ctest --test-dir build --output-on-failure
+./build/bin/krellix
+```
+
+Run the package install command as root. The desktop application needs an
+active graphical session. To install the build for all users, run
+`cmake --install build` as root; the default prefix is `/usr/local`.
+This installs binaries, themes and plugins, but does not start a daemon.
+
+Verified on FreeBSD 15.1 (amd64). The app and `krellixd` use native collectors for CPU, RAM and
+swap, processes, uptime, disk I/O, network traffic, and TCP/UDP ports.
+No Linux compatibility layer or procfs mount is required. Temperature and
+battery readings depend on available drivers and hardware; they may be
+absent in a virtual machine.
+
 ## Themes
 
 Themes live in:

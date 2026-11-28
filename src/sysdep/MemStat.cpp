@@ -12,6 +12,12 @@
 #include <mach/mach.h>
 #include <mach/mach_host.h>
 #include <sys/sysctl.h>
+#elif defined(Q_OS_FREEBSD)
+#include "FreeBsdSysctl.h"
+#include <fcntl.h>
+#include <kvm.h>
+
+#include <memory>
 #endif
 
 Q_LOGGING_CATEGORY(lcMemStat, "krellix.sysdep.mem")
@@ -22,6 +28,7 @@ void MemStat::setReadOverride(MemStat::ReadFn fn) { g_readOverride = fn; }
 
 namespace {
 
+#if !defined(Q_OS_FREEBSD)
 constexpr qint64 kProcMeminfoMaxBytes = 64 * 1024;  // /proc/meminfo is tiny
 
 // Each line is "Key:     12345 kB" (or no unit for some fields).
@@ -43,6 +50,7 @@ quint64 parseValueKb(const QByteArray &line)
     const quint64 v = rhs.toULongLong(&ok);
     return ok ? v : 0;
 }
+#endif
 
 #if defined(Q_OS_MACOS)
 quint64 sysctlUint64(const char *name)
@@ -128,6 +136,34 @@ MemInfo MemStat::read()
     if (sysctlbyname("vm.swapusage", &swap, &swapSize, nullptr, 0) == 0) {
         out.swapTotalKb = bytesToKb(static_cast<quint64>(swap.xsu_total));
         out.swapFreeKb = bytesToKb(static_cast<quint64>(swap.xsu_avail));
+    }
+    return out;
+#elif defined(Q_OS_FREEBSD)
+    const auto physical = FreeBsdSysctl::read<unsigned long>("hw.physmem");
+    const auto pageSize = FreeBsdSysctl::read<int>("hw.pagesize");
+    const auto free = FreeBsdSysctl::read<quint32>("vm.stats.vm.v_free_count");
+    if (!physical || !pageSize || *pageSize <= 0 || !free)
+        return out;
+
+    const auto pagesToKb = [pageSize](quint64 pages) {
+        return pages * static_cast<quint64>(*pageSize) / 1024;
+    };
+    const auto inactive = FreeBsdSysctl::read<quint32>("vm.stats.vm.v_inactive_count").value_or(0);
+    const auto cached = FreeBsdSysctl::read<quint32>("vm.stats.vm.v_cache_count").value_or(0);
+    out.totalKb = *physical / 1024;
+    out.freeKb = pagesToKb(*free);
+    out.cachedKb = pagesToKb(cached);
+    out.availableKb = qMin(out.totalKb, pagesToKb(quint64(*free) + inactive + cached));
+
+    // A one-element array asks libkvm for totals, via its live sysctl backend.
+    // /dev/null selects that backend without opening privileged kernel memory.
+    std::unique_ptr<kvm_t, decltype(&kvm_close)> handle(
+        kvm_openfiles(nullptr, "/dev/null", nullptr, O_RDONLY, nullptr), kvm_close);
+    kvm_swap swap{};
+    if (handle && kvm_getswapinfo(handle.get(), &swap, 1, 0) >= 0
+        && swap.ksw_total > 0) {
+        out.swapTotalKb = pagesToKb(swap.ksw_total);
+        out.swapFreeKb = pagesToKb(swap.ksw_total - qMin(swap.ksw_total, swap.ksw_used));
     }
     return out;
 #else

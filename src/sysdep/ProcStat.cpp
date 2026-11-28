@@ -13,10 +13,15 @@
 #else
 #include <utmpx.h>
 #endif
+#if defined(Q_OS_FREEBSD)
+#include "FreeBsdSysctl.h"
+#include <sys/user.h>
+#endif
 
 namespace {
 ProcStat::ReadFn g_readOverride = nullptr;
 
+#if !defined(Q_OS_FREEBSD)
 bool isPidDir(const QString &name)
 {
     if (name.isEmpty()) return false;
@@ -25,6 +30,7 @@ bool isPidDir(const QString &name)
     }
     return true;
 }
+#endif
 
 } // namespace
 
@@ -50,6 +56,12 @@ ProcInfo ProcStat::read()
         const QStringList lines = QString::fromLocal8Bit(p.readAllStandardOutput())
                                       .split(QLatin1Char('\n'), Qt::SkipEmptyParts);
         out.processes = lines.size();
+    }
+#elif defined(Q_OS_FREEBSD)
+    const auto processes = FreeBsdSysctl::readArray<kinfo_proc>("kern.proc.all", 64 * 1024 * 1024);
+    for (const auto &process : processes) {
+        if (process.ki_structsize == sizeof(kinfo_proc) && process.ki_pid > 0)
+            ++out.processes;
     }
 #else
     const QFileInfoList procEntries =

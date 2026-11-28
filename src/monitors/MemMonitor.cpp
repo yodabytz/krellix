@@ -59,7 +59,7 @@ void MemMonitor::tick()
 {
     const MemInfo m = MemStat::read();
     if (!m.valid()) {
-        if (m_memText) m_memText->setText(QStringLiteral("(no /proc/meminfo)"));
+        if (m_memText) m_memText->setText(QStringLiteral("Memory unavailable"));
         if (m_memMeter) {
             m_memMeter->setValue(0.0);
             m_memMeter->setText(QString());

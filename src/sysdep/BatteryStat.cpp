@@ -1,6 +1,9 @@
 #include "BatteryStat.h"
 #ifdef Q_OS_WIN
 #include <qt_windows.h>
+#elif defined(Q_OS_FREEBSD)
+#include "FreeBsdSysctl.h"
+#include <dev/acpica/acpiio.h>
 #endif
 
 #include <QDir>
@@ -14,6 +17,7 @@ namespace {
 
 BatteryStat::ReadFn g_readOverride = nullptr;
 
+#if !defined(Q_OS_FREEBSD)
 QString readTrimmed(const QString &path)
 {
     QFile f(path);
@@ -40,6 +44,7 @@ bool acIsOnline()
     return false;
 #endif
 }
+#endif
 
 #if defined(Q_OS_MACOS)
 QString runProgram(const QString &program, const QStringList &args, int timeoutMs = 1200)
@@ -148,6 +153,26 @@ BatteryInfo BatteryStat::read()
     return out;
 #elif defined(Q_OS_MACOS)
     return readMacBattery();
+#elif defined(Q_OS_FREEBSD)
+    const auto percent = FreeBsdSysctl::read<int>("hw.acpi.battery.life");
+    const auto state = FreeBsdSysctl::read<int>("hw.acpi.battery.state");
+    if (!percent || *percent < 0 || *percent > 100
+        || (state && *state == ACPI_BATT_STAT_NOT_PRESENT))
+        return out;
+    out.present = true;
+    out.percent = *percent;
+    out.batteryName = QStringLiteral("Battery");
+    out.acOnline = FreeBsdSysctl::read<int>("hw.acpi.acline").value_or(0) == 1;
+    if (state && (*state & ACPI_BATT_STAT_CHARGING))
+        out.status = QStringLiteral("Charging");
+    else if (state && (*state & ACPI_BATT_STAT_DISCHARG))
+        out.status = QStringLiteral("Discharging");
+    else
+        out.status = out.acOnline && *percent == 100 ? QStringLiteral("Full") : QStringLiteral("Unknown");
+    const auto minutes = FreeBsdSysctl::read<int>("hw.acpi.battery.time");
+    if (minutes && *minutes >= 0)
+        out.timeRemainSec = qint64(*minutes) * 60;
+    return out;
 #else
     QDir ps(QStringLiteral("/sys/class/power_supply"));
     if (!ps.exists()) return out;

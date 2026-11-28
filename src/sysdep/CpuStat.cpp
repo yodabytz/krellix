@@ -13,6 +13,11 @@
 #include <mach/mach_host.h>
 #include <mach/processor_info.h>
 #include <mach/vm_map.h>
+#elif defined(Q_OS_FREEBSD)
+#include "FreeBsdSysctl.h"
+#include <sys/resource.h>
+
+#include <array>
 #endif
 
 Q_LOGGING_CATEGORY(lcCpuStat, "krellix.sysdep.cpu")
@@ -28,7 +33,9 @@ void CpuStat::setReadOverride(CpuStat::ReadFn fn)
 
 namespace {
 
+#if !defined(Q_OS_FREEBSD)
 constexpr qint64 kProcStatMaxBytes = 256 * 1024;  // hard cap; /proc/stat is tiny
+#endif
 
 #if defined(Q_OS_WIN)
 struct SystemProcessorPerformanceInformation {
@@ -168,6 +175,7 @@ QList<CpuSample> readMacCpuStat()
 }
 #endif
 
+#if !defined(Q_OS_FREEBSD)
 // Parse one "cpu" or "cpuN" line into a CpuSample. Returns false on malformed.
 bool parseCpuLine(const QByteArray &line, CpuSample &out)
 {
@@ -209,6 +217,7 @@ bool parseCpuLine(const QByteArray &line, CpuSample &out)
     out.guestNice = field(9);
     return true;
 }
+#endif
 
 } // namespace
 
@@ -219,6 +228,31 @@ QList<CpuSample> CpuStat::read()
     return readWindowsCpuStat();
 #elif defined(Q_OS_MACOS)
     return readMacCpuStat();
+#elif defined(Q_OS_FREEBSD)
+    const auto total = FreeBsdSysctl::read<std::array<long, CPUSTATES>>("kern.cp_time");
+    if (!total) return {};
+
+    const auto sample = [](const long *ticks, int index) {
+        CpuSample cpu;
+        cpu.index = index;
+        cpu.name = index < 0 ? QStringLiteral("cpu") : QStringLiteral("cpu%1").arg(index);
+        // FreeBSD exports cumulative counters as native longs.
+        cpu.user = static_cast<unsigned long>(ticks[CP_USER]);
+        cpu.nice = static_cast<unsigned long>(ticks[CP_NICE]);
+        cpu.sys = static_cast<unsigned long>(ticks[CP_SYS]);
+        cpu.irq = static_cast<unsigned long>(ticks[CP_INTR]);
+        cpu.idle = static_cast<unsigned long>(ticks[CP_IDLE]);
+        return cpu;
+    };
+    QList<CpuSample> out{sample(total->data(), -1)};
+    const auto cores = FreeBsdSysctl::readArray<std::array<long, CPUSTATES>>(
+        "kern.cp_times", 1024 * 1024);
+    for (size_t i = 0; i < cores.size(); ++i) {
+        const auto cpu = sample(cores[i].data(), static_cast<int>(i));
+        if (cpu.totalAll() != 0)
+            out.append(cpu);
+    }
+    return out;
 #else
     QFile f(QStringLiteral("/proc/stat"));
     if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
