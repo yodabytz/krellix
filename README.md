@@ -6,7 +6,7 @@ A skinny vertical panel of stacked "krell" monitors — CPU, memory, disk, net, 
 and more — driven by a clean-sheet native theme format that any user can author.
 
 **[Download Krellix](https://cerberix.org/extras/krellix/#downloads)** for Linux,
-Intel Mac, or Windows.
+Intel Mac, or Windows, or get the shared source archive to build on FreeBSD.
 
 ## Install
 
@@ -31,7 +31,11 @@ See the [plugin catalog](https://cerberix.org/extras/krellix/plugins/) and
 
 ## Build
 
-Requires Qt 6.2+ and a C++17 compiler.
+The same source archive builds on Linux, macOS, Windows, and FreeBSD. Use
+Qt 6 and a C++17 compiler for your target OS and architecture. The build
+commands below run from the extracted source directory.
+
+### Linux
 
 ```bash
 sudo apt install qt6-base-dev cmake g++   # Debian/Ubuntu
@@ -44,6 +48,30 @@ Run with a specific theme:
 
 ```bash
 ./build/bin/krellix --theme default
+```
+
+### macOS
+
+With the Xcode command-line tools and Homebrew's Qt 6, CMake, and Ninja installed:
+
+```sh
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix qtbase)"
+cmake --build build
+./build/bin/krellix
+```
+
+### Windows x64
+
+Use the MSYS2 UCRT64 shell with the `mingw-w64-ucrt-x86_64-` packages for
+GCC, CMake, Ninja, and Qt 6 Base. First build the sensor helper with
+[`packaging/windows/build-sensors.ps1`](packaging/windows/build-sensors.ps1)
+and the Libre Hardware Monitor archive pinned by that script. Then pass
+the helper's output directory to CMake:
+
+```sh
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DKRELLIX_SENSOR_DIR=C:/path/to/sensors
+cmake --build build
+./build/sensors-candidate/krellix.exe
 ```
 
 ### FreeBSD
