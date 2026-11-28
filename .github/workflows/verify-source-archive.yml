@@ -16,9 +16,9 @@ jobs:
         run: |
           $src = Join-Path $env:RUNNER_TEMP 'krellix-source.tar.gz'
           $hostZip = Join-Path $env:RUNNER_TEMP 'krellix-host.zip'
-          Invoke-WebRequest 'https://repo.cerberix.org/source/krellix-0.1.2-source-380b1b6.tar.gz' -OutFile $src
+          Invoke-WebRequest 'https://repo.cerberix.org/source/krellix-0.1.2-source-7ca4949.tar.gz' -OutFile $src
           Invoke-WebRequest 'https://repo.cerberix.org/windows/krellix-0.1.2-windows-preview.18-x86_64.zip' -OutFile $hostZip
-          if ((Get-FileHash $src).Hash -ne 'f5c8afe8c42be1faa0c6ef33a422e33d700ed0daf09ce5060c563afdfa4daffa') { throw 'Unexpected source archive' }
+          if ((Get-FileHash $src).Hash -ne '490ca20074ed518e2817ef407dc83b06b8ac49f85887487f69f427875ecb2762') { throw 'Unexpected source archive' }
           if ((Get-FileHash $hostZip).Hash -ne '6c631eeb0f15fe40dffa3c1ff946550f5dffd301955ebc3c65dbe8c052346112') { throw 'Unexpected sensor helper archive' }
           tar -xzf $src
           if ($LASTEXITCODE -ne 0) { throw 'Could not extract source archive' }
@@ -37,7 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           export QT_FORCE_STDERR_LOGGING=1
-          cmake -S krellix-0.1.2-source-380b1b6 -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
+          cmake -S krellix-0.1.2-source-7ca4949 -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON \
             "-DKRELLIX_SENSOR_DIR=$(cygpath -m "$RUNNER_TEMP")/portable/Krellix/sensors"
           cmake --build build --target krellix windows-sensors windows-core -j 4
           ctest --test-dir build -R '^windows-(sensors|core|remote-isolation)$' --output-on-failure
