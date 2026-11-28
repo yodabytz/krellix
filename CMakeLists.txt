@@ -616,14 +616,11 @@ if(BUILD_TESTING)
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
-    foreach(target krellix krellixd settings-lifecycle)
+    foreach(target krellix krellixd chart-panel-layout settings-lifecycle)
         if(TARGET ${target})
             target_link_libraries(${target} PRIVATE devstat kvm)
         endif()
     endforeach()
-    if(TARGET chart-panel-layout)
-        target_link_libraries(chart-panel-layout PRIVATE devstat)
-    endif()
     if(BUILD_TESTING)
         qt_add_executable(freebsd-telemetry tests/freebsd-telemetry.cpp
             src/sysdep/CpuStat.cpp src/sysdep/MemStat.cpp src/sysdep/ProcStat.cpp
